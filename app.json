@@ -1,22 +1,26 @@
 {
   "expo": {
-    "name": "taxi_front",
-    "slug": "taxi_front",
+    "name": "Taxi App",
+    "slug": "taxi-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icon.svg",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/splash.svg",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#007AFF"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.taxiapp",
       "infoPlist": {
         "NSCameraUsageDescription": "Цей додаток використовує камеру для верифікації водія та його автомобіля",
         "NSPhotoLibraryUsageDescription": "Цей додаток використовує доступ до галереї для вибору фотографій"
@@ -24,10 +28,11 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/icon.svg",
+        "backgroundColor": "#007AFF"
       },
       "edgeToEdgeEnabled": true,
+      "package": "com.taxiapp",
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
@@ -35,7 +40,16 @@
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/icon.svg"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Додатку потрібен доступ до ваших фотографій для завантаження документів."
+        }
+      ]
+    ],
+    "sdkVersion": "50.0.5"
   }
 }
