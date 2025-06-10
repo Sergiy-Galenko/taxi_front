@@ -1,19 +1,18 @@
-import React, { useState, type FC } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { TextInput, Button, Text, IconButton, HelperText } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
-import type { NavigationProp } from '../../types/navigation';
-import { getEmailError, getPasswordError } from '../../utils/validation';
+import React, { FC, useState } from 'react';
+import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, Animated } from 'react-native';
+import { Button, Text } from 'react-native-paper';
 import * as Animatable from 'react-native-animatable';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../types/navigation';
+import { CustomInput } from '../../components/CustomInput';
+import { getEmailError, getPasswordError } from '../../utils/validation';
+
+type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
 const Login: FC = () => {
-  const navigation = useNavigation<NavigationProp>();
+  const navigation = useNavigation<LoginScreenNavigationProp>();
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState({
     email: '',
     password: '',
   });
@@ -21,138 +20,167 @@ const Login: FC = () => {
     email: false,
     password: false,
   });
+  const [errors, setErrors] = useState({
+    email: '',
+    password: '',
+  });
 
-  const validateForm = () => {
-    const emailError = getEmailError(formData.email);
-    const passwordError = getPasswordError(formData.password);
+  const buttonScale = React.useRef(new Animated.Value(1)).current;
 
-    setErrors({
-      email: emailError || '',
-      password: passwordError || '',
-    });
+  const animateButton = (scale: number) => {
+    Animated.spring(buttonScale, {
+      toValue: scale,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 7,
+    }).start();
+  };
 
-    return !emailError && !passwordError;
+  const handleBlur = (field: keyof typeof touched) => {
+    setTouched({ ...touched, [field]: true });
+    validateField(field);
+  };
+
+  const validateField = (field: keyof typeof formData) => {
+    let error = '';
+    switch (field) {
+      case 'email':
+        const emailError = getEmailError(formData.email);
+        error = emailError || '';
+        break;
+      case 'password':
+        const passwordError = getPasswordError(formData.password);
+        error = passwordError || '';
+        break;
+    }
+    setErrors({ ...errors, [field]: error });
   };
 
   const handleLogin = () => {
-    if (validateForm()) {
-      // TODO: Implement login logic
-      console.log('Login data:', formData);
-      navigation.navigate('Home');
-    }
-  };
+    // Validate all fields
+    Object.keys(formData).forEach((field) => {
+      validateField(field as keyof typeof formData);
+    });
 
-  const handleBlur = (field: 'email' | 'password') => {
-    setTouched(prev => ({ ...prev, [field]: true }));
-    if (field === 'email') {
-      setErrors(prev => ({ ...prev, email: getEmailError(formData.email) || '' }));
-    } else {
-      setErrors(prev => ({ ...prev, password: getPasswordError(formData.password) || '' }));
+    // Check if there are any errors
+    const hasErrors = Object.values(errors).some((error) => error !== '');
+    if (hasErrors) {
+      return;
     }
+
+    // TODO: Implement login logic
+    navigation.navigate('Home');
   };
 
   return (
-    <View style={styles.container}>
-      <Animatable.View 
-        animation="fadeInUp" 
-        duration={1000} 
-        style={styles.content}
-      >
-        <Animatable.View animation="fadeIn" delay={300}>
-          <Text style={styles.title}>Вхід</Text>
-          <Text style={styles.subtitle}>Увійдіть до свого облікового запису</Text>
-        </Animatable.View>
-
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <View style={styles.container}>
         <Animatable.View 
-          animation="slideInUp" 
-          delay={500} 
-          style={styles.form}
+          animation="fadeInUp" 
+          duration={1000} 
+          style={styles.content}
         >
-          <TextInput
-            mode="outlined"
-            label="Email"
-            value={formData.email}
-            onChangeText={(text) => setFormData({ ...formData, email: text })}
-            onBlur={() => handleBlur('email')}
-            style={styles.input}
-            left={<TextInput.Icon icon="email" />}
-            error={touched.email && !!errors.email}
-          />
-          <HelperText type="error" visible={touched.email && !!errors.email}>
-            {errors.email}
-          </HelperText>
-
-          <TextInput
-            mode="outlined"
-            label="Пароль"
-            value={formData.password}
-            onChangeText={(text) => setFormData({ ...formData, password: text })}
-            onBlur={() => handleBlur('password')}
-            secureTextEntry={!showPassword}
-            style={styles.input}
-            left={<TextInput.Icon icon="lock" />}
-            right={
-              <TextInput.Icon
-                icon={showPassword ? 'eye-off' : 'eye'}
-                onPress={() => setShowPassword(!showPassword)}
-              />
-            }
-            error={touched.password && !!errors.password}
-          />
-          <HelperText type="error" visible={touched.password && !!errors.password}>
-            {errors.password}
-          </HelperText>
-
-          <Animatable.View 
-            animation="fadeIn" 
-            delay={700} 
-            style={styles.buttonContainer}
-          >
-            <Button
-              mode="contained"
-              onPress={handleLogin}
-              style={styles.button}
-              icon="login"
-            >
-              Увійти
-            </Button>
+          <Animatable.View animation="fadeIn" delay={300}>
+            <Text style={styles.title}>Вхід</Text>
+            <Text style={styles.subtitle}>Увійдіть до свого облікового запису</Text>
           </Animatable.View>
 
           <Animatable.View 
-            animation="fadeIn" 
-            delay={900} 
-            style={styles.registrationContainer}
+            animation="slideInUp" 
+            delay={500} 
+            style={styles.form}
           >
-            <Text style={styles.registrationText}>Немає облікового запису?</Text>
-            <View style={styles.registrationButtons}>
-              <Button
-                mode="outlined"
-                onPress={() => navigation.navigate('PassengerRegistration')}
-                style={styles.registrationButton}
-                icon="account"
-              >
-                Реєстрація пасажира
-              </Button>
-              <Button
-                mode="outlined"
-                onPress={() => navigation.navigate('DriverRegistration')}
-                style={styles.registrationButton}
-                icon="car"
-              >
-                Реєстрація водія
-              </Button>
-            </View>
+            <CustomInput
+              label="Email"
+              value={formData.email}
+              onChangeText={(text) => setFormData({ ...formData, email: text })}
+              onBlur={() => handleBlur('email')}
+              error={touched.email ? errors.email : ''}
+              icon="email"
+              keyboardType="email-address"
+              placeholder="Введіть ваш email"
+            />
+
+            <CustomInput
+              label="Пароль"
+              value={formData.password}
+              onChangeText={(text) => setFormData({ ...formData, password: text })}
+              onBlur={() => handleBlur('password')}
+              error={touched.password ? errors.password : ''}
+              secureTextEntry
+              icon="lock"
+              placeholder="Введіть ваш пароль"
+            />
+
+            <Animatable.View 
+              animation="fadeIn" 
+              delay={700} 
+              style={styles.buttonContainer}
+            >
+              <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+                <Button
+                  mode="contained"
+                  onPress={handleLogin}
+                  style={styles.button}
+                  icon="login"
+                  contentStyle={styles.buttonContent}
+                  textColor="#FFF"
+                  onPressIn={() => animateButton(0.95)}
+                  onPressOut={() => animateButton(1)}
+                >
+                  Увійти
+                </Button>
+              </Animated.View>
+            </Animatable.View>
+
+            <Animatable.View 
+              animation="fadeIn" 
+              delay={900} 
+              style={styles.registrationContainer}
+            >
+              <Text style={styles.registrationText}>Немає облікового запису?</Text>
+              <View style={styles.registrationButtons}>
+                <Animatable.View animation="fadeInLeft" delay={1000}>
+                  <Button
+                    mode="outlined"
+                    onPress={() => navigation.navigate('PassengerRegistration')}
+                    style={styles.registrationButton}
+                    icon="account"
+                    contentStyle={styles.buttonContent}
+                    textColor="#FF3B30"
+                    onPressIn={() => animateButton(0.95)}
+                    onPressOut={() => animateButton(1)}
+                  >
+                    Реєстрація пасажира
+                  </Button>
+                </Animatable.View>
+                <Animatable.View animation="fadeInRight" delay={1100}>
+                  <Button
+                    mode="outlined"
+                    onPress={() => navigation.navigate('DriverRegistration')}
+                    style={styles.registrationButton}
+                    icon="car"
+                    contentStyle={styles.buttonContent}
+                    textColor="#FF3B30"
+                    onPressIn={() => animateButton(0.95)}
+                    onPressOut={() => animateButton(1)}
+                  >
+                    Реєстрація водія
+                  </Button>
+                </Animatable.View>
+              </View>
+            </Animatable.View>
           </Animatable.View>
         </Animatable.View>
-      </Animatable.View>
-    </View>
+      </View>
+    </TouchableWithoutFeedback>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#000000',
   },
   content: {
     flex: 1,
@@ -160,53 +188,49 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 10,
+    fontSize: 34,
+    fontWeight: '700',
+    color: '#FF3B30',
+    marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 30,
+    fontSize: 17,
+    color: '#FFFFFF',
+    marginBottom: 20,
     textAlign: 'center',
   },
   form: {
-    gap: 15,
-  },
-  input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    height: 50,
+    gap: 5,
   },
   buttonContainer: {
-    marginTop: 20,
+    marginTop: 15,
   },
   button: {
-    height: 50,
-    justifyContent: 'center',
-    borderRadius: 10,
-    backgroundColor: '#007AFF',
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#FF3B30',
+  },
+  buttonContent: {
+    height: 56,
   },
   registrationContainer: {
-    marginTop: 20,
+    marginTop: 15,
     alignItems: 'center',
   },
   registrationText: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 15,
+    fontSize: 17,
+    color: '#FFFFFF',
+    marginBottom: 10,
   },
   registrationButtons: {
     width: '100%',
-    gap: 10,
+    gap: 5,
   },
   registrationButton: {
-    height: 50,
-    justifyContent: 'center',
-    borderRadius: 10,
+    height: 56,
+    borderRadius: 16,
+    borderColor: '#FF3B30',
   },
 });
 

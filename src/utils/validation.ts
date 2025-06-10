@@ -35,77 +35,77 @@ export const validateCarNumber = (number: string): boolean => {
 
 export const getEmailError = (email: string): string | null => {
   if (!email) {
-    return 'Email is required';
+    return 'Електронна пошта обов\'язкова';
   }
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
-    return 'Please enter a valid email address';
+    return 'Невірний формат електронної пошти';
   }
   return null;
 };
 
 export const getPasswordError = (password: string): string | null => {
   if (!password) {
-    return 'Password is required';
+    return 'Пароль обов\'язковий';
   }
   if (password.length < 8) {
-    return 'Password must be at least 8 characters long';
+    return 'Пароль повинен містити щонайменше 8 символів';
   }
   if (!/[A-Z]/.test(password)) {
-    return 'Password must contain at least one uppercase letter';
+    return 'Пароль повинен містити щонайменше одну велику літеру';
   }
   if (!/[a-z]/.test(password)) {
-    return 'Password must contain at least one lowercase letter';
+    return 'Пароль повинен містити щонайменше одну малу літеру';
   }
   if (!/[0-9]/.test(password)) {
-    return 'Password must contain at least one number';
+    return 'Пароль повинен містити щонайменше одну цифру';
   }
   if (!/[!@#$%^&*]/.test(password)) {
-    return 'Password must contain at least one special character (!@#$%^&*)';
+    return 'Пароль повинен містити щонайменше один спеціальний символ (!@#$%^&*)';
   }
   return null;
 };
 
 export const getPhoneError = (phone: string): string | null => {
   if (!phone) {
-    return 'Phone number is required';
+    return 'Номер телефону обов\'язковий';
   }
-  const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+  const phoneRegex = /^\+?[0-9]{10,12}$/;
   if (!phoneRegex.test(phone)) {
-    return 'Please enter a valid phone number';
+    return 'Невірний формат номеру телефону';
   }
   return null;
 };
 
-export const getFullNameError = (name: string): string | null => {
-  if (!name) {
-    return 'Full name is required';
+export const getFullNameError = (fullName: string): string | null => {
+  if (!fullName) {
+    return 'Повне ім\'я обов\'язкове';
   }
-  if (name.length < 2) {
-    return 'Full name must be at least 2 characters long';
+  if (fullName.length < 2) {
+    return 'Ім\'я повинно містити щонайменше 2 символи';
   }
-  if (!/^[a-zA-Z\s]+$/.test(name)) {
-    return 'Full name can only contain letters and spaces';
-  }
-  return null;
-};
-
-export const getLicenseNumberError = (license: string): string | null => {
-  if (!license) {
-    return 'License number is required';
-  }
-  if (license.length < 5) {
-    return 'License number must be at least 5 characters long';
+  if (!/^[а-яА-ЯіІїЇєЄґҐa-zA-Z\s-]+$/.test(fullName)) {
+    return 'Ім\'я може містити тільки літери, пробіли та дефіс';
   }
   return null;
 };
 
-export const getCarNumberError = (number: string): string | null => {
-  if (!number) {
-    return 'Car number is required';
+export const getLicenseNumberError = (licenseNumber: string): string | null => {
+  if (!licenseNumber) {
+    return 'Номер водійського посвідчення обов\'язковий';
   }
-  if (number.length < 4) {
-    return 'Car number must be at least 4 characters long';
+  if (!/^[A-Z]{2}\d{6}$/.test(licenseNumber)) {
+    return 'Невірний формат номеру водійського посвідчення (наприклад: AB123456)';
+  }
+  return null;
+};
+
+export const getCarNumberError = (carNumber: string): string | null => {
+  if (!carNumber) {
+    return 'Номер автомобіля обов\'язковий';
+  }
+  if (!/^[A-Z]{2}\d{4}[A-Z]{2}$/.test(carNumber)) {
+    return 'Невірний формат номеру автомобіля (наприклад: AA1234BB)';
   }
   return null;
 }; 

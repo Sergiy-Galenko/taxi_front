@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet, Animated, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { TextInput, Button, Text, IconButton, HelperText } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../../../types/navigation';
@@ -22,63 +22,65 @@ export default function DriverPersonalInfo() {
   };
 
   return (
-    <View style={styles.container}>
-      <IconButton
-        icon="arrow-left"
-        size={24}
-        onPress={() => navigation.goBack()}
-        style={styles.backButton}
-      />
-
-      <Animatable.View 
-        animation="fadeInUp" 
-        duration={1000} 
-        style={styles.content}
-      >
-        <Animatable.View animation="fadeIn" delay={300}>
-          <Text style={styles.title}>Ваші персональні дані</Text>
-          <Text style={styles.subtitle}>Вкажіть своє повне ім'я для реєстрації</Text>
-        </Animatable.View>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <View style={styles.container}>
+        <IconButton
+          icon="arrow-left"
+          size={24}
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        />
 
         <Animatable.View 
-          animation="slideInUp" 
-          delay={500} 
-          style={styles.form}
+          animation="fadeInUp" 
+          duration={1000} 
+          style={styles.content}
         >
-          <TextInput
-            mode="outlined"
-            label="Повне ім'я"
-            value={fullName}
-            onChangeText={setFullName}
-            onBlur={() => {
-              setTouched(true);
-              setError(getFullNameError(fullName) || '');
-            }}
-            style={styles.input}
-            left={<TextInput.Icon icon="account" />}
-            error={touched && !!error}
-          />
-          <HelperText type="error" visible={touched && !!error}>
-            {error}
-          </HelperText>
+          <Animatable.View animation="fadeIn" delay={300}>
+            <Text style={styles.title}>Ваші персональні дані</Text>
+            <Text style={styles.subtitle}>Вкажіть своє повне ім'я для реєстрації</Text>
+          </Animatable.View>
 
           <Animatable.View 
-            animation="fadeIn" 
-            delay={700} 
-            style={styles.buttonContainer}
+            animation="slideInUp" 
+            delay={500} 
+            style={styles.form}
           >
-            <Button
-              mode="contained"
-              onPress={handleNext}
-              style={styles.button}
-              icon="arrow-right"
+            <TextInput
+              mode="outlined"
+              label="Повне ім'я"
+              value={fullName}
+              onChangeText={setFullName}
+              onBlur={() => {
+                setTouched(true);
+                setError(getFullNameError(fullName) || '');
+              }}
+              style={styles.input}
+              left={<TextInput.Icon icon="account" />}
+              error={touched && !!error}
+            />
+            <HelperText type="error" visible={touched && !!error}>
+              {error}
+            </HelperText>
+
+            <Animatable.View 
+              animation="fadeIn" 
+              delay={700} 
+              style={styles.buttonContainer}
             >
-              Далі
-            </Button>
+              <Button
+                mode="contained"
+                onPress={handleNext}
+                style={styles.button}
+                icon="arrow-right"
+              >
+                Далі
+              </Button>
+            </Animatable.View>
           </Animatable.View>
         </Animatable.View>
-      </Animatable.View>
-    </View>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -108,23 +110,22 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#666',
-    marginBottom: 30,
+    marginBottom: 20,
     textAlign: 'center',
   },
   form: {
-    gap: 15,
+    gap: 5,
   },
   input: {
     backgroundColor: '#f5f5f5',
     borderRadius: 10,
-    paddingHorizontal: 15,
-    height: 50,
+    height: 45,
   },
   buttonContainer: {
-    marginTop: 20,
+    marginTop: 15,
   },
   button: {
-    height: 50,
+    height: 45,
     justifyContent: 'center',
     borderRadius: 10,
     backgroundColor: '#007AFF',
