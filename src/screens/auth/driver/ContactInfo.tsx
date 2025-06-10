@@ -6,7 +6,7 @@ import { NavigationProp } from '../../../types/navigation';
 import { getEmailError, getPhoneError } from '../../../utils/validation';
 import * as Animatable from 'react-native-animatable';
 
-export const DriverContactInfo = () => {
+export default function DriverContactInfo() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
   const { fullName } = route.params as { fullName: string };
@@ -125,7 +125,7 @@ export const DriverContactInfo = () => {
       </Animatable.View>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {

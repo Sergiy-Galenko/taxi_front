@@ -5,15 +5,45 @@ export type RootStackParamList = {
   PassengerRegistration: undefined;
   DriverRegistration: undefined;
   DriverPersonalInfo: undefined;
-  DriverContactInfo: undefined;
-  DriverCarInfo: undefined;
-  DriverLicenseInfo: undefined;
-  DriverPasswordSetup: undefined;
-  DriverVerification: undefined;
+  DriverContactInfo: {
+    fullName: string;
+  };
+  DriverCarInfo: {
+    fullName: string;
+    email: string;
+    phone: string;
+  };
+  DriverLicenseInfo: {
+    fullName: string;
+    email: string;
+    phone: string;
+    carModel: string;
+    carColor: string;
+    carNumber: string;
+    yearsOfExperience: string;
+  };
+  DriverPasswordSetup: {
+    fullName: string;
+    email: string;
+    phone: string;
+    carModel: string;
+    carColor: string;
+    carNumber: string;
+    yearsOfExperience: string;
+    licenseNumber: string;
+  };
+  DriverVerification: {
+    fullName: string;
+    email: string;
+    phone: string;
+    carModel: string;
+    carColor: string;
+    carNumber: string;
+    yearsOfExperience: string;
+    licenseNumber: string;
+    password: string;
+  };
   Home: undefined;
 };
 
-export type NavigationProp = {
-  navigate: (screen: keyof RootStackParamList, params?: any) => void;
-  goBack: () => void;
-}; 
+export type NavigationProp = NativeStackNavigationProp<RootStackParamList>; 

@@ -6,7 +6,7 @@ import { NavigationProp } from '../../types/navigation';
 import { getFullNameError, getEmailError, getPhoneError, getPasswordError } from '../../utils/validation';
 import * as Animatable from 'react-native-animatable';
 
-export const PassengerRegistration = () => {
+export default function PassengerRegistration() {
   const navigation = useNavigation<NavigationProp>();
   const [formData, setFormData] = useState({
     fullName: '',
@@ -212,7 +212,7 @@ export const PassengerRegistration = () => {
       </Animatable.View>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {

@@ -6,7 +6,7 @@ import { NavigationProp } from '../../../types/navigation';
 import { getFullNameError } from '../../../utils/validation';
 import * as Animatable from 'react-native-animatable';
 
-export const DriverPersonalInfo = () => {
+export default function DriverPersonalInfo() {
   const navigation = useNavigation<NavigationProp>();
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
@@ -80,7 +80,7 @@ export const DriverPersonalInfo = () => {
       </Animatable.View>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {

@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, type FC } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { TextInput, Button, Text, IconButton, HelperText } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
-import { NavigationProp } from '../../types/navigation';
+import type { NavigationProp } from '../../types/navigation';
 import { getEmailError, getPasswordError } from '../../utils/validation';
 import * as Animatable from 'react-native-animatable';
 
-export const Login = () => {
+const Login: FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const [formData, setFormData] = useState({
     email: '',
@@ -147,7 +147,7 @@ export const Login = () => {
       </Animatable.View>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -208,4 +208,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 10,
   },
-}); 
+});
+
+export default Login; 

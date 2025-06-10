@@ -6,7 +6,7 @@ import { NavigationProp } from '../../../types/navigation';
 import { getPasswordError } from '../../../utils/validation';
 import * as Animatable from 'react-native-animatable';
 
-export const DriverPasswordSetup = () => {
+export default function DriverPasswordSetup() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
   const { 
@@ -180,7 +180,7 @@ export const DriverPasswordSetup = () => {
       </Animatable.View>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {

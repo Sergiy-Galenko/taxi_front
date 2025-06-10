@@ -6,7 +6,7 @@ import { NavigationProp } from '../../../types/navigation';
 import { getLicenseNumberError } from '../../../utils/validation';
 import * as Animatable from 'react-native-animatable';
 
-export const DriverLicenseInfo = () => {
+export default function DriverLicenseInfo() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
   const { 
@@ -109,7 +109,7 @@ export const DriverLicenseInfo = () => {
       </Animatable.View>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {

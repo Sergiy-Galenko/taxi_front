@@ -6,7 +6,7 @@ import { NavigationProp } from '../../../types/navigation';
 import * as ImagePicker from 'expo-image-picker';
 import * as Animatable from 'react-native-animatable';
 
-export const DriverVerification = () => {
+export default function DriverVerification() {
   const navigation = useNavigation<NavigationProp>();
   const [images, setImages] = useState({
     license: null as string | null,
@@ -136,7 +136,7 @@ export const DriverVerification = () => {
       </Animatable.View>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
