@@ -4,17 +4,17 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 
 // Auth Screens
-import Login from '../screens/auth/Login';
-import PassengerRegistration from '../screens/auth/PassengerRegistration';
-import DriverRegistration from '../screens/auth/driver/Registration';
+import { Login } from '../screens/auth/Login';
+import { PassengerRegistration } from '../screens/auth/PassengerRegistration';
+import { DriverRegistration } from '../screens/auth/DriverRegistration';
 
 // Driver Registration Screens
-import DriverPersonalInfo from '../screens/auth/driver/PersonalInfo';
-import DriverContactInfo from '../screens/auth/driver/ContactInfo';
-import DriverCarInfo from '../screens/auth/driver/CarInfo';
-import DriverLicenseInfo from '../screens/auth/driver/LicenseInfo';
-import DriverPasswordSetup from '../screens/auth/driver/PasswordSetup';
-import DriverVerification from '../screens/auth/driver/Verification';
+import { DriverPersonalInfo } from '../screens/auth/driver/PersonalInfo';
+import { DriverContactInfo } from '../screens/auth/driver/ContactInfo';
+import { DriverCarInfo } from '../screens/auth/driver/CarInfo';
+import { DriverLicenseInfo } from '../screens/auth/driver/LicenseInfo';
+import { DriverPasswordSetup } from '../screens/auth/driver/PasswordSetup';
+import { DriverVerification } from '../screens/auth/driver/Verification';
 
 // Main Screens
 import Home from '../screens/Home';
