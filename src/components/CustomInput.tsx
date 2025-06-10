@@ -3,6 +3,8 @@ import { StyleSheet, View, Text, TouchableOpacity, Animated } from 'react-native
 import { TextInput, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+type MaterialCommunityIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+
 interface CustomInputProps {
   label: string;
   value: string;
@@ -10,7 +12,7 @@ interface CustomInputProps {
   onBlur?: () => void;
   error?: string;
   secureTextEntry?: boolean;
-  icon?: string;
+  icon?: MaterialCommunityIconName;
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   placeholder?: string;
@@ -41,7 +43,7 @@ export const CustomInput: React.FC<CustomInputProps> = ({
     Animated.parallel([
       Animated.spring(scaleAnim, {
         toValue: focused ? 1.02 : 1,
-        useNativeDriver: true,
+        useNativeDriver: false,
         tension: 50,
         friction: 7,
       }),
@@ -188,6 +190,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     fontSize: 16,
     height: 56,
+    paddingVertical: 0,
+    textAlignVertical: 'center',
   },
   eyeIcon: {
     margin: 0,

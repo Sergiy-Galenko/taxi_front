@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect } from 'react';
+import React, { FC, useState } from 'react';
 import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, Animated } from 'react-native';
 import { Button, Text, Switch } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
@@ -34,25 +34,7 @@ const PassengerRegistration: FC = () => {
     confirmPassword: '',
   });
 
-  // Animation values
-  const fadeAnim = React.useRef(new Animated.Value(0)).current;
-  const slideAnim = React.useRef(new Animated.Value(50)).current;
   const buttonScale = React.useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: false,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 1000,
-        useNativeDriver: false,
-      }),
-    ]).start();
-  }, []);
 
   const animateButton = (scale: number) => {
     Animated.spring(buttonScale, {
@@ -111,29 +93,13 @@ const PassengerRegistration: FC = () => {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
-        <Animated.View 
-          style={[
-            styles.content,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <Animated.View style={{ opacity: fadeAnim }}>
+        <View style={styles.content}>
+          <View>
             <Text style={styles.title}>Реєстрація пасажира</Text>
             <Text style={styles.subtitle}>Створіть свій обліковий запис</Text>
-          </Animated.View>
+          </View>
 
-          <Animated.View 
-            style={[
-              styles.form,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
+          <View style={styles.form}>
             <CustomInput
               label="Повне ім'я"
               value={formData.fullName}
@@ -228,8 +194,8 @@ const PassengerRegistration: FC = () => {
                 Увійти
               </Button>
             </View>
-          </Animated.View>
-        </Animated.View>
+          </View>
+        </View>
       </View>
     </TouchableWithoutFeedback>
   );
