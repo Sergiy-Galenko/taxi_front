@@ -5,6 +5,7 @@ import { RootStackParamList } from '../types/navigation';
 
 // Auth Screens
 import Login from '../screens/auth/Login';
+import RoleSelection from '../screens/auth/RoleSelection';
 import PassengerRegistration from '../screens/auth/PassengerRegistration';
 import DriverRegistration from '../screens/auth/driver/Registration';
 
@@ -32,6 +33,7 @@ export default function AppNavigator() {
       >
         {/* Auth Stack */}
         <Stack.Screen name="Login" component={Login} />
+        <Stack.Screen name="RoleSelection" component={RoleSelection} />
         <Stack.Screen name="PassengerRegistration" component={PassengerRegistration} />
         <Stack.Screen name="DriverRegistration" component={DriverRegistration} />
 

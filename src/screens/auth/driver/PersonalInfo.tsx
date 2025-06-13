@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Animated, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, StyleSheet, Animated, TouchableWithoutFeedback, Keyboard, Dimensions } from 'react-native';
 import { TextInput, Button, Text, IconButton, HelperText } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../../../types/navigation';
 import { getFullNameError } from '../../../utils/validation';
 import * as Animatable from 'react-native-animatable';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+
+const { width, height } = Dimensions.get('window');
 
 export default function DriverPersonalInfo() {
   const navigation = useNavigation<NavigationProp>();
@@ -24,11 +28,22 @@ export default function DriverPersonalInfo() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
+        <LinearGradient
+          colors={['#1A1A1A', '#2D2D2D']}
+          style={styles.background}
+        />
+        
+        {/* Decorative elements */}
+        <View style={styles.decorativeCircle} />
+        <View style={[styles.decorativeCircle, styles.circle2]} />
+        <View style={[styles.decorativeCircle, styles.circle3]} />
+
         <IconButton
           icon="arrow-left"
           size={24}
           onPress={() => navigation.goBack()}
           style={styles.backButton}
+          iconColor="#FFFFFF"
         />
 
         <Animatable.View 
@@ -46,20 +61,36 @@ export default function DriverPersonalInfo() {
             delay={500} 
             style={styles.form}
           >
-            <TextInput
-              mode="outlined"
-              label="Повне ім'я"
-              value={fullName}
-              onChangeText={setFullName}
-              onBlur={() => {
-                setTouched(true);
-                setError(getFullNameError(fullName) || '');
-              }}
-              style={styles.input}
-              left={<TextInput.Icon icon="account" />}
-              error={touched && !!error}
-            />
-            <HelperText type="error" visible={touched && !!error}>
+            <BlurView intensity={20} style={styles.inputContainer}>
+              <TextInput
+                mode="outlined"
+                label="Повне ім'я"
+                value={fullName}
+                onChangeText={setFullName}
+                onBlur={() => {
+                  setTouched(true);
+                  setError(getFullNameError(fullName) || '');
+                }}
+                style={styles.input}
+                left={<TextInput.Icon icon="account" color="#FF3B30" />}
+                error={touched && !!error}
+                theme={{
+                  colors: {
+                    primary: '#FF3B30',
+                    error: '#FF3B30',
+                    text: '#FFFFFF',
+                    placeholder: 'rgba(255, 255, 255, 0.7)',
+                    background: 'transparent',
+                    onSurfaceVariant: 'rgba(255, 255, 255, 0.7)',
+                  },
+                }}
+                textColor="#FFFFFF"
+                outlineColor="transparent"
+                activeOutlineColor="transparent"
+                outlineStyle={{ borderRadius: 16 }}
+              />
+            </BlurView>
+            <HelperText type="error" visible={touched && !!error} style={styles.errorText}>
               {error}
             </HelperText>
 
@@ -68,14 +99,18 @@ export default function DriverPersonalInfo() {
               delay={700} 
               style={styles.buttonContainer}
             >
-              <Button
-                mode="contained"
-                onPress={handleNext}
-                style={styles.button}
-                icon="arrow-right"
-              >
-                Далі
-              </Button>
+              <BlurView intensity={20} style={styles.blurContainer}>
+                <Button
+                  mode="contained"
+                  onPress={handleNext}
+                  style={styles.button}
+                  contentStyle={styles.buttonContent}
+                  labelStyle={styles.buttonLabel}
+                  icon="arrow-right"
+                >
+                  Далі
+                </Button>
+              </BlurView>
             </Animatable.View>
           </Animatable.View>
         </Animatable.View>
@@ -87,7 +122,14 @@ export default function DriverPersonalInfo() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#1A1A1A',
+  },
+  background: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
   },
   backButton: {
     position: 'absolute',
@@ -97,37 +139,90 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
+    padding: 24,
     justifyContent: 'center',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 10,
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 16,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 20,
+    fontSize: 18,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: 32,
     textAlign: 'center',
+    lineHeight: 24,
   },
   form: {
-    gap: 5,
+    gap: 8,
+  },
+  inputContainer: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    height: 45,
+    backgroundColor: 'transparent',
+    borderRadius: 16,
+    height: 56,
+    fontSize: 16,
+  },
+  errorText: {
+    color: '#FF3B30',
+    fontSize: 14,
   },
   buttonContainer: {
-    marginTop: 15,
+    marginTop: 24,
+  },
+  blurContainer: {
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   button: {
-    height: 45,
-    justifyContent: 'center',
-    borderRadius: 10,
-    backgroundColor: '#007AFF',
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#FF3B30',
+    shadowColor: '#FF3B30',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  buttonContent: {
+    height: 56,
+  },
+  buttonLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  decorativeCircle: {
+    position: 'absolute',
+    width: width * 0.8,
+    height: width * 0.8,
+    borderRadius: width * 0.4,
+    backgroundColor: 'rgba(255, 59, 48, 0.05)',
+    top: -width * 0.4,
+    right: -width * 0.2,
+  },
+  circle2: {
+    width: width * 0.6,
+    height: width * 0.6,
+    borderRadius: width * 0.3,
+    backgroundColor: 'rgba(255, 59, 48, 0.03)',
+    top: height * 0.3,
+    left: -width * 0.2,
+  },
+  circle3: {
+    width: width * 0.4,
+    height: width * 0.4,
+    borderRadius: width * 0.2,
+    backgroundColor: 'rgba(255, 59, 48, 0.02)',
+    bottom: -width * 0.1,
+    right: -width * 0.1,
   },
 }); 

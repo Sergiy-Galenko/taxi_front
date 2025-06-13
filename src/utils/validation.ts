@@ -28,8 +28,9 @@ export const validateLicenseNumber = (license: string): boolean => {
 };
 
 export const validateCarNumber = (number: string): boolean => {
-  // Ukrainian car number format
-  const numberRegex = /^[A-Z]{2}\d{4}[A-Z]{2}$/;
+  // Ukrainian car number format with optional spaces
+  // Supports both Latin and Cyrillic letters
+  const numberRegex = /^[A-ZА-ЯІЇЄҐ]{2}\s?\d{4}\s?[A-ZА-ЯІЇЄҐ]{2}$/;
   return numberRegex.test(number);
 };
 
@@ -90,13 +91,18 @@ export const getFullNameError = (fullName: string): string | null => {
   return null;
 };
 
-export const getLicenseNumberError = (licenseNumber: string): string | null => {
+export const getLicenseNumberError = (licenseNumber: string | null): string | null => {
   if (!licenseNumber) {
     return 'Номер водійського посвідчення обов\'язковий';
   }
-  if (!/^[A-Z]{2}\d{6}$/.test(licenseNumber)) {
-    return 'Невірний формат номеру водійського посвідчення (наприклад: AB123456)';
+
+  // Формат "АВ 123456" або "1234-5678"
+  const licenseRegex = /^([А-ЯІЇЄҐ]{2}\s?\d{6}|\d{4}-\d{4})$/;
+  
+  if (!licenseRegex.test(licenseNumber)) {
+    return 'Невірний формат номеру водійського посвідчення (наприклад: АВ 123456 або 1234-5678)';
   }
+
   return null;
 };
 
@@ -104,8 +110,8 @@ export const getCarNumberError = (carNumber: string): string | null => {
   if (!carNumber) {
     return 'Номер автомобіля обов\'язковий';
   }
-  if (!/^[A-Z]{2}\d{4}[A-Z]{2}$/.test(carNumber)) {
-    return 'Невірний формат номеру автомобіля (наприклад: AA1234BB)';
+  if (!/^[A-ZА-ЯІЇЄҐ]{2}\s?\d{4}\s?[A-ZА-ЯІЇЄҐ]{2}$/.test(carNumber)) {
+    return 'Невірний формат номеру автомобіля (наприклад: AA 1234 BB або АА 1234 ББ)';
   }
   return null;
 }; 

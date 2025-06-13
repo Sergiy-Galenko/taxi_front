@@ -1,17 +1,47 @@
 import React, { FC, useState } from 'react';
-import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, Animated } from 'react-native';
+import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, Animated, Dimensions, ScrollView } from 'react-native';
 import { Button, Text, Switch } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
 import { CustomInput } from '../../components/CustomInput';
 import { getEmailError, getPasswordError, getPhoneError, getFullNameError } from '../../utils/validation';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import * as Animatable from 'react-native-animatable';
+
+const { width, height } = Dimensions.get('window');
 
 type PassengerRegistrationScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PassengerRegistration'>;
 
+interface FormData {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
+  acceptTerms: boolean;
+}
+
+interface FormErrors {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
+}
+
+interface FormTouched {
+  fullName: boolean;
+  email: boolean;
+  phone: boolean;
+  password: boolean;
+  confirmPassword: boolean;
+}
+
 const PassengerRegistration: FC = () => {
   const navigation = useNavigation<PassengerRegistrationScreenNavigationProp>();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     fullName: '',
     email: '',
     phone: '',
@@ -19,14 +49,14 @@ const PassengerRegistration: FC = () => {
     confirmPassword: '',
     acceptTerms: false,
   });
-  const [touched, setTouched] = useState({
+  const [touched, setTouched] = useState<FormTouched>({
     fullName: false,
     email: false,
     phone: false,
     password: false,
     confirmPassword: false,
   });
-  const [errors, setErrors] = useState({
+  const [errors, setErrors] = useState<FormErrors>({
     fullName: '',
     email: '',
     phone: '',
@@ -35,6 +65,43 @@ const PassengerRegistration: FC = () => {
   });
 
   const buttonScale = React.useRef(new Animated.Value(1)).current;
+
+  const generatePassword = () => {
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const numbers = '0123456789';
+    const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+    
+    const getRandomChar = (str: string): string => {
+      const index = Math.floor(Math.random() * str.length);
+      return str[index] || str[0];
+    };
+    
+    let password = '';
+    password += getRandomChar(uppercase);
+    password += getRandomChar(lowercase);
+    password += getRandomChar(numbers);
+    password += getRandomChar(symbols);
+    
+    // Add more random characters to reach 12 characters
+    const allChars = uppercase + lowercase + numbers + symbols;
+    for (let i = password.length; i < 12; i++) {
+      password += getRandomChar(allChars);
+    }
+    
+    // Shuffle the password
+    password = password.split('').sort(() => Math.random() - 0.5).join('');
+    
+    setFormData(prev => ({
+      ...prev,
+      password,
+      confirmPassword: password
+    }));
+    
+    // Validate the new password
+    validateField('password');
+    validateField('confirmPassword');
+  };
 
   const animateButton = (scale: number) => {
     Animated.spring(buttonScale, {
@@ -45,38 +112,38 @@ const PassengerRegistration: FC = () => {
     }).start();
   };
 
-  const handleBlur = (field: keyof typeof touched) => {
-    setTouched({ ...touched, [field]: true });
+  const handleBlur = (field: keyof FormTouched) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
     validateField(field);
   };
 
-  const validateField = (field: keyof typeof formData) => {
+  const validateField = (field: keyof FormData) => {
     let error = '';
     switch (field) {
       case 'fullName':
-        error = getFullNameError(formData.fullName);
+        error = getFullNameError(formData.fullName) || '';
         break;
       case 'email':
-        error = getEmailError(formData.email);
+        error = getEmailError(formData.email) || '';
         break;
       case 'phone':
-        error = getPhoneError(formData.phone);
+        error = getPhoneError(formData.phone) || '';
         break;
       case 'password':
-        error = getPasswordError(formData.password);
+        error = getPasswordError(formData.password) || '';
         break;
       case 'confirmPassword':
         error = formData.password !== formData.confirmPassword ? 'Паролі не співпадають' : '';
         break;
     }
-    setErrors({ ...errors, [field]: error });
+    setErrors(prev => ({ ...prev, [field]: error }));
   };
 
   const handleSubmit = () => {
     // Validate all fields
     Object.keys(formData).forEach((field) => {
       if (field !== 'acceptTerms') {
-        validateField(field as keyof typeof formData);
+        validateField(field as keyof FormData);
       }
     });
 
@@ -93,109 +160,152 @@ const PassengerRegistration: FC = () => {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
-        <View style={styles.content}>
-          <View>
-            <Text style={styles.title}>Реєстрація пасажира</Text>
-            <Text style={styles.subtitle}>Створіть свій обліковий запис</Text>
-          </View>
+        <LinearGradient
+          colors={['#1A1A1A', '#2D2D2D']}
+          style={styles.gradient}
+        >
+          <View style={styles.circle1} />
+          <View style={styles.circle2} />
+          <View style={styles.circle3} />
+        </LinearGradient>
 
-          <View style={styles.form}>
-            <CustomInput
-              label="Повне ім'я"
-              value={formData.fullName}
-              onChangeText={(text) => setFormData({ ...formData, fullName: text })}
-              onBlur={() => handleBlur('fullName')}
-              error={touched.fullName ? errors.fullName : ''}
-              icon="account"
-              autoCapitalize="words"
-              placeholder="Введіть ваше повне ім'я"
-            />
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <Animatable.View 
+            animation="fadeInUp" 
+            duration={1000} 
+            style={styles.content}
+          >
+            <Animatable.View animation="fadeIn" delay={300}>
+              <Text style={styles.title}>Реєстрація пасажира</Text>
+              <Text style={styles.subtitle}>Створіть свій обліковий запис</Text>
+            </Animatable.View>
 
-            <CustomInput
-              label="Email"
-              value={formData.email}
-              onChangeText={(text) => setFormData({ ...formData, email: text })}
-              onBlur={() => handleBlur('email')}
-              error={touched.email ? errors.email : ''}
-              icon="email"
-              keyboardType="email-address"
-              placeholder="Введіть ваш email"
-            />
-
-            <CustomInput
-              label="Телефон"
-              value={formData.phone}
-              onChangeText={(text) => setFormData({ ...formData, phone: text })}
-              onBlur={() => handleBlur('phone')}
-              error={touched.phone ? errors.phone : ''}
-              icon="phone"
-              keyboardType="phone-pad"
-              placeholder="Введіть ваш номер телефону"
-            />
-
-            <CustomInput
-              label="Пароль"
-              value={formData.password}
-              onChangeText={(text) => setFormData({ ...formData, password: text })}
-              onBlur={() => handleBlur('password')}
-              error={touched.password ? errors.password : ''}
-              secureTextEntry
-              icon="lock"
-              placeholder="Створіть пароль"
-            />
-
-            <CustomInput
-              label="Підтвердження паролю"
-              value={formData.confirmPassword}
-              onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
-              onBlur={() => handleBlur('confirmPassword')}
-              error={touched.confirmPassword ? errors.confirmPassword : ''}
-              secureTextEntry
-              icon="lock-check"
-              placeholder="Повторіть пароль"
-            />
-
-            <View style={styles.termsContainer}>
-              <Switch
-                value={formData.acceptTerms}
-                onValueChange={(value) => setFormData({ ...formData, acceptTerms: value })}
-                color="#FF3B30"
+            <Animatable.View 
+              animation="slideInUp" 
+              delay={500} 
+              style={styles.form}
+            >
+              <CustomInput
+                label="Повне ім'я"
+                value={formData.fullName}
+                onChangeText={(text) => setFormData({ ...formData, fullName: text })}
+                onBlur={() => handleBlur('fullName')}
+                error={touched.fullName ? errors.fullName : ''}
+                icon="account"
+                autoCapitalize="words"
+                placeholder="Введіть ваше повне ім'я"
               />
-              <Text style={styles.termsText}>
-                Я погоджуюсь з умовами використання та політикою конфіденційності
-              </Text>
-            </View>
 
-            <View style={styles.buttonContainer}>
-              <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
-                <Button
-                  mode="contained"
-                  onPress={handleSubmit}
-                  style={styles.button}
-                  icon="account-plus"
-                  contentStyle={styles.buttonContent}
-                  textColor="#FFF"
-                  disabled={!formData.acceptTerms}
-                  onPressIn={() => animateButton(0.95)}
-                  onPressOut={() => animateButton(1)}
-                >
-                  Зареєструватися
-                </Button>
-              </Animated.View>
-            </View>
+              <CustomInput
+                label="Email"
+                value={formData.email}
+                onChangeText={(text) => setFormData({ ...formData, email: text })}
+                onBlur={() => handleBlur('email')}
+                error={touched.email ? errors.email : ''}
+                icon="email"
+                keyboardType="email-address"
+                placeholder="Введіть ваш email"
+              />
 
-            <View style={styles.loginContainer}>
-              <Text style={styles.loginText}>Вже маєте обліковий запис?</Text>
-              <Button
-                mode="text"
-                onPress={() => navigation.navigate('Login')}
-                textColor="#FF3B30"
+              <CustomInput
+                label="Телефон"
+                value={formData.phone}
+                onChangeText={(text) => setFormData({ ...formData, phone: text })}
+                onBlur={() => handleBlur('phone')}
+                error={touched.phone ? errors.phone : ''}
+                icon="phone"
+                keyboardType="phone-pad"
+                placeholder="Введіть ваш номер телефону"
+              />
+
+              <CustomInput
+                label="Пароль"
+                value={formData.password}
+                onChangeText={(text) => setFormData({ ...formData, password: text })}
+                onBlur={() => handleBlur('password')}
+                error={touched.password ? errors.password : ''}
+                secureTextEntry
+                icon="lock"
+                placeholder="Створіть пароль"
+              />
+
+              <CustomInput
+                label="Підтвердження паролю"
+                value={formData.confirmPassword}
+                onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+                onBlur={() => handleBlur('confirmPassword')}
+                error={touched.confirmPassword ? errors.confirmPassword : ''}
+                secureTextEntry
+                icon="lock-check"
+                placeholder="Повторіть пароль"
+              />
+
+              <Animatable.View 
+                animation="fadeIn" 
+                delay={600} 
+                style={styles.generateButtonContainer}
               >
-                Увійти
-              </Button>
-            </View>
-          </View>
-        </View>
+                <Button
+                  mode="outlined"
+                  onPress={generatePassword}
+                  style={styles.generateButton}
+                  icon="dice-multiple"
+                  contentStyle={styles.generateButtonContent}
+                >
+                  Згенерувати надійний пароль
+                </Button>
+              </Animatable.View>
+
+              <View style={styles.termsContainer}>
+                <Switch
+                  value={formData.acceptTerms}
+                  onValueChange={(value) => setFormData({ ...formData, acceptTerms: value })}
+                  color="#FF3B30"
+                />
+                <Text style={styles.termsText}>
+                  Я погоджуюсь з умовами використання та політикою конфіденційності
+                </Text>
+              </View>
+
+              <Animatable.View 
+                animation="fadeIn" 
+                delay={700} 
+                style={styles.buttonContainer}
+              >
+                <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+                  <Button
+                    mode="contained"
+                    onPress={handleSubmit}
+                    style={styles.button}
+                    icon="account-plus"
+                    contentStyle={styles.buttonContent}
+                    disabled={!formData.acceptTerms}
+                    onPressIn={() => animateButton(0.95)}
+                    onPressOut={() => animateButton(1)}
+                  >
+                    Зареєструватися
+                  </Button>
+                </Animated.View>
+              </Animatable.View>
+
+              <View style={styles.loginContainer}>
+                <Text style={styles.loginText}>Вже маєте обліковий запис?</Text>
+                <Button
+                  mode="text"
+                  onPress={() => navigation.navigate('Login')}
+                  textColor="#FF3B30"
+                >
+                  Увійти
+                </Button>
+              </View>
+            </Animatable.View>
+          </Animatable.View>
+        </ScrollView>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -206,12 +316,54 @@ export default PassengerRegistration;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+  },
+  gradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  },
+  circle1: {
+    position: 'absolute',
+    width: width * 0.8,
+    height: width * 0.8,
+    borderRadius: width * 0.4,
+    backgroundColor: '#FF3B30',
+    opacity: 0.1,
+    top: -width * 0.2,
+    right: -width * 0.2,
+  },
+  circle2: {
+    position: 'absolute',
+    width: width * 0.6,
+    height: width * 0.6,
+    borderRadius: width * 0.3,
+    backgroundColor: '#FF3B30',
+    opacity: 0.1,
+    bottom: -width * 0.1,
+    left: -width * 0.1,
+  },
+  circle3: {
+    position: 'absolute',
+    width: width * 0.4,
+    height: width * 0.4,
+    borderRadius: width * 0.2,
+    backgroundColor: '#FF3B30',
+    opacity: 0.1,
+    top: height * 0.3,
+    right: -width * 0.1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   content: {
     flex: 1,
     padding: 20,
-    justifyContent: 'center',
+    paddingTop: 40,
   },
   title: {
     fontSize: 34,
@@ -227,13 +379,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   form: {
-    gap: 5,
+    gap: 15,
+  },
+  generateButtonContainer: {
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  generateButton: {
+    height: 48,
+    justifyContent: 'center',
+    borderRadius: 16,
+    borderColor: '#FF3B30',
+    backgroundColor: 'transparent',
+  },
+  generateButtonContent: {
+    height: 48,
   },
   termsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 10,
     marginBottom: 20,
+    padding: 15,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   termsText: {
     marginLeft: 10,
