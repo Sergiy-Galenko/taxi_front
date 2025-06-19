@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { TextInput, Button, Text, IconButton, HelperText, Switch } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NavigationProp } from '../../../types/navigation';
@@ -7,6 +7,12 @@ import { getPasswordError } from '../../../utils/validation';
 import * as Animatable from 'react-native-animatable';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../../../hooks/useTheme';
+import { useAuth } from '../../../hooks/useAuth';
+import { registerDriver } from '../../../services/api/driver';
+import { showMessage } from 'react-native-flash-message';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function DriverPasswordSetup() {
   const navigation = useNavigation<NavigationProp>();
@@ -45,6 +51,10 @@ export default function DriverPasswordSetup() {
     password: false,
     confirmPassword: false,
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
+  const { signIn } = useAuth();
 
   const validateForm = () => {
     const passwordError = getPasswordError(formData.password);
@@ -60,25 +70,52 @@ export default function DriverPasswordSetup() {
     return !passwordError && !confirmPasswordError;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!termsAccepted) {
+      showMessage({
+        message: 'Please accept the terms and conditions',
+        type: 'warning',
+      });
       return;
     }
 
     if (validateForm()) {
-      // TODO: Implement registration logic
-      console.log('Driver registration data:', {
-        fullName,
-        email,
-        phone,
-        carModel,
-        carColor,
-        carNumber,
-        yearsOfExperience,
-        licenseNumber,
-        password: formData.password,
-      });
-      navigation.navigate('DriverVerification');
+      try {
+        setIsLoading(true);
+        const registrationData = {
+          fullName,
+          email,
+          phone,
+          carModel,
+          carColor,
+          carNumber,
+          yearsOfExperience: parseInt(yearsOfExperience, 10),
+          licenseNumber,
+          password: formData.password,
+        };
+
+        const response = await registerDriver(registrationData);
+        
+        if (response.success && response.data) {
+          await AsyncStorage.setItem('driverId', response.data.driverId);
+          
+          await signIn(response.data.token);
+          
+          showMessage({
+            message: 'Registration successful',
+            type: 'success',
+          });
+          
+          navigation.navigate('DriverVerification' as never);
+        }
+      } catch (error) {
+        showMessage({
+          message: error instanceof Error ? error.message : 'Registration failed',
+          type: 'danger',
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -131,7 +168,7 @@ export default function DriverPasswordSetup() {
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.container}>
@@ -282,12 +319,16 @@ export default function DriverPasswordSetup() {
                     mode="contained"
                     onPress={handleSubmit}
                     style={styles.button}
-                    disabled={!termsAccepted}
+                    disabled={!termsAccepted || isLoading}
                     icon="check"
                     contentStyle={styles.buttonContent}
                     labelStyle={styles.buttonLabel}
                   >
-                    Завершити реєстрацію
+                    {isLoading ? (
+                      <ActivityIndicator color={theme.colors.background} />
+                    ) : (
+                      'Завершити реєстрацію'
+                    )}
                   </Button>
                 </BlurView>
               </Animatable.View>
