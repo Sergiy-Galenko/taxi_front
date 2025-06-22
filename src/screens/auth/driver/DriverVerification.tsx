@@ -41,7 +41,7 @@ export default function DriverVerification() {
             message: 'Your account has been verified',
             type: 'success',
           });
-          navigation.navigate('Home' as never);
+          navigation.navigate('Main' as never);
         } else if (response.data.driver.status === 'blocked') {
           showMessage({
             message: 'Your account has been blocked',
@@ -77,7 +77,7 @@ export default function DriverVerification() {
             message: 'Your account has been verified',
             type: 'success',
           });
-          navigation.navigate('Home' as never);
+          navigation.navigate('Main' as never);
         }
       }
     } catch (error) {

@@ -96,7 +96,7 @@ const Login: FC = () => {
       return;
     }
 
-    navigation.navigate('Home');
+    navigation.navigate('Main' as never);
   };
 
   return (

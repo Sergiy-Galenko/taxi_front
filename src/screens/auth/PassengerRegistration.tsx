@@ -42,12 +42,12 @@ interface FormTouched {
 const PassengerRegistration: FC = () => {
   const navigation = useNavigation<PassengerRegistrationScreenNavigationProp>();
   const [formData, setFormData] = useState<FormData>({
-    fullName: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
-    acceptTerms: false,
+    fullName: 'Test Passenger',
+    email: 'test@h.com',
+    phone: '2222222222',
+    password: 'Hh123456789!',
+    confirmPassword: 'Hh123456789!',
+    acceptTerms: true,
   });
   const [touched, setTouched] = useState<FormTouched>({
     fullName: false,
@@ -154,7 +154,7 @@ const PassengerRegistration: FC = () => {
     }
 
     // TODO: Implement registration logic
-    navigation.navigate('Home');
+    navigation.navigate('Main' as never);
   };
 
   return (

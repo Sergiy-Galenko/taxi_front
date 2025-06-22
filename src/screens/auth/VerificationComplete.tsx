@@ -10,7 +10,7 @@ export const VerificationComplete = () => {
   const handleGoToHome = () => {
     try {
       console.log('Attempting to navigate to Home screen...');
-      navigation.navigate('Home');
+      navigation.navigate('Main' as never);
     } catch (error) {
       console.error('Navigation error:', error);
       Alert.alert(

@@ -13,16 +13,16 @@ import {
 
 export const DriverRegistration = ({ navigation }: any) => {
   const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
-    licenseNumber: '',
-    carModel: '',
-    carColor: '',
-    carNumber: '',
-    yearsOfExperience: '',
+    fullName: 'Test Driver',
+    email: 'test@example.com',
+    phone: '1111111111',
+    password: '1111',
+    confirmPassword: '1111',
+    licenseNumber: 'TEST12345',
+    carModel: 'Toyota Prius',
+    carColor: 'White',
+    carNumber: 'AA1111AA',
+    yearsOfExperience: '5',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
