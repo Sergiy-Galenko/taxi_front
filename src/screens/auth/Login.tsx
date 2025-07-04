@@ -10,6 +10,8 @@ import { getEmailError, getPasswordError } from '../../utils/validation';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { API_URL } from '../../config/api';
+import { useUser } from '../../hooks/UserContext';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -31,6 +33,8 @@ const Login: FC = () => {
   const buttonScale = React.useRef(new Animated.Value(1)).current;
   const formYPosition = React.useRef(new Animated.Value(50)).current;
   const logoScale = React.useRef(new Animated.Value(1)).current;
+
+  const { setUser } = useUser();
 
   React.useEffect(() => {
     Animated.timing(formYPosition, {
@@ -86,17 +90,40 @@ const Login: FC = () => {
     setErrors({ ...errors, [field]: error });
   };
 
-  const handleLogin = () => {
-    Object.keys(formData).forEach((field) => {
-      validateField(field as keyof typeof formData);
-    });
+  const handleLogin = async () => {
+    // Нова перевірка помилок
+    const newErrors = {
+      email: getEmailError(formData.email) || '',
+      password: getPasswordError(formData.password) || '',
+    };
+    setErrors(newErrors);
 
-    const hasErrors = Object.values(errors).some((error) => error !== '');
+    const hasErrors = Object.values(newErrors).some((error) => error !== '');
     if (hasErrors) {
       return;
     }
 
-    navigation.navigate('Main' as never);
+    try {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        alert(result.message || 'Помилка входу');
+        return;
+      }
+      // Зберегти токен, якщо потрібно: await AsyncStorage.setItem('authToken', result.token);
+      setUser(result.user);
+      if (result.user.role === 'driver') {
+        navigation.reset({ index: 0, routes: [{ name: 'DriverHome' }] });
+      } else {
+        navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+      }
+    } catch (error) {
+      alert('Помилка мережі або сервера');
+    }
   };
 
   return (

@@ -45,6 +45,10 @@ export type RootStackParamList = {
     password: string;
   };
   Home: undefined;
+  Main: undefined;
+  TripHistory: undefined;
+  Preorder: undefined;
+  DriverHome: undefined;
 };
 
 export type NavigationProp = NativeStackNavigationProp<RootStackParamList>; 
