@@ -1,4 +1,3 @@
-// Тут будуть всі API-запити для водія
 export const getDriverProfile = async () => {
   // fetch профілю водія
 };
