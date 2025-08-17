@@ -1,5 +1,5 @@
 import React, { FC, useState } from 'react';
-import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, Animated, Dimensions, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, Animated, Dimensions, ScrollView, Alert } from 'react-native';
 import { Button, Text, Switch } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -9,6 +9,9 @@ import { getEmailError, getPasswordError, getPhoneError, getFullNameError } from
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Animatable from 'react-native-animatable';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { registerPassenger } from '../../services/api/auth';
+import { useUser } from '../../hooks/UserContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -41,6 +44,7 @@ interface FormTouched {
 
 const PassengerRegistration: FC = () => {
   const navigation = useNavigation<PassengerRegistrationScreenNavigationProp>();
+  const { setUser } = useUser();
   const [formData, setFormData] = useState<FormData>({
     fullName: 'Test Passenger',
     email: 'test@h.com',
@@ -63,6 +67,7 @@ const PassengerRegistration: FC = () => {
     password: '',
     confirmPassword: '',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const buttonScale = React.useRef(new Animated.Value(1)).current;
 
@@ -139,22 +144,47 @@ const PassengerRegistration: FC = () => {
     setErrors(prev => ({ ...prev, [field]: error }));
   };
 
-  const handleSubmit = () => {
-    // Validate all fields
-    Object.keys(formData).forEach((field) => {
-      if (field !== 'acceptTerms') {
-        validateField(field as keyof FormData);
-      }
-    });
-
-    // Check if there are any errors
-    const hasErrors = Object.values(errors).some((error) => error !== '');
-    if (hasErrors) {
+  const handleSubmit = async () => {
+    if (!formData.acceptTerms) {
+      Alert.alert('Помилка', 'Будь ласка, прийміть умови використання');
       return;
     }
 
-    // TODO: Implement registration logic
-    navigation.navigate('Main' as never);
+    // Build fresh errors to avoid stale state
+    const newErrors: FormErrors = {
+      fullName: getFullNameError(formData.fullName) || '',
+      email: getEmailError(formData.email) || '',
+      phone: getPhoneError(formData.phone) || '',
+      password: getPasswordError(formData.password) || '',
+      confirmPassword: formData.password !== formData.confirmPassword ? 'Паролі не співпадають' : '',
+    };
+    setErrors(newErrors);
+
+    const hasErrors = Object.values(newErrors).some((e) => e !== '');
+    if (hasErrors) return;
+
+    try {
+      setIsSubmitting(true);
+      const { token, user } = await registerPassenger({
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+      });
+
+      // Persist token for authenticated requests
+      await AsyncStorage.setItem('authToken', token);
+
+      // Update user context
+      setUser(user);
+
+      // Navigate to main app
+      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+    } catch (error) {
+      Alert.alert('Помилка реєстрації', error instanceof Error ? error.message : 'Сталася помилка');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -284,7 +314,7 @@ const PassengerRegistration: FC = () => {
                     style={styles.button}
                     icon="account-plus"
                     contentStyle={styles.buttonContent}
-                    disabled={!formData.acceptTerms}
+                    disabled={isSubmitting || !formData.acceptTerms}
                     onPressIn={() => animateButton(0.95)}
                     onPressOut={() => animateButton(1)}
                   >
