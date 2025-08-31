@@ -24,17 +24,19 @@ import { DrawerActions, useNavigation } from '@react-navigation/native';
 const { width } = Dimensions.get('window');
 
 const TAXI_TYPES = [
-  { key: 'econom', label: 'Економ', icon: 'car', price: '₴45' },
-  { key: 'comfort', label: 'Комфорт', icon: 'car-side', price: '₴65' },
-  { key: 'business', label: 'Бізнес', icon: 'crown', price: '₴90' },
-  { key: 'premium', label: 'Преміум', icon: 'gem', price: '₴120' },
+  { key: 'econom', label: 'Економ', icon: 'car', price: '₴45', color: '#4CAF50' },
+  { key: 'comfort', label: 'Комфорт', icon: 'car-side', price: '₴65', color: '#2196F3' },
+  { key: 'business', label: 'Бізнес', icon: 'crown', price: '₴90', color: '#FF9800' },
+  { key: 'premium', label: 'Преміум', icon: 'gem', price: '₴120', color: '#9C27B0' },
 ];
 
-const RECENT_DESTINATIONS = [
+const QUICK_DESTINATIONS = [
   { id: '1', name: 'Залізничний вокзал', icon: 'train', coords: { latitude: 50.4405, longitude: 30.4900 } },
   { id: '2', name: 'Аеропорт «Бориспіль»', icon: 'plane', coords: { latitude: 50.3450, longitude: 30.8947 } },
   { id: '3', name: 'ТРЦ «Ocean Plaza»', icon: 'shopping-cart', coords: { latitude: 50.4395, longitude: 30.5214 } },
   { id: '4', name: 'Софіївська площа', icon: 'landmark', coords: { latitude: 50.4539, longitude: 30.5161 } },
+  { id: '5', name: 'Майдан Незалежності', icon: 'flag', coords: { latitude: 50.4501, longitude: 30.5234 } },
+  { id: '6', name: 'Київський метрополітен', icon: 'subway', coords: { latitude: 50.4501, longitude: 30.5234 } },
 ];
 
 // -------- helpers
@@ -312,6 +314,27 @@ export default function HomeScreenRedesigned() {
             </TouchableOpacity>
           </Animated.View>
 
+          {/* QUICK ACTIONS */}
+          <Animated.View style={[styles.quickActions, { opacity: fadeAnim }]}>
+            <Text style={styles.quickActionsTitle}>Швидкі маршрути</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickActionsScroll}>
+              {QUICK_DESTINATIONS.map((dest) => (
+                <TouchableOpacity
+                  key={dest.id}
+                  style={styles.quickAction}
+                  activeOpacity={0.85}
+                  onPress={() => handlePlaceSelect(dest)}
+                  accessibilityLabel={dest.name}
+                >
+                  <LinearGradient colors={['#141414', '#E50914']} style={styles.quickActionGradient} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}>
+                    <FontAwesome5 name={dest.icon} size={20} color="#FFF" />
+                  </LinearGradient>
+                  <Text style={styles.quickActionText}>{dest.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Animated.View>
+
           {/* SEARCH CARD */}
           <Animated.View style={[styles.searchCard, { opacity: fadeAnim }]}>
             <BlurView intensity={isFocused ? 100 : 60} tint="dark" style={styles.blurContainer}>
@@ -377,7 +400,7 @@ export default function HomeScreenRedesigned() {
                 <Animated.View style={[styles.recentContainer, { opacity: fadeAnim }]}>
                   <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                     <Text style={styles.recentTitle}>Недавні поїздки</Text>
-                    {RECENT_DESTINATIONS.map((dest) => (
+                    {QUICK_DESTINATIONS.slice(0, 4).map((dest) => (
                       <Pressable
                         key={dest.id}
                         style={({ pressed }) => [styles.recentItem, pressed && styles.pressed]}
@@ -415,6 +438,7 @@ export default function HomeScreenRedesigned() {
 
               {/* taxi selector */}
               <View style={styles.taxiSelector}>
+                <Text style={styles.taxiSelectorTitle}>Виберіть тип таксі</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 2 }}>
                   {TAXI_TYPES.map((type) => {
                     const selected = taxiType === type.key;
@@ -474,54 +498,6 @@ export default function HomeScreenRedesigned() {
                 </LinearGradient>
               </TouchableOpacity>
             </BlurView>
-          </Animated.View>
-
-          {/* Quick actions */}
-          <Animated.View style={[styles.quickActions, { opacity: fadeAnim }]}>
-            <TouchableOpacity
-              style={styles.quickAction}
-              activeOpacity={0.85}
-              onPress={() => {
-                setEnd('Залізничний вокзал');
-                setEndCoord({ latitude: 50.4405, longitude: 30.4900 });
-              }}
-              accessibilityLabel="Додому"
-            >
-              <LinearGradient colors={['#141414', '#E50914']} style={styles.quickActionGradient} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}>
-                <Ionicons name="home" size={22} color="#FFF" />
-              </LinearGradient>
-              <Text style={styles.quickActionText}>Додому</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickAction}
-              activeOpacity={0.85}
-              onPress={() => {
-                setEnd('ТРЦ «Ocean Plaza»');
-                setEndCoord({ latitude: 50.4395, longitude: 30.5214 });
-              }}
-              accessibilityLabel="На роботу"
-            >
-              <LinearGradient colors={['#141414', '#E50914']} style={styles.quickActionGradient} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}>
-                <Ionicons name="briefcase" size={22} color="#FFF" />
-              </LinearGradient>
-              <Text style={styles.quickActionText}>На роботу</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickAction}
-              activeOpacity={0.85}
-              onPress={() => {
-                setEnd('Аеропорт «Бориспіль»');
-                setEndCoord({ latitude: 50.3450, longitude: 30.8947 });
-              }}
-              accessibilityLabel="Аеропорт"
-            >
-              <LinearGradient colors={['#141414', '#E50914']} style={styles.quickActionGradient} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}>
-                <Ionicons name="airplane" size={22} color="#FFF" />
-              </LinearGradient>
-              <Text style={styles.quickActionText}>Аеропорт</Text>
-            </TouchableOpacity>
           </Animated.View>
 
           {/* permission snackbar */}
@@ -606,6 +582,55 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
+  quickActions: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 120 : 110,
+    left: 16,
+    right: 16,
+    zIndex: 15,
+    backgroundColor: 'rgba(30,30,30,0.8)',
+    borderRadius: 18,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  quickActionsTitle: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  quickActionsScroll: {
+    paddingRight: 16,
+  },
+  quickAction: { 
+    alignItems: 'center', 
+    marginRight: 16, 
+    width: 80 
+  },
+  quickActionGradient: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    shadowColor: '#E50914',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  quickActionText: { 
+    color: '#FFF', 
+    fontSize: 12, 
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+
   searchCard: {
     position: 'absolute',
     bottom: 40,
@@ -682,6 +707,12 @@ const styles = StyleSheet.create({
   recentText: { flex: 1, color: '#FFF', fontSize: 15 },
 
   taxiSelector: { marginTop: 10, marginBottom: 12, zIndex: 1 },
+  taxiSelectorTitle: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
   taxiOption: {
     alignItems: 'center',
     paddingVertical: 10,
@@ -752,35 +783,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  quickActions: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 120 : 110,
-    right: 16,
-    zIndex: 15,
-    backgroundColor: 'rgba(30,30,30,0.7)',
-    borderRadius: 18,
-    padding: 8,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  quickAction: { alignItems: 'center', marginVertical: 6, width: 72 },
-  quickActionGradient: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
-    shadowColor: '#E50914',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  quickActionText: { color: '#FFF', fontSize: 12, textAlign: 'center' },
 });
