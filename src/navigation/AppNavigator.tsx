@@ -11,17 +11,7 @@ import { UserProvider, useUser } from '../hooks/UserContext';
 
 // Auth Screens
 import Login from '../screens/auth/Login';
-import RoleSelection from '../screens/auth/RoleSelection';
 import PassengerRegistration from '../screens/auth/PassengerRegistration';
-import DriverRegistration from '../screens/auth/driver/Registration';
-
-// Driver Registration Screens
-import DriverPersonalInfo from '../screens/auth/driver/PersonalInfo';
-import DriverContactInfo from '../screens/auth/driver/ContactInfo';
-import DriverCarInfo from '../screens/auth/driver/CarInfo';
-import DriverLicenseInfo from '../screens/auth/driver/LicenseInfo';
-import DriverPasswordSetup from '../screens/auth/driver/PasswordSetup';
-import DriverVerification from '../screens/auth/driver/Verification';
 
 // Main Screens
 import Home from '../screens/Home';
@@ -34,12 +24,6 @@ const Drawer = createDrawerNavigator();
 
 function CustomDrawerContent(props: any) {
   const { user } = useUser();
-  
-  const roleLabels: Record<string, string> = {
-    passenger: 'Пасажир',
-    driver: 'Водій',
-    admin: 'Адміністратор'
-  };
 
   return (
     <LinearGradient
@@ -56,7 +40,7 @@ function CustomDrawerContent(props: any) {
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={18} color="#FFD700" />
               <Text style={styles.ratingText}>{user?.rating ?? '—'}</Text>
-              <Text style={styles.roleBadge}>{roleLabels[user?.role] || ''}</Text>
+              <Text style={styles.roleBadge}>Пасажир</Text>
             </View>
           </View>
         </View>
@@ -176,99 +160,8 @@ export default function AppNavigator() {
             />
             
             <Stack.Screen 
-              name="RoleSelection" 
-              component={RoleSelection} 
-              options={{ 
-                presentation: 'modal',
-                cardStyle: { backgroundColor: 'rgba(0,0,0,0.9)' } 
-              }} 
-            />
-            
-            <Stack.Screen 
               name="PassengerRegistration" 
               component={PassengerRegistration} 
-            />
-            
-            <Stack.Screen 
-              name="DriverRegistration" 
-              component={DriverRegistration} 
-              options={{ 
-                headerShown: false,
-                cardStyle: { backgroundColor: '#141414' } 
-              }} 
-            />
-
-            {/* Driver Registration Stack */}
-            <Stack.Screen 
-              name="DriverPersonalInfo" 
-              component={DriverPersonalInfo} 
-              options={{ 
-                title: 'Особиста інформація',
-                headerShown: true,
-                headerStyle: { backgroundColor: '#141414' },
-                headerTintColor: '#FFF',
-                headerTitleStyle: { color: '#FFF' },
-              }}
-            />
-            
-            <Stack.Screen 
-              name="DriverContactInfo" 
-              component={DriverContactInfo} 
-              options={{ 
-                title: 'Контактна інформація',
-                headerShown: true,
-                headerStyle: { backgroundColor: '#141414' },
-                headerTintColor: '#FFF',
-                headerTitleStyle: { color: '#FFF' },
-              }}
-            />
-            
-            <Stack.Screen 
-              name="DriverCarInfo" 
-              component={DriverCarInfo} 
-              options={{ 
-                title: 'Інформація про авто',
-                headerShown: true,
-                headerStyle: { backgroundColor: '#141414' },
-                headerTintColor: '#FFF',
-                headerTitleStyle: { color: '#FFF' },
-              }}
-            />
-            
-            <Stack.Screen 
-              name="DriverLicenseInfo" 
-              component={DriverLicenseInfo} 
-              options={{ 
-                title: 'Водійське посвідчення',
-                headerShown: true,
-                headerStyle: { backgroundColor: '#141414' },
-                headerTintColor: '#FFF',
-                headerTitleStyle: { color: '#FFF' },
-              }}
-            />
-            
-            <Stack.Screen 
-              name="DriverPasswordSetup" 
-              component={DriverPasswordSetup} 
-              options={{ 
-                title: 'Створення паролю',
-                headerShown: true,
-                headerStyle: { backgroundColor: '#141414' },
-                headerTintColor: '#FFF',
-                headerTitleStyle: { color: '#FFF' },
-              }}
-            />
-            
-            <Stack.Screen 
-              name="DriverVerification" 
-              component={DriverVerification} 
-              options={{ 
-                title: 'Верифікація',
-                headerShown: true,
-                headerStyle: { backgroundColor: '#141414' },
-                headerTintColor: '#FFF',
-                headerTitleStyle: { color: '#FFF' },
-              }}
             />
 
             {/* Main Drawer as Main App */}

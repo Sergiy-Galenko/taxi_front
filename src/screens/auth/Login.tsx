@@ -116,11 +116,7 @@ const Login: FC = () => {
       }
       // Зберегти токен, якщо потрібно: await AsyncStorage.setItem('authToken', result.token);
       setUser(result.user);
-      if (result.user.role === 'driver') {
-        navigation.reset({ index: 0, routes: [{ name: 'DriverHome' }] });
-      } else {
-        navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-      }
+      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
     } catch (error) {
       alert('Помилка мережі або сервера');
     }
@@ -137,12 +133,14 @@ const Login: FC = () => {
         {/* Декоративні елементи */}
         <View style={styles.decorativeCircle} />
         <View style={[styles.decorativeCircle, styles.circleTopRight]} />
+        <View style={[styles.decorativeCircle, styles.circleBottom]} />
         
         <View style={styles.logoContainer}>
           <Animated.View style={{ transform: [{ scale: logoScale }] }}>
-            <MaterialIcons name="local-taxi" size={80} color="#FF3B30" />
+            <MaterialIcons name="local-taxi" size={80} color="#E50914" />
           </Animated.View>
           <Text style={styles.appName}>TAXI APP</Text>
+          <Text style={styles.appSubtitle}>Швидко та зручно</Text>
         </View>
 
         <Animated.View 
@@ -223,7 +221,7 @@ const Login: FC = () => {
                 <View style={styles.registrationButtons}>
                   <Button
                     mode="contained"
-                    onPress={() => navigation.navigate('RoleSelection')}
+                    onPress={() => navigation.navigate('PassengerRegistration')}
                     style={styles.registrationButton}
                     contentStyle={styles.regButtonContent}
                     labelStyle={styles.regButtonLabel}
@@ -257,9 +255,15 @@ const styles = StyleSheet.create({
     color: '#FFF',
     letterSpacing: 2,
     marginTop: 10,
-    textShadowColor: 'rgba(255, 59, 48, 0.4)',
+    textShadowColor: 'rgba(229, 9, 20, 0.4)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
+  },
+  appSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 5,
+    fontWeight: '500',
   },
   formContainer: {
     flex: 1,
@@ -275,7 +279,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 25,
     borderWidth: 1,
-    borderColor: 'rgba(255, 59, 48, 0.2)',
+    borderColor: 'rgba(229, 9, 20, 0.2)',
   },
   formHeader: {
     alignItems: 'center',
@@ -300,8 +304,8 @@ const styles = StyleSheet.create({
   loginButton: {
     height: 56,
     borderRadius: 14,
-    backgroundColor: '#FF3B30',
-    shadowColor: '#FF3B30',
+    backgroundColor: '#E50914',
+    shadowColor: '#E50914',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 10,
@@ -329,8 +333,8 @@ const styles = StyleSheet.create({
   registrationButton: {
     height: 56,
     borderRadius: 14,
-    backgroundColor: '#FF3B30',
-    shadowColor: '#FF3B30',
+    backgroundColor: '#E50914',
+    shadowColor: '#E50914',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 10,
@@ -348,7 +352,7 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     borderRadius: 150,
-    backgroundColor: 'rgba(255, 59, 48, 0.08)',
+    backgroundColor: 'rgba(229, 9, 20, 0.08)',
     top: -150,
     left: -100,
   },
@@ -356,6 +360,11 @@ const styles = StyleSheet.create({
     top: -100,
     left: 'auto',
     right: -150,
+  },
+  circleBottom: {
+    top: 'auto',
+    bottom: -150,
+    left: -50,
   },
 });
 

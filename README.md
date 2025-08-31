@@ -1,90 +1,120 @@
-# Taxi App
+# TAXI APP - Додаток для замовлення таксі
 
-A modern taxi application built with React Native and Expo.
+Сучасний мобільний додаток для замовлення таксі з інтуїтивним інтерфейсом та зручними функціями для пасажирів.
 
-## Features
+## 🚀 Особливості
 
-- User authentication (passenger and driver)
-- Multi-step driver registration process
-- Form validation
-- Modern UI with animations
-- TypeScript support
+### Для пасажирів:
+- **Зручне замовлення таксі** - вкажіть точку відправлення та призначення
+- **Різні типи таксі** - Економ, Комфорт, Бізнес, Преміум
+- **Швидкі маршрути** - популярні місця одним дотиком
+- **Геолокація** - автоматичне визначення вашого місцезнаходження
+- **Оцінка вартості** - попередній розрахунок ціни та часу поїздки
+- **Історія поїздок** - збереження всіх ваших маршрутів
+- **Передзамовлення** - плануйте поїздки заздалегідь
 
-## Prerequisites
+### Безпека та надійність:
+- **Реєстрація та авторизація** - безпечний вхід у систему
+- **Валідація даних** - перевірка коректності введених даних
+- **Генератор паролів** - створення надійних паролів
+- **Захист особистих даних** - дотримання політики конфіденційності
 
-- Node.js (v14 or later)
-- npm or yarn
-- Expo CLI
-- iOS Simulator (for iOS development)
-- Android Studio (for Android development)
+## 🎨 Дизайн
 
-## Installation
+- **Сучасний UI/UX** - темна тема з червоними акцентами
+- **Анімації** - плавні переходи та інтерактивні елементи
+- **Адаптивний дизайн** - оптимізовано для різних розмірів екранів
+- **Інтуїтивна навігація** - зручне меню та швидкий доступ до функцій
 
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/taxi-app.git
-cd taxi-app
-```
+## 📱 Екрани
 
-2. Install dependencies:
-```bash
-npm install
-# or
-yarn install
-```
+### Авторизація:
+- **Вхід** - увійти в існуючий акаунт
+- **Реєстрація** - створення нового акаунту пасажира
 
-3. Start the development server:
-```bash
-npm start
-# or
-yarn start
-```
+### Основні екрани:
+- **Головна** - карта, пошук маршруту, швидкі дії
+- **Налаштування** - управління профілем
+- **Історія поїздок** - перегляд минулих маршрутів
+- **Передзамовлення** - планування майбутніх поїздок
 
-4. Run on iOS:
-```bash
-npm run ios
-# or
-yarn ios
-```
+## 🛠 Технології
 
-5. Run on Android:
-```bash
-npm run android
-# or
-yarn android
-```
+- **React Native** - крос-платформна розробка
+- **Expo** - швидка розробка та тестування
+- **TypeScript** - типізація та безпека коду
+- **React Navigation** - навігація між екранами
+- **React Native Maps** - інтеграція карт
+- **Expo Location** - робота з геолокацією
+- **React Native Paper** - UI компоненти
+- **Expo Linear Gradient** - градієнти та ефекти
 
-## Project Structure
+## 🚀 Запуск проекту
+
+1. **Встановлення залежностей:**
+   ```bash
+   npm install
+   ```
+
+2. **Запуск на iOS:**
+   ```bash
+   npm run ios
+   ```
+
+3. **Запуск на Android:**
+   ```bash
+   npm run android
+   ```
+
+4. **Запуск веб-версії:**
+   ```bash
+   npm run web
+   ```
+
+## 📁 Структура проекту
 
 ```
 src/
-  ├── components/     # Reusable components
-  ├── screens/        # Screen components
-  │   ├── auth/      # Authentication screens
-  │   └── driver/    # Driver-specific screens
-  ├── navigation/    # Navigation configuration
-  ├── types/         # TypeScript type definitions
-  ├── utils/         # Utility functions
-  └── theme/         # Theme configuration
+├── components/          # Перевикористовувані компоненти
+├── screens/            # Екрани додатку
+│   ├── auth/          # Екрани авторизації
+│   ├── home/          # Головні екрани
+│   └── ...
+├── navigation/         # Навігація
+├── hooks/             # Кастомні хуки
+├── services/          # API сервіси
+├── types/             # TypeScript типи
+├── utils/             # Утиліти
+└── theme/             # Теми та стилі
 ```
 
-## Technologies Used
+## 🔧 Налаштування
 
-- React Native
-- Expo
-- TypeScript
-- React Navigation
-- React Native Paper
-- React Native Reanimated
+### Необхідні змінні середовища:
+- `API_URL` - URL вашого бекенду
 
-## Contributing
+### Залежності:
+- Node.js 16+
+- Expo CLI
+- iOS Simulator (для iOS)
+- Android Studio (для Android)
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## 📄 Ліцензія
 
-## License
+Цей проект розповсюджується під ліцензією MIT.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+## 🤝 Внесок
+
+1. Форкніть проект
+2. Створіть гілку для нової функції (`git checkout -b feature/amazing-feature`)
+3. Зробіть коміт змін (`git commit -m 'Add some amazing feature'`)
+4. Відправте зміни (`git push origin feature/amazing-feature`)
+5. Відкрийте Pull Request
+
+## 📞 Підтримка
+
+Якщо у вас виникли питання або проблеми, створіть issue в репозиторії.
+
+---
+
+**TAXI APP** - Швидко, зручно, надійно! 🚕 
