@@ -4,10 +4,11 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList, DrawerItem } from '@react-navigation/drawer';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { RootStackParamList } from '../types/navigation';
-import { View, Text, StyleSheet, TouchableOpacity, Image, StatusBar, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, StatusBar, Platform, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../hooks/useTheme';
 import { UserProvider, useUser } from '../hooks/UserContext';
+import { useAuth } from '../hooks/useAuth';
 
 // Auth Screens
 import Login from '../screens/auth/Login';
@@ -22,8 +23,29 @@ import PreorderScreen from '../screens/PreorderScreen';
 const Stack = createStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator();
 
+// Loading Screen Component
+const LoadingScreen = () => (
+  <LinearGradient
+    colors={['#1A1A1A', '#2D2D2D', '#000']}
+    style={styles.loadingContainer}
+  >
+    <MaterialIcons name="local-taxi" size={80} color="#E50914" />
+    <Text style={styles.loadingText}>TAXI APP</Text>
+    <ActivityIndicator size="large" color="#E50914" style={styles.spinner} />
+  </LinearGradient>
+);
+
 function CustomDrawerContent(props: any) {
   const { user } = useUser();
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    props.navigation.reset({
+      index: 0,
+      routes: [{ name: 'Login' }],
+    });
+  };
 
   return (
     <LinearGradient
@@ -85,6 +107,10 @@ function CustomDrawerContent(props: any) {
       </DrawerContentScrollView>
       
       <View style={styles.footer}>
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+          <Ionicons name="log-out-outline" size={20} color="#E50914" />
+          <Text style={styles.logoutText}>Вийти</Text>
+        </TouchableOpacity>
         <Text style={styles.versionText}>Версія додатку 1.2.0</Text>
         <Text style={styles.copyright}>© 2023 NETFLIXTAXI</Text>
       </View>
@@ -96,6 +122,7 @@ function MainDrawer() {
   return (
     <Drawer.Navigator
       initialRouteName="Home"
+      useLegacyImplementation={false}
       drawerContent={props => <CustomDrawerContent {...props} />}
       screenOptions={{
         headerShown: false,
@@ -132,6 +159,71 @@ function MainDrawer() {
   );
 }
 
+function AppContent() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        cardStyle: { backgroundColor: '#141414' },
+      }}
+    >
+      {user ? (
+        // User is authenticated
+        <>
+          <Stack.Screen 
+            name="Main" 
+            component={MainDrawer} 
+            options={{ 
+              headerShown: false 
+            }} 
+          />
+          <Stack.Screen 
+            name="Login" 
+            component={Login} 
+            options={{ 
+              headerShown: false,
+              cardStyle: { backgroundColor: '#000' } 
+            }} 
+          />
+          <Stack.Screen 
+            name="PassengerRegistration" 
+            component={PassengerRegistration} 
+          />
+        </>
+      ) : (
+        // User is not authenticated
+        <>
+          <Stack.Screen 
+            name="Login" 
+            component={Login} 
+            options={{ 
+              headerShown: false,
+              cardStyle: { backgroundColor: '#000' } 
+            }} 
+          />
+          <Stack.Screen 
+            name="PassengerRegistration" 
+            component={PassengerRegistration} 
+          />
+          <Stack.Screen 
+            name="Main" 
+            component={MainDrawer} 
+            options={{ 
+              headerShown: false 
+            }} 
+          />
+        </>
+      )}
+    </Stack.Navigator>
+  );
+}
+
 export default function AppNavigator() {
   return (
     <>
@@ -143,36 +235,7 @@ export default function AppNavigator() {
       />
       <UserProvider>
         <NavigationContainer>
-          <Stack.Navigator
-            screenOptions={{
-              headerShown: false,
-              cardStyle: { backgroundColor: '#141414' },
-            }}
-          >
-            {/* Auth Stack */}
-            <Stack.Screen 
-              name="Login" 
-              component={Login} 
-              options={{ 
-                headerShown: false,
-                cardStyle: { backgroundColor: '#000' } 
-              }} 
-            />
-            
-            <Stack.Screen 
-              name="PassengerRegistration" 
-              component={PassengerRegistration} 
-            />
-
-            {/* Main Drawer as Main App */}
-            <Stack.Screen 
-              name="Main" 
-              component={MainDrawer} 
-              options={{ 
-                headerShown: false 
-              }} 
-            />
-          </Stack.Navigator>
+          <AppContent />
         </NavigationContainer>
       </UserProvider>
     </>
@@ -254,5 +317,35 @@ const styles = StyleSheet.create({
   copyright: {
     color: '#444',
     fontSize: 12,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    color: '#FFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 10,
+  },
+  spinner: {
+    marginTop: 20,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(229, 9, 20, 0.1)',
+  },
+  logoutText: {
+    color: '#E50914',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 10,
   },
 });
