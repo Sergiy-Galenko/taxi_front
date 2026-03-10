@@ -4,11 +4,11 @@
     "slug": "taxi-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.svg",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash.svg",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#007AFF"
     },
@@ -28,7 +28,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.svg",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#007AFF"
       },
       "edgeToEdgeEnabled": true,
@@ -40,7 +40,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/icon.svg"
+      "favicon": "./assets/icon.png"
     },
     "plugins": [
       [
@@ -48,8 +48,9 @@
         {
           "photosPermission": "Додатку потрібен доступ до ваших фотографій для завантаження документів."
         }
-      ]
+      ],
+      "expo-font"
     ],
-    "sdkVersion": "53.0.0"
+    "sdkVersion": "54.0.0"
   }
 }

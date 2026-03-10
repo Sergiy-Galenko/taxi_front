@@ -70,7 +70,7 @@ export default function DriverRegistration() {
           delay={600}
           style={styles.buttonContainer}
         >
-          <BlurView intensity={20} style={styles.blurContainer}>
+          <BlurView intensity={20} pointerEvents="box-none" style={styles.blurContainer}>
             <Button
               mode="contained"
               onPress={handleStartRegistration}

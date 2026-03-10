@@ -1,5 +1,5 @@
 import React, { FC, useState } from 'react';
-import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, Animated, ImageBackground } from 'react-native';
+import { View, StyleSheet, Animated } from 'react-native';
 import { Button, Text } from 'react-native-paper';
 import * as Animatable from 'react-native-animatable';
 import { useNavigation } from '@react-navigation/native';
@@ -127,8 +127,7 @@ const Login: FC = () => {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <LinearGradient
+    <LinearGradient
         colors={['#1a1a1a', '#000']}
         style={styles.container}
         start={{x: 0, y: 0}}
@@ -151,7 +150,7 @@ const Login: FC = () => {
             { transform: [{ translateY: formYPosition }] }
           ]}
         >
-          <BlurView intensity={30} tint="dark" style={styles.blurContainer}>
+          <BlurView intensity={30} tint="dark" pointerEvents="box-none" style={styles.blurContainer}>
             <View style={styles.formContent}>
               <Animatable.View 
                 animation="fadeIn" 
@@ -237,7 +236,6 @@ const Login: FC = () => {
           </BlurView>
         </Animated.View>
       </LinearGradient>
-    </TouchableWithoutFeedback>
   );
 };
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Dimensions, TouchableWithoutFeedback, Keyboard, ScrollView, KeyboardAvoidingView, Platform, Animated } from 'react-native';
+import { View, StyleSheet, Dimensions, Keyboard, ScrollView, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import { TextInput, Button, Text, IconButton, HelperText, Searchbar, List } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NavigationProp } from '../../../types/navigation';
@@ -254,8 +254,7 @@ export default function DriverCarInfo() {
       style={styles.container}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.container}>
+      <View style={styles.container}>
           <LinearGradient
             colors={['#1A1A1A', '#2A2A2A']}
             style={styles.background}
@@ -282,7 +281,7 @@ export default function DriverCarInfo() {
               isKeyboardVisible && { marginBottom: keyboardHeight }
             ]}
           >
-            <BlurView intensity={20} style={styles.inputContainer}>
+            <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
               <TextInput
                 mode="outlined"
                 label="Марка автомобіля"
@@ -318,7 +317,7 @@ export default function DriverCarInfo() {
                 animation="fadeIn"
                 style={styles.dropdownContainer}
               >
-                <BlurView intensity={20} style={styles.dropdown}>
+                <BlurView intensity={20} pointerEvents="box-none" style={styles.dropdown}>
                   <Searchbar
                     placeholder="Пошук марки"
                     onChangeText={handleBrandSearch}
@@ -355,7 +354,7 @@ export default function DriverCarInfo() {
               </Animatable.View>
             )}
 
-            <BlurView intensity={20} style={styles.inputContainer}>
+            <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
               <TextInput
                 mode="outlined"
                 label="Модель автомобіля"
@@ -392,7 +391,7 @@ export default function DriverCarInfo() {
                 animation="fadeIn"
                 style={styles.dropdownContainer}
               >
-                <BlurView intensity={20} style={styles.dropdown}>
+                <BlurView intensity={20} pointerEvents="box-none" style={styles.dropdown}>
                   <Searchbar
                     placeholder="Пошук моделі"
                     onChangeText={handleModelSearch}
@@ -429,7 +428,7 @@ export default function DriverCarInfo() {
               </Animatable.View>
             )}
 
-            <BlurView intensity={20} style={styles.inputContainer}>
+            <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
               <TextInput
                 mode="outlined"
                 label="Колір автомобіля"
@@ -459,7 +458,7 @@ export default function DriverCarInfo() {
               {errors.carColor}
             </HelperText>
 
-            <BlurView intensity={20} style={styles.inputContainer}>
+            <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
               <TextInput
                 mode="outlined"
                 label="Номер автомобіля"
@@ -490,7 +489,7 @@ export default function DriverCarInfo() {
               {errors.carNumber}
             </HelperText>
 
-            <BlurView intensity={20} style={styles.inputContainer}>
+            <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
               <TextInput
                 mode="outlined"
                 label="Досвід водіння (роки)"
@@ -526,7 +525,7 @@ export default function DriverCarInfo() {
               delay={700} 
               style={styles.buttonContainer}
             >
-              <BlurView intensity={20} style={styles.blurContainer}>
+              <BlurView intensity={20} pointerEvents="box-none" style={styles.blurContainer}>
                 <Button
                   mode="contained"
                   onPress={handleNext}
@@ -541,7 +540,6 @@ export default function DriverCarInfo() {
             </Animatable.View>
           </Animatable.View>
         </View>
-      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }

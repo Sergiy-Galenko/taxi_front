@@ -11,8 +11,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { showMessage } from 'react-native-flash-message';
-import { useTheme } from '../../hooks/useTheme';
-import { verifyDriver, getDriverProfile } from '../../services/api/driver';
+import { useTheme } from '../../../hooks/useTheme';
+import { verifyDriver, getDriverProfile } from '../../../services/api/driver';
 
 export default function DriverVerification() {
   const navigation = useNavigation();

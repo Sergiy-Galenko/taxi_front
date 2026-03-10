@@ -1,230 +1,363 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Animated, Platform } from 'react-native';
-import { Text, Button } from 'react-native-paper';
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import PassengerScreenLayout from '../components/passenger/PassengerScreenLayout';
+import { getRideOption } from '../data/passenger';
+import { passengerPalette, passengerRadius } from '../theme/passenger';
+import { RootStackParamList } from '../types/navigation';
 
-const PreorderScreen = ({ navigation }: any) => {
-  const [date, setDate] = useState(new Date());
+type PreorderScreenProps = NativeStackScreenProps<RootStackParamList, 'Preorder'>;
+
+export default function PreorderScreen({ navigation, route }: PreorderScreenProps) {
+  const [scheduledAt, setScheduledAt] = useState(() => {
+    const nextHour = new Date();
+    nextHour.setMinutes(0, 0, 0);
+    nextHour.setHours(nextHour.getHours() + 1);
+    return nextHour;
+  });
   const [showPicker, setShowPicker] = useState(false);
-  const fadeAnim = useState(new Animated.Value(0))[0];
+  const [note, setNote] = useState('');
 
-  React.useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 800,
-      useNativeDriver: true,
-    }).start();
-  }, []);
+  const pickup = route.params?.pickup || 'Pickup point not selected yet';
+  const destination = route.params?.destination || 'Destination not selected yet';
+  const rideOption = getRideOption(route.params?.rideType ?? 'comfort');
+  const hasRoute = Boolean(route.params?.pickup && route.params?.destination);
 
-  const onChange = (event: any, selectedDate?: Date) => {
-    setShowPicker(Platform.OS === 'ios');
-    if (selectedDate) setDate(selectedDate);
-  };
+  const handleScheduleRide = () => {
+    if (!hasRoute) {
+      navigation.navigate('Home');
+      return;
+    }
 
-  const handlePreorder = () => {
-    // TODO: send preorder to API
-    navigation.goBack();
-    alert('Передзамовлення створено на ' + date.toLocaleString());
+    Alert.alert(
+      'Ride scheduled',
+      `${rideOption.label} pickup is booked for ${scheduledAt.toLocaleString()}.`
+    );
   };
 
   return (
-    <LinearGradient
-      colors={['#141414', '#1a1a1a', '#000']}
-      style={styles.container}
+    <PassengerScreenLayout
+      activeRoute="Preorder"
+      subtitle="Plan ahead without re-entering your route later."
+      title="Schedule pickup"
     >
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={28} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Передзамовлення таксі</Text>
-        <View style={{ width: 40 }} /> {/* Для вирівнювання */}
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Trip snapshot</Text>
+            <View style={styles.rideChip}>
+              <Ionicons color={passengerPalette.text} name="car-outline" size={14} />
+              <Text style={styles.rideChipText}>{rideOption.label}</Text>
+            </View>
+          </View>
 
-      <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
-        <View style={styles.iconContainer}>
-          <LinearGradient
-            colors={['#E50914', '#B20710']}
-            style={styles.iconGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <MaterialIcons name="schedule" size={40} color="#FFF" />
-          </LinearGradient>
+          <View style={styles.routeRow}>
+            <View style={[styles.routeDot, styles.pickupDot]} />
+            <View style={styles.routeTextBlock}>
+              <Text style={styles.routeLabel}>Pickup</Text>
+              <Text style={styles.routeValue}>{pickup}</Text>
+            </View>
+          </View>
+
+          <View style={styles.routeDivider} />
+
+          <View style={styles.routeRow}>
+            <View style={[styles.routeDot, styles.destinationDot]} />
+            <View style={styles.routeTextBlock}>
+              <Text style={styles.routeLabel}>Destination</Text>
+              <Text style={styles.routeValue}>{destination}</Text>
+            </View>
+          </View>
+
+          {!hasRoute ? (
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={() => navigation.navigate('Home')}
+              style={styles.routeAction}
+            >
+              <Text style={styles.routeActionText}>Choose route first</Text>
+              <Ionicons color={passengerPalette.text} name="arrow-forward" size={18} />
+            </TouchableOpacity>
+          ) : null}
         </View>
 
-        <Text style={styles.subtitle}>Оберіть дату та час</Text>
-        <Text style={styles.description}>
-          Забронюйте таксі заздалегідь та приїжджайте вчасно
-        </Text>
-
-        <TouchableOpacity 
-          style={styles.dateButton} 
-          onPress={() => setShowPicker(true)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.dateText}>
-            {date.toLocaleString('uk-UA', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Pickup time</Text>
+          <Text style={styles.cardHint}>
+            The driver is dispatched shortly before the selected time to reduce waiting.
           </Text>
-          <MaterialIcons name="edit" size={24} color="#E50914" />
-        </TouchableOpacity>
 
-        {showPicker && (
-          <DateTimePicker
-            value={date}
-            mode="datetime"
-            display="spinner"
-            onChange={onChange}
-            themeVariant="dark"
-            textColor="#FFF"
-            accentColor="#E50914"
+          <TouchableOpacity
+            activeOpacity={0.88}
+            onPress={() => setShowPicker(true)}
+            style={styles.timeButton}
+          >
+            <View>
+              <Text style={styles.routeLabel}>Scheduled for</Text>
+              <Text style={styles.timeValue}>
+                {scheduledAt.toLocaleDateString()} at{' '}
+                {scheduledAt.toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </Text>
+            </View>
+            <Ionicons color={passengerPalette.text} name="calendar-outline" size={22} />
+          </TouchableOpacity>
+
+          {showPicker ? (
+            <DateTimePicker
+              display="default"
+              minimumDate={new Date()}
+              mode="datetime"
+              onChange={(_, selectedDate) => {
+                setShowPicker(false);
+
+                if (selectedDate) {
+                  setScheduledAt(selectedDate);
+                }
+              }}
+              value={scheduledAt}
+            />
+          ) : null}
+
+          <View style={styles.timeline}>
+            <View style={styles.timelineRow}>
+              <View style={styles.timelineBadge}>
+                <Ionicons color={passengerPalette.info} name="notifications-outline" size={16} />
+              </View>
+              <View style={styles.timelineText}>
+                <Text style={styles.timelineTitle}>Reminder before pickup</Text>
+                <Text style={styles.timelineHint}>The passenger gets a notification when dispatch starts.</Text>
+              </View>
+            </View>
+
+            <View style={styles.timelineRow}>
+              <View style={styles.timelineBadge}>
+                <Ionicons color={passengerPalette.accent} name="shield-checkmark-outline" size={16} />
+              </View>
+              <View style={styles.timelineText}>
+                <Text style={styles.timelineTitle}>Flexible changes</Text>
+                <Text style={styles.timelineHint}>Time and route can be edited until dispatch begins.</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Pickup note</Text>
+          <Text style={styles.cardHint}>
+            Add entrance, gate, terminal, or any detail that helps the driver find you faster.
+          </Text>
+
+          <TextInput
+            multiline
+            onChangeText={setNote}
+            placeholder="Example: Meet at terminal entrance B"
+            placeholderTextColor={passengerPalette.mutedText}
+            style={styles.noteInput}
+            textAlignVertical="top"
+            value={note}
           />
-        )}
+        </View>
 
-        <Button 
-          mode="contained" 
-          style={styles.confirmButton}
-          buttonColor="#E50914"
-          onPress={handlePreorder}
-          labelStyle={styles.buttonLabel}
+        <TouchableOpacity
+          activeOpacity={0.92}
+          onPress={handleScheduleRide}
+          style={styles.primaryButton}
         >
-          Підтвердити замовлення
-        </Button>
-      </Animated.View>
-
-      <View style={styles.infoContainer}>
-        <View style={styles.infoItem}>
-          <Ionicons name="information-circle-outline" size={24} color="#E50914" />
-          <Text style={styles.infoText}>Водій приїде за 5-10 хвилин до вказаного часу</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <Ionicons name="card-outline" size={24} color="#E50914" />
-          <Text style={styles.infoText}>Оплата відбувається при посадці</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <Ionicons name="close-circle-outline" size={24} color="#E50914" />
-          <Text style={styles.infoText}>Безкоштовна відміна за 30 хвилин до часу</Text>
-        </View>
-      </View>
-    </LinearGradient>
+          <View>
+            <Text style={styles.primaryEyebrow}>{rideOption.label} preset</Text>
+            <Text style={styles.primaryTitle}>
+              {hasRoute ? 'Confirm scheduled ride' : 'Open booking screen'}
+            </Text>
+          </View>
+          <Ionicons color={passengerPalette.text} name="arrow-forward" size={20} />
+        </TouchableOpacity>
+      </ScrollView>
+    </PassengerScreenLayout>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  backButton: {
-    backgroundColor: 'rgba(229, 9, 20, 0.2)',
-    borderRadius: 20,
-    padding: 8,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFF',
-    textAlign: 'center',
-    flex: 1,
+  content: {
+    gap: 18,
+    paddingBottom: 150,
+    paddingHorizontal: 20,
+    paddingTop: 18,
   },
   card: {
-    backgroundColor: 'rgba(30,30,30,0.8)',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
+    backgroundColor: passengerPalette.surface,
+    borderColor: passengerPalette.border,
+    borderRadius: passengerRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(80,80,80,0.5)',
-    marginBottom: 30,
+    gap: 16,
+    padding: 18,
   },
-  iconContainer: {
-    marginBottom: 20,
-  },
-  iconGradient: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
+  cardHeader: {
     alignItems: 'center',
-  },
-  subtitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 16,
-    color: '#BBB',
-    textAlign: 'center',
-    marginBottom: 30,
-    lineHeight: 24,
-  },
-  dateButton: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(50,50,50,0.6)',
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    marginBottom: 30,
-    width: '100%',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#333',
   },
-  dateText: {
-    color: '#FFF',
+  cardTitle: {
+    color: passengerPalette.text,
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '800',
   },
-  confirmButton: {
-    width: '100%',
-    borderRadius: 12,
-    paddingVertical: 8,
-    marginTop: 10,
+  cardHint: {
+    color: passengerPalette.mutedText,
+    fontSize: 14,
+    lineHeight: 20,
   },
-  buttonLabel: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  infoContainer: {
-    backgroundColor: 'rgba(30,30,30,0.7)',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(80,80,80,0.5)',
-  },
-  infoItem: {
-    flexDirection: 'row',
+  rideChip: {
     alignItems: 'center',
-    marginBottom: 15,
+    backgroundColor: passengerPalette.primarySoft,
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  infoText: {
-    color: '#FFF',
-    marginLeft: 12,
-    fontSize: 15,
+  rideChipText: {
+    color: passengerPalette.text,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  routeRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  routeDot: {
+    borderRadius: 6,
+    height: 12,
+    width: 12,
+  },
+  pickupDot: {
+    backgroundColor: passengerPalette.accent,
+  },
+  destinationDot: {
+    backgroundColor: passengerPalette.danger,
+  },
+  routeTextBlock: {
     flex: 1,
+    gap: 4,
+  },
+  routeLabel: {
+    color: passengerPalette.mutedText,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  routeValue: {
+    color: passengerPalette.text,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  routeDivider: {
+    backgroundColor: passengerPalette.border,
+    height: 1,
+    marginLeft: 24,
+  },
+  routeAction: {
+    alignItems: 'center',
+    backgroundColor: passengerPalette.surfaceMuted,
+    borderRadius: passengerRadius.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  routeActionText: {
+    color: passengerPalette.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  timeButton: {
+    alignItems: 'center',
+    backgroundColor: passengerPalette.surfaceMuted,
+    borderRadius: passengerRadius.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+  },
+  timeValue: {
+    color: passengerPalette.text,
+    fontSize: 18,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  timeline: {
+    gap: 14,
+  },
+  timelineRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  timelineBadge: {
+    alignItems: 'center',
+    backgroundColor: passengerPalette.surfaceMuted,
+    borderRadius: 16,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  timelineText: {
+    flex: 1,
+    gap: 4,
+  },
+  timelineTitle: {
+    color: passengerPalette.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  timelineHint: {
+    color: passengerPalette.mutedText,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  noteInput: {
+    backgroundColor: passengerPalette.surfaceMuted,
+    borderRadius: passengerRadius.md,
+    color: passengerPalette.text,
+    fontSize: 15,
+    minHeight: 112,
+    padding: 14,
+  },
+  primaryButton: {
+    alignItems: 'center',
+    backgroundColor: passengerPalette.primary,
+    borderRadius: passengerRadius.xl,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+  },
+  primaryEyebrow: {
+    color: '#7A5400',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  primaryTitle: {
+    color: passengerPalette.text,
+    fontSize: 17,
+    fontWeight: '800',
   },
 });
 
-export default PreorderScreen;

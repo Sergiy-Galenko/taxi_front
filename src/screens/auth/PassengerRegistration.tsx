@@ -1,5 +1,5 @@
 import React, { FC, useState } from 'react';
-import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, Animated, Dimensions, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, Animated, Dimensions, ScrollView, Alert } from 'react-native';
 import { Button, Text, Switch } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -7,7 +7,6 @@ import { RootStackParamList } from '../../types/navigation';
 import { CustomInput } from '../../components/CustomInput';
 import { getEmailError, getPasswordError, getPhoneError, getFullNameError } from '../../utils/validation';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import * as Animatable from 'react-native-animatable';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { registerPassenger } from '../../services/api/auth';
@@ -46,12 +45,12 @@ const PassengerRegistration: FC = () => {
   const navigation = useNavigation<PassengerRegistrationScreenNavigationProp>();
   const { setUser } = useUser();
   const [formData, setFormData] = useState<FormData>({
-    fullName: 'Test Passenger',
-    email: 'test@h.com',
-    phone: '2222222222',
-    password: 'Hh123456789!',
-    confirmPassword: 'Hh123456789!',
-    acceptTerms: true,
+    fullName: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
+    acceptTerms: false,
   });
   const [touched, setTouched] = useState<FormTouched>({
     fullName: false,
@@ -70,6 +69,37 @@ const PassengerRegistration: FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const buttonScale = React.useRef(new Animated.Value(1)).current;
+
+  const fillWithTestData = () => {
+    const timestamp = Date.now().toString().slice(-6);
+    const phoneSuffix = timestamp.slice(0, 6).padEnd(6, '0');
+    const testPassword = 'Hh123456789!';
+
+    setFormData({
+      fullName: 'Test Passenger',
+      email: `passenger${timestamp}@test.dev`,
+      phone: `2222${phoneSuffix}`,
+      password: testPassword,
+      confirmPassword: testPassword,
+      acceptTerms: true,
+    });
+
+    setTouched({
+      fullName: false,
+      email: false,
+      phone: false,
+      password: false,
+      confirmPassword: false,
+    });
+
+    setErrors({
+      fullName: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: '',
+    });
+  };
 
   const generatePassword = () => {
     const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -188,8 +218,7 @@ const PassengerRegistration: FC = () => {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={styles.container}>
+    <View style={styles.container}>
         <LinearGradient
           colors={['#1A1A1A', '#2D2D2D']}
           style={styles.gradient}
@@ -204,6 +233,7 @@ const PassengerRegistration: FC = () => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           bounces={false}
+          keyboardShouldPersistTaps="handled"
         >
           <Animatable.View 
             animation="fadeInUp" 
@@ -277,6 +307,22 @@ const PassengerRegistration: FC = () => {
 
               <Animatable.View 
                 animation="fadeIn" 
+                delay={550} 
+                style={styles.fillButtonContainer}
+              >
+                <Button
+                  mode="outlined"
+                  onPress={fillWithTestData}
+                  style={styles.fillButton}
+                  icon="flask-outline"
+                  contentStyle={styles.fillButtonContent}
+                >
+                  Р—Р°РїРѕРІРЅРёС‚Рё С‚РµСЃС‚РѕРІРёРјРё РґР°РЅРёРјРё
+                </Button>
+              </Animatable.View>
+
+              <Animatable.View 
+                animation="fadeIn" 
                 delay={600} 
                 style={styles.generateButtonContainer}
               >
@@ -337,7 +383,6 @@ const PassengerRegistration: FC = () => {
           </Animatable.View>
         </ScrollView>
       </View>
-    </TouchableWithoutFeedback>
   );
 };
 
@@ -412,8 +457,21 @@ const styles = StyleSheet.create({
     gap: 15,
   },
   generateButtonContainer: {
+    marginBottom: 10,
+  },
+  fillButtonContainer: {
     marginTop: 10,
     marginBottom: 10,
+  },
+  fillButton: {
+    height: 48,
+    justifyContent: 'center',
+    borderRadius: 16,
+    borderColor: '#FFFFFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  fillButtonContent: {
+    height: 48,
   },
   generateButton: {
     height: 48,

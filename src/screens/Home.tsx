@@ -1,786 +1,934 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View,
-  StyleSheet,
-  Dimensions,
-  TouchableOpacity,
-  Keyboard,
-  Animated,
+  Alert,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
-  TouchableWithoutFeedback,
-  SafeAreaView,
-  StatusBar,
-  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Text, TextInput, Button, Snackbar } from 'react-native-paper';
-import MapView, { Marker, Region, Polyline } from 'react-native-maps';
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import { DrawerActions, useNavigation } from '@react-navigation/native';
+import MapView, { Marker, Polyline } from 'react-native-maps';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AddressInputCard from '../components/passenger/AddressInputCard';
+import PassengerScreenLayout from '../components/passenger/PassengerScreenLayout';
+import RideOptionCard from '../components/passenger/RideOptionCard';
+import {
+  calculateTripSummary,
+  DEFAULT_CITY_CENTER,
+  DEFAULT_REGION,
+  findLocationSuggestion,
+  getRideOption,
+  LOCATION_SUGGESTIONS,
+  RIDE_OPTIONS,
+} from '../data/passenger';
+import { passengerPalette, passengerRadius } from '../theme/passenger';
+import { RootStackParamList } from '../types/navigation';
+import { Coordinates, RideOptionKey } from '../types/passenger';
 
-const { width } = Dimensions.get('window');
+type HomeScreenProps =
+  | NativeStackScreenProps<RootStackParamList, 'Home'>
+  | NativeStackScreenProps<RootStackParamList, 'Main'>;
 
-const TAXI_TYPES = [
-  { key: 'econom', label: 'Економ', icon: 'car', price: '₴45' },
-  { key: 'comfort', label: 'Комфорт', icon: 'car-side', price: '₴65' },
-  { key: 'business', label: 'Бізнес', icon: 'crown', price: '₴90' },
-  { key: 'premium', label: 'Преміум', icon: 'gem', price: '₴120' },
-];
+const buildMidPoint = (from: Coordinates, to: Coordinates): Coordinates => ({
+  latitude: (from.latitude + to.latitude) / 2,
+  longitude: (from.longitude + to.longitude) / 2,
+});
 
-const RECENT_DESTINATIONS = [
-  { id: '1', name: 'Залізничний вокзал', icon: 'train', coords: { latitude: 50.4405, longitude: 30.4900 } },
-  { id: '2', name: 'Аеропорт «Бориспіль»', icon: 'plane', coords: { latitude: 50.3450, longitude: 30.8947 } },
-  { id: '3', name: 'ТРЦ «Ocean Plaza»', icon: 'shopping-cart', coords: { latitude: 50.4395, longitude: 30.5214 } },
-  { id: '4', name: 'Софіївська площа', icon: 'landmark', coords: { latitude: 50.4539, longitude: 30.5161 } },
-];
+const formatAddressLabel = (place: Location.LocationGeocodedAddress | undefined) => {
+  if (!place) {
+    return 'Current location';
+  }
 
-// -------- helpers
-const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`);
-const formatTime = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  const line = [place.streetNumber, place.street].filter(Boolean).join(' ').trim();
 
-function getGreeting(hour: number) {
-  if (hour >= 5 && hour < 11) return 'Добрий ранок';
-  if (hour >= 11 && hour < 17) return 'Добрий день';
-  if (hour >= 17 && hour < 23) return 'Добрий вечір';
-  return 'Доброї ночі';
-}
+  return line || place.name || place.city || 'Current location';
+};
 
-export default function HomeScreenRedesigned() {
-  const navigation = useNavigation();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const mapRef = useRef<MapView>(null);
+const formatAreaLabel = (place: Location.LocationGeocodedAddress | undefined) => {
+  if (!place) {
+    return 'Kyiv city center';
+  }
 
-  // ---- state
-  const [now, setNow] = useState<Date>(new Date());
-  const [greeting, setGreeting] = useState<string>(getGreeting(new Date().getHours()));
+  return [place.district, place.city, place.region].filter(Boolean).join(', ') || 'Kyiv city center';
+};
 
+export default function HomeScreen({ navigation, route }: HomeScreenProps) {
+  const mapRef = useRef<MapView | null>(null);
+  const insets = useSafeAreaInsets();
+  const routeParams = route.name === 'Home' ? route.params : undefined;
+
+  const [pickup, setPickup] = useState('Detecting pickup...');
+  const [destination, setDestination] = useState('');
+  const [pickupCoords, setPickupCoords] = useState<Coordinates | null>(DEFAULT_CITY_CENTER);
+  const [destinationCoords, setDestinationCoords] = useState<Coordinates | null>(null);
+  const [currentCoords, setCurrentCoords] = useState<Coordinates | null>(null);
+  const [selectedRide, setSelectedRide] = useState<RideOptionKey>('economy');
+  const [showSuggestions, setShowSuggestions] = useState(true);
+  const [areaLabel, setAreaLabel] = useState('Checking nearby drivers...');
   const [permissionDenied, setPermissionDenied] = useState(false);
 
-  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [region, setRegion] = useState<Region | null>(null);
+  const selectedRideConfig = getRideOption(selectedRide);
+  const tripSummary = calculateTripSummary(pickupCoords, destinationCoords, selectedRide);
 
-  const [start, setStart] = useState('Моє місцезнаходження');
-  const [end, setEnd] = useState('');
-  const [startCoord, setStartCoord] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [endCoord, setEndCoord] = useState<{ latitude: number; longitude: number } | null>(null);
+  const routeLine =
+    pickupCoords && destinationCoords
+      ? [pickupCoords, buildMidPoint(pickupCoords, destinationCoords), destinationCoords]
+      : [];
 
-  const [placeLabel, setPlaceLabel] = useState<string>('Визначаємо місце…');
-  const [taxiType, setTaxiType] = useState('econom');
-  const [isFocused, setIsFocused] = useState(false);
-  const [showRecents, setShowRecents] = useState(false);
-  const [estimatedPrice, setEstimatedPrice] = useState('~ ₴75');
-  const [estimatedTime, setEstimatedTime] = useState('~ 12 хв');
-  const [routeCoordinates, setRouteCoordinates] = useState<{ latitude: number; longitude: number }[]>([]);
-  const [nearbyCities, setNearbyCities] = useState<any[]>([]);
-
-  // live clock + greeting
   useEffect(() => {
-    const t = setInterval(() => {
-      const d = new Date();
-      setNow(d);
-      setGreeting(getGreeting(d.getHours()));
-    }, 30000); // раз на 30с достатньо
-    return () => clearInterval(t);
+    let active = true;
+
+    const loadCurrentLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+
+        if (status !== 'granted') {
+          if (active) {
+            setPermissionDenied(true);
+            setPickup('Kyiv center');
+            setAreaLabel('Location access off');
+          }
+          return;
+        }
+
+        const currentPosition = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        if (!active) {
+          return;
+        }
+
+        const nextCoords = {
+          latitude: currentPosition.coords.latitude,
+          longitude: currentPosition.coords.longitude,
+        };
+
+        setCurrentCoords(nextCoords);
+        setPickupCoords(nextCoords);
+
+        const [address] = await Location.reverseGeocodeAsync(nextCoords);
+
+        if (!active) {
+          return;
+        }
+
+        setPickup(formatAddressLabel(address));
+        setAreaLabel(formatAreaLabel(address));
+
+        mapRef.current?.animateToRegion(
+          {
+            ...nextCoords,
+            latitudeDelta: DEFAULT_REGION.latitudeDelta,
+            longitudeDelta: DEFAULT_REGION.longitudeDelta,
+          },
+          450
+        );
+      } catch {
+        if (active) {
+          setPickup('Kyiv center');
+          setAreaLabel('Kyiv city center');
+        }
+      }
+    };
+
+    void loadCurrentLocation();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  // geolocation + reverse geocode
   useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setPermissionDenied(true);
+    if (!routeParams) {
+      return;
+    }
+
+    if (routeParams.rideType) {
+      setSelectedRide(routeParams.rideType);
+    }
+
+    if (routeParams.from) {
+      setPickup(routeParams.from);
+      void resolveAddress(routeParams.from, true);
+    }
+
+    if (routeParams.to) {
+      setDestination(routeParams.to);
+      setShowSuggestions(false);
+      void resolveAddress(routeParams.to, false);
+    }
+  }, [routeParams]);
+
+  useEffect(() => {
+    if (!pickupCoords || !destinationCoords) {
+      return;
+    }
+
+    mapRef.current?.fitToCoordinates([pickupCoords, destinationCoords], {
+      animated: true,
+      edgePadding: {
+        top: 90,
+        right: 50,
+        bottom: 90,
+        left: 50,
+      },
+    });
+  }, [pickupCoords, destinationCoords]);
+
+  useEffect(() => {
+    if (!pickup || pickup.length < 3) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      void resolveAddress(pickup, true);
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [pickup]);
+
+  useEffect(() => {
+    if (!destination) {
+      setDestinationCoords(null);
+      setShowSuggestions(true);
+      return;
+    }
+
+    if (destination.length < 3) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      void resolveAddress(destination, false);
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [destination]);
+
+  const resolveAddress = async (label: string, isPickup: boolean) => {
+    const normalizedLabel = label.trim();
+
+    if (!normalizedLabel) {
+      if (!isPickup) {
+        setDestinationCoords(null);
+      }
+      return;
+    }
+
+    const matchedSuggestion = findLocationSuggestion(normalizedLabel);
+
+    if (matchedSuggestion) {
+      if (isPickup) {
+        setPickupCoords(matchedSuggestion.coords);
+      } else {
+        setDestinationCoords(matchedSuggestion.coords);
+      }
+      return;
+    }
+
+    if (isPickup && currentCoords && normalizedLabel === pickup) {
+      return;
+    }
+
+    try {
+      const results = await Location.geocodeAsync(normalizedLabel);
+
+      if (!results.length) {
         return;
       }
 
-      const loc = await Location.getCurrentPositionAsync({});
-      const coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+      const nextCoords = {
+        latitude: results[0].latitude,
+        longitude: results[0].longitude,
+      };
 
-      setLocation(coords);
-      setStartCoord(coords);
-      setRegion({ ...coords, latitudeDelta: 0.015, longitudeDelta: 0.0121 });
-
-      // reverse geocode for header
-      try {
-        const [addr] = await Location.reverseGeocodeAsync(coords);
-        const city = addr.city || addr.subregion || addr.district || addr.region;
-        const country = addr.country || 'Україна';
-        setPlaceLabel(city ? `${city}, ${country}` : country);
-      } catch {
-        setPlaceLabel('Місце не визначено');
+      if (isPickup) {
+        setPickupCoords(nextCoords);
+      } else {
+        setDestinationCoords(nextCoords);
       }
-
-      Animated.timing(fadeAnim, { toValue: 1, duration: 700, useNativeDriver: true }).start();
-      fetchNearbyCities(coords);
-    })();
-  }, []);
-
-  // cities around (simple unique list from reverse geocode)
-  const fetchNearbyCities = async (center: { latitude: number; longitude: number }) => {
-    try {
-      const addresses = await Location.reverseGeocodeAsync(center);
-      const unique = addresses.reduce((acc: any[], item) => {
-        const city = item.city || item.subregion || item.district;
-        if (city && !acc.some((c) => c.name === city)) {
-          acc.push({
-            id: `city-${acc.length}`,
-            name: city,
-            icon: 'city',
-            coords: center,
-          });
-        }
-        return acc;
-      }, []);
-      setNearbyCities(unique.slice(0, 3));
     } catch {
-      // noop
+      // Ignore geocoding errors and preserve user input.
     }
   };
 
-  // route build when both points set
-  useEffect(() => {
-    if (startCoord && endCoord) {
-      const mid = {
-        latitude: (startCoord.latitude + endCoord.latitude) / 2,
-        longitude: (startCoord.longitude + endCoord.longitude) / 2,
-      };
-      setRouteCoordinates([startCoord, mid, endCoord]);
-
-      mapRef.current?.fitToCoordinates([startCoord, endCoord], {
-        edgePadding: { top: 120, right: 80, bottom: 320, left: 80 },
-        animated: true,
-      });
-
-      // toy estimate (можеш підмінити на реальне API)
-      const distKm =
-        Math.hypot(startCoord.latitude - endCoord.latitude, startCoord.longitude - endCoord.longitude) * 111;
-      const mins = Math.max(8, Math.round(distKm * 4));
-      const base = taxiType === 'econom' ? 45 : taxiType === 'comfort' ? 65 : taxiType === 'business' ? 90 : 120;
-      const price = Math.round(base + distKm * (taxiType === 'premium' ? 18 : 12));
-      setEstimatedTime(`~ ${mins} хв`);
-      setEstimatedPrice(`~ ₴${price}`);
-    } else {
-      setRouteCoordinates([]);
-      setEstimatedTime('~ 12 хв');
-      setEstimatedPrice('~ ₴75');
-    }
-  }, [startCoord, endCoord, taxiType]);
-
-  // ----- debounced geocoding
-  const geocodeTimer = useRef<NodeJS.Timeout | null>(null);
-  const geocodeAddress = useCallback((address: string, isStart = false) => {
-    if (geocodeTimer.current) clearTimeout(geocodeTimer.current);
-    if (!address || address.trim().length < 3) {
-      isStart ? setStartCoord(null) : setEndCoord(null);
+  const handleUseCurrentLocation = () => {
+    if (!currentCoords) {
       return;
     }
-    geocodeTimer.current = setTimeout(async () => {
-      try {
-        const geocoded = await Location.geocodeAsync(address);
-        if (geocoded.length) {
-          const { latitude, longitude } = geocoded[0];
-          isStart ? setStartCoord({ latitude, longitude }) : setEndCoord({ latitude, longitude });
-        }
-      } catch {
-        // ignore
-      }
-    }, 450);
-  }, []);
 
-  const handleSearch = () => {
-    Keyboard.dismiss();
-    // Можеш підмінити на свій екран
-    navigation.navigate('RideOptions' as never);
-  };
-
-  const handleFocus = () => {
-    setIsFocused(true);
-    setShowRecents(true);
-  };
-  const handleBlur = () => {
-    setIsFocused(false);
-    setTimeout(() => setShowRecents(false), 180);
-  };
-
-  const handleSetCurrentLocation = () => {
-    if (location) {
-      setStart('Моє місцезнаходження');
-      setStartCoord(location);
-      setEnd('');
-      setEndCoord(null);
-      mapRef.current?.animateToRegion(
-        { ...location, latitudeDelta: 0.015, longitudeDelta: 0.0121 },
-        400
-      );
-    }
-  };
-
-  const handlePlaceSelect = (place: any) => {
-    setEnd(place.name);
-    setEndCoord(place.coords);
-    setShowRecents(false);
-    Keyboard.dismiss();
+    setPickupCoords(currentCoords);
+    mapRef.current?.animateToRegion(
+      {
+        ...currentCoords,
+        latitudeDelta: DEFAULT_REGION.latitudeDelta,
+        longitudeDelta: DEFAULT_REGION.longitudeDelta,
+      },
+      300
+    );
   };
 
   const handleSwapLocations = () => {
-    const s = start;
-    const sc = startCoord;
-    setStart(end);
-    setStartCoord(endCoord);
-    setEnd(s);
-    setEndCoord(sc);
+    if (!destination) {
+      return;
+    }
+
+    setPickup(destination);
+    setDestination(pickup);
+    setPickupCoords(destinationCoords);
+    setDestinationCoords(pickupCoords);
   };
 
-  const isSearchDisabled = !endCoord;
+  const handleDestinationSelect = (label: string, coords: Coordinates) => {
+    setDestination(label);
+    setDestinationCoords(coords);
+    setShowSuggestions(false);
+  };
 
-  // -------- UI
+  const handleBookRide = () => {
+    if (!destinationCoords || !destination.trim()) {
+      setShowSuggestions(true);
+      return;
+    }
+
+    Alert.alert(
+      'Ride requested',
+      `${selectedRideConfig.label} confirmed to ${destination}. Driver arrives in about ${tripSummary.pickupEtaMin} minutes.`
+    );
+  };
+
+  const footerOffset = insets.bottom + 102;
+
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <SafeAreaView style={styles.safe}>
-        <StatusBar barStyle="light-content" />
-        <View style={styles.container}>
-          {/* MAP */}
-          {region && (
-            <MapView
-              ref={mapRef}
-              style={styles.map}
-              region={region}
-              showsUserLocation
-              mapType="standard"
-              userInterfaceStyle="dark"
-              onRegionChangeComplete={setRegion}
-            >
-              {/* start */}
-              {startCoord && (
-                <Marker coordinate={startCoord}>
-                  <View style={styles.startMarker}>
-                    <FontAwesome5 name="map-marker" size={28} color="#0A84FF" />
-                  </View>
-                </Marker>
-              )}
+    <PassengerScreenLayout activeRoute="Home" showHeader={false}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.flex}
+      >
+        <View style={styles.mapSection}>
+          <MapView
+            ref={mapRef}
+            initialRegion={DEFAULT_REGION}
+            showsUserLocation={!permissionDenied}
+            style={styles.map}
+          >
+            {pickupCoords ? (
+              <Marker coordinate={pickupCoords}>
+                <View style={styles.pickupPin}>
+                  <View style={styles.pickupPinInner} />
+                </View>
+              </Marker>
+            ) : null}
 
-              {/* end */}
-              {endCoord && (
-                <Marker coordinate={endCoord}>
-                  <View style={styles.destinationMarker}>
-                    <FontAwesome5 name="map-pin" size={22} color="#FF3B30" />
-                  </View>
-                </Marker>
-              )}
+            {destinationCoords ? (
+              <Marker coordinate={destinationCoords}>
+                <View style={styles.destinationPin}>
+                  <Ionicons color="#FFFFFF" name="flag" size={14} />
+                </View>
+              </Marker>
+            ) : null}
 
-              {/* route */}
-              {routeCoordinates.length > 0 && (
-                <Polyline coordinates={routeCoordinates} strokeColor="#E50914" strokeWidth={4} lineDashPattern={[12, 10]} />
-              )}
-            </MapView>
-          )}
+            {routeLine.length > 1 ? (
+              <Polyline
+                coordinates={routeLine}
+                strokeColor={passengerPalette.primaryDeep}
+                strokeWidth={4}
+              />
+            ) : null}
+          </MapView>
 
-          {/* gradients */}
-          <LinearGradient colors={['rgba(20,20,20,0.92)', 'transparent']} style={styles.topGradient} pointerEvents="none" />
-          <LinearGradient colors={['transparent', 'rgba(20,20,20,0.92)']} style={styles.bottomGradient} pointerEvents="none" />
-
-          {/* HEADER with time + greeting + place */}
-          <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
-            <TouchableOpacity
-              style={styles.iconBtn}
-              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-              accessibilityRole="button"
-              accessibilityLabel="Відкрити меню"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              activeOpacity={0.7}
-            >
-              <MaterialIcons name="menu" size={28} color="#FFF" />
-            </TouchableOpacity>
-
-            <View style={styles.headerCenter}>
-              <Text style={styles.headerTime}>{formatTime(now)}</Text>
-              <Text style={styles.headerGreeting} numberOfLines={1} ellipsizeMode="tail">
-                {greeting}! <Text style={styles.headerPlace}>{placeLabel}</Text>
-              </Text>
+          <View style={styles.heroTopRow}>
+            <View style={styles.brandCard}>
+              <Text style={styles.brandLabel}>CABLINE</Text>
+              <Text style={styles.brandTitle}>Order in seconds</Text>
+              <Text style={styles.brandCaption}>{areaLabel}</Text>
             </View>
 
             <TouchableOpacity
-              style={styles.iconBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Сповіщення"
-              activeOpacity={0.7}
+              activeOpacity={0.88}
+              onPress={handleUseCurrentLocation}
+              style={styles.locateButton}
             >
-              <Ionicons name="notifications-outline" size={24} color="#FFF" />
-              <View style={styles.notificationBadge} />
+              <Ionicons color={passengerPalette.text} name="locate-outline" size={20} />
             </TouchableOpacity>
-          </Animated.View>
+          </View>
 
-          {/* SEARCH CARD */}
-          <Animated.View style={[styles.searchCard, { opacity: fadeAnim }]}>
-            <BlurView intensity={isFocused ? 100 : 60} tint="dark" style={styles.blurContainer}>
-              {/* from */}
-              <View style={styles.row}>
-                <TextInput
-                  mode="outlined"
-                  placeholder="Звідки…"
-                  value={start}
-                  onChangeText={(v) => {
-                    setStart(v);
-                    geocodeAddress(v, true);
-                  }}
-                  style={styles.input}
-                  left={<TextInput.Icon icon="map-marker" color="#FF3B30" />}
-                  theme={{ colors: { primary: '#FF3B30', background: '#fff', text: '#222', placeholder: '#888' } }}
-                  dense
-                  accessibilityLabel="Поле звідки"
-                />
-                <Button
-                  mode="contained"
-                  onPress={handleSetCurrentLocation}
-                  style={styles.locationButton}
-                  icon="crosshairs-gps"
-                  labelStyle={{ fontSize: 18, color: '#FFF' }}
-                  compact
-                  accessibilityLabel="Встановити моє місцезнаходження"
-                >
-                  <></>
-                </Button>
-              </View>
-
-              {/* swap */}
-              <TouchableOpacity style={styles.swapButton} onPress={handleSwapLocations} activeOpacity={0.7} accessibilityLabel="Поміняти місцями">
-                <Ionicons name="swap-vertical" size={22} color="#FFF" />
-              </TouchableOpacity>
-
-              {/* to */}
-              <View style={styles.row}>
-                <TextInput
-                  mode="outlined"
-                  placeholder="Куди поїдемо?"
-                  value={end}
-                  onChangeText={(v) => {
-                    setEnd(v);
-                    geocodeAddress(v);
-                  }}
-                  style={styles.input}
-                  left={<TextInput.Icon icon="flag" color="#FF3B30" />}
-                  theme={{ colors: { primary: '#FF3B30', background: '#fff', text: '#222', placeholder: '#888' } }}
-                  onFocus={() => {
-                    setShowRecents(true);
-                    setIsFocused(true);
-                  }}
-                  onBlur={handleBlur}
-                  dense
-                  accessibilityLabel="Поле куди"
-                />
-              </View>
-
-              {/* recents & near cities */}
-              {showRecents && (
-                <Animated.View style={[styles.recentContainer, { opacity: fadeAnim }]}>
-                  <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                    <Text style={styles.recentTitle}>Недавні поїздки</Text>
-                    {RECENT_DESTINATIONS.map((dest) => (
-                      <Pressable
-                        key={dest.id}
-                        style={({ pressed }) => [styles.recentItem, pressed && styles.pressed]}
-                        onPress={() => handlePlaceSelect(dest)}
-                        android_ripple={{ color: 'rgba(255,255,255,0.08)' }}
-                        accessibilityLabel={`Маршрут: ${dest.name}`}
-                      >
-                        <FontAwesome5 name={dest.icon} size={18} color="#9aa0a6" style={styles.recentIcon} />
-                        <Text style={styles.recentText}>{dest.name}</Text>
-                        <MaterialIcons name="chevron-right" size={20} color="#9aa0a6" />
-                      </Pressable>
-                    ))}
-
-                    {nearbyCities.length > 0 && (
-                      <>
-                        <Text style={[styles.recentTitle, { marginTop: 12 }]}>Міста поруч</Text>
-                        {nearbyCities.map((city) => (
-                          <Pressable
-                            key={city.id}
-                            style={({ pressed }) => [styles.recentItem, pressed && styles.pressed]}
-                            onPress={() => handlePlaceSelect(city)}
-                            android_ripple={{ color: 'rgba(255,255,255,0.08)' }}
-                            accessibilityLabel={`Місто поруч: ${city.name}`}
-                          >
-                            <FontAwesome5 name="city" size={18} color="#0A84FF" style={styles.recentIcon} />
-                            <Text style={styles.recentText}>{city.name}</Text>
-                            <MaterialIcons name="chevron-right" size={20} color="#9aa0a6" />
-                          </Pressable>
-                        ))}
-                      </>
-                    )}
-                  </ScrollView>
-                </Animated.View>
-              )}
-
-              {/* taxi selector */}
-              <View style={styles.taxiSelector}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 2 }}>
-                  {TAXI_TYPES.map((type) => {
-                    const selected = taxiType === type.key;
-                    return (
-                      <Pressable
-                        key={type.key}
-                        onPress={() => setTaxiType(type.key)}
-                        style={({ pressed }) => [
-                          styles.taxiOption,
-                          selected && styles.selectedTaxiOption,
-                          pressed && { opacity: 0.95 },
-                        ]}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected }}
-                        accessibilityLabel={`Тариф ${type.label}`}
-                      >
-                        <FontAwesome5 name={type.icon} size={20} color={selected ? '#FFF' : '#9aa0a6'} />
-                        <Text style={[styles.taxiLabel, selected && styles.selectedTaxiLabel]}>{type.label}</Text>
-                        <Text style={[styles.taxiPrice, selected && styles.selectedTaxiPrice]}>{type.price}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-
-              {/* estimates */}
-              <View style={styles.estimateContainer}>
-                <View style={styles.estimateItem}>
-                  <Ionicons name="time-outline" size={20} color="#9aa0a6" />
-                  <Text style={styles.estimateText}>{estimatedTime}</Text>
-                </View>
-                <View style={styles.estimateSeparator} />
-                <View style={styles.estimateItem}>
-                  <Ionicons name="pricetag-outline" size={20} color="#9aa0a6" />
-                  <Text style={styles.estimateText}>{estimatedPrice}</Text>
-                </View>
-              </View>
-
-              {/* CTA */}
-              <TouchableOpacity
-                style={[styles.searchButton, isSearchDisabled && styles.searchButtonDisabled]}
-                onPress={handleSearch}
-                activeOpacity={0.9}
-                disabled={isSearchDisabled}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: isSearchDisabled }}
-                accessibilityLabel="Знайти таксі"
-              >
-                <LinearGradient
-                  colors={isSearchDisabled ? ['#4b5563', '#374151'] : ['#E50914', '#B20710']}
-                  style={styles.searchButtonGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  <Text style={styles.searchButtonText}>ЗНАЙТИ ТАКСІ</Text>
-                  <Ionicons name="car-sport" size={24} color="#FFF" style={styles.carIcon} />
-                </LinearGradient>
-              </TouchableOpacity>
-            </BlurView>
-          </Animated.View>
-
-          {/* Quick actions */}
-          <Animated.View style={[styles.quickActions, { opacity: fadeAnim }]}>
-            <TouchableOpacity
-              style={styles.quickAction}
-              activeOpacity={0.85}
-              onPress={() => {
-                setEnd('Залізничний вокзал');
-                setEndCoord({ latitude: 50.4405, longitude: 30.4900 });
-              }}
-              accessibilityLabel="Додому"
-            >
-              <LinearGradient colors={['#141414', '#E50914']} style={styles.quickActionGradient} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}>
-                <Ionicons name="home" size={22} color="#FFF" />
-              </LinearGradient>
-              <Text style={styles.quickActionText}>Додому</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickAction}
-              activeOpacity={0.85}
-              onPress={() => {
-                setEnd('ТРЦ «Ocean Plaza»');
-                setEndCoord({ latitude: 50.4395, longitude: 30.5214 });
-              }}
-              accessibilityLabel="На роботу"
-            >
-              <LinearGradient colors={['#141414', '#E50914']} style={styles.quickActionGradient} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}>
-                <Ionicons name="briefcase" size={22} color="#FFF" />
-              </LinearGradient>
-              <Text style={styles.quickActionText}>На роботу</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickAction}
-              activeOpacity={0.85}
-              onPress={() => {
-                setEnd('Аеропорт «Бориспіль»');
-                setEndCoord({ latitude: 50.3450, longitude: 30.8947 });
-              }}
-              accessibilityLabel="Аеропорт"
-            >
-              <LinearGradient colors={['#141414', '#E50914']} style={styles.quickActionGradient} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}>
-                <Ionicons name="airplane" size={22} color="#FFF" />
-              </LinearGradient>
-              <Text style={styles.quickActionText}>Аеропорт</Text>
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* permission snackbar */}
-          <Snackbar
-            visible={permissionDenied}
-            onDismiss={() => setPermissionDenied(false)}
-            duration={5000}
-            style={{ backgroundColor: '#1f2937' }}
-            action={{
-              label: 'OK',
-              onPress: () => setPermissionDenied(false),
-              color: '#E50914',
-            }}
-          >
-            <Text style={{ color: '#fff' }}>
-              Немає доступу до геолокації. Увімкніть доступ у налаштуваннях, щоб бачити ваше місце.
-            </Text>
-          </Snackbar>
+          <View style={styles.heroBottomCard}>
+            <View>
+              <Text style={styles.heroEyebrow}>Fast pickup</Text>
+              <Text style={styles.heroValue}>{tripSummary.pickupEtaMin} min away</Text>
+            </View>
+            <View style={styles.heroDivider} />
+            <View>
+              <Text style={styles.heroEyebrow}>Selected ride</Text>
+              <Text style={styles.heroValue}>{selectedRideConfig.label}</Text>
+            </View>
+          </View>
         </View>
-      </SafeAreaView>
-    </TouchableWithoutFeedback>
+
+        <View style={styles.sheet}>
+          <ScrollView
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: footerOffset + 36 }]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.introBlock}>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>Fast booking</Text>
+              </View>
+              <Text style={styles.headline}>Set route, choose ride, confirm.</Text>
+              <Text style={styles.subheadline}>
+                The flow is linear on purpose. The app surfaces only the next action you need.
+              </Text>
+            </View>
+
+            <AddressInputCard
+              destination={destination}
+              onDestinationChange={setDestination}
+              onDestinationFocus={() => setShowSuggestions(true)}
+              onPickupChange={setPickup}
+              onSwap={handleSwapLocations}
+              onUseCurrentLocation={handleUseCurrentLocation}
+              pickup={pickup}
+            />
+
+            {permissionDenied ? (
+              <View style={styles.inlineNotice}>
+                <Ionicons color={passengerPalette.danger} name="alert-circle-outline" size={18} />
+                <Text style={styles.inlineNoticeText}>
+                  Location access is off, so pickup stays manual until the user enables it.
+                </Text>
+              </View>
+            ) : null}
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Quick destinations</Text>
+              <TouchableOpacity activeOpacity={0.75} onPress={() => navigation.navigate('TripHistory')}>
+                <Text style={styles.sectionLink}>Use recent rides</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.quickGrid}>
+              {LOCATION_SUGGESTIONS.slice(0, 4).map((suggestion) => (
+                <TouchableOpacity
+                  key={suggestion.id}
+                  activeOpacity={0.88}
+                  onPress={() => handleDestinationSelect(suggestion.title, suggestion.coords)}
+                  style={styles.quickCard}
+                >
+                  <View style={styles.quickIcon}>
+                    <Ionicons
+                      color={passengerPalette.text}
+                      name={
+                        suggestion.category === 'favorite'
+                          ? 'heart-outline'
+                          : suggestion.category === 'hub'
+                            ? 'airplane-outline'
+                            : 'time-outline'
+                      }
+                      size={18}
+                    />
+                  </View>
+                  <View style={styles.quickText}>
+                    <Text style={styles.quickLabel}>{suggestion.title}</Text>
+                    <Text style={styles.quickSubtitle}>{suggestion.subtitle}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {showSuggestions ? (
+              <View style={styles.suggestionPanel}>
+                <Text style={styles.suggestionTitle}>Suggested destinations</Text>
+                {LOCATION_SUGGESTIONS.map((suggestion) => (
+                  <TouchableOpacity
+                    key={suggestion.id}
+                    activeOpacity={0.85}
+                    onPress={() => handleDestinationSelect(suggestion.title, suggestion.coords)}
+                    style={styles.suggestionRow}
+                  >
+                    <View style={styles.suggestionDot} />
+                    <View style={styles.suggestionText}>
+                      <Text style={styles.suggestionLabel}>{suggestion.title}</Text>
+                      <Text style={styles.suggestionSubtitle}>{suggestion.subtitle}</Text>
+                    </View>
+                    <Ionicons color={passengerPalette.mutedText} name="chevron-forward" size={18} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null}
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Choose your ride</Text>
+              <Text style={styles.sectionMeta}>
+                {destinationCoords ? `${tripSummary.durationMin} min trip` : 'Waiting for route'}
+              </Text>
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {RIDE_OPTIONS.map((option) => (
+                <RideOptionCard
+                  key={option.key}
+                  onPress={() => setSelectedRide(option.key)}
+                  option={option}
+                  selected={selectedRide === option.key}
+                  summary={calculateTripSummary(pickupCoords, destinationCoords, option.key)}
+                />
+              ))}
+            </ScrollView>
+
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryHeader}>
+                <Text style={styles.summaryTitle}>Trip summary</Text>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() =>
+                    navigation.navigate('Preorder', {
+                      pickup,
+                      destination,
+                      rideType: selectedRide,
+                    })
+                  }
+                  style={styles.secondaryButton}
+                >
+                  <Ionicons color={passengerPalette.text} name="calendar-outline" size={16} />
+                  <Text style={styles.secondaryButtonText}>Schedule instead</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.metricRow}>
+                <View style={styles.metricBlock}>
+                  <Text style={styles.metricLabel}>Distance</Text>
+                  <Text style={styles.metricValue}>
+                    {destinationCoords ? `${tripSummary.distanceKm} km` : 'Add route'}
+                  </Text>
+                </View>
+                <View style={styles.metricBlock}>
+                  <Text style={styles.metricLabel}>Ride time</Text>
+                  <Text style={styles.metricValue}>
+                    {destinationCoords ? `${tripSummary.durationMin} min` : 'Pending'}
+                  </Text>
+                </View>
+                <View style={styles.metricBlock}>
+                  <Text style={styles.metricLabel}>Fare</Text>
+                  <Text style={styles.metricValue}>UAH {tripSummary.price}</Text>
+                </View>
+              </View>
+
+              <View style={styles.summaryFooter}>
+                <View>
+                  <Text style={styles.paymentLabel}>Payment</Text>
+                  <Text style={styles.paymentValue}>Visa •••• 4219</Text>
+                </View>
+                <View style={styles.routeNote}>
+                  <Ionicons color={passengerPalette.accent} name="shield-checkmark-outline" size={16} />
+                  <Text style={styles.routeNoteText}>Driver and vehicle details show before pickup.</Text>
+                </View>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+
+        <View style={[styles.footerAction, { bottom: footerOffset }]}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={handleBookRide}
+            style={styles.primaryButton}
+          >
+            <View>
+              <Text style={styles.primaryEyebrow}>
+                {destinationCoords ? `${selectedRideConfig.label} · UAH ${tripSummary.price}` : 'Set destination first'}
+              </Text>
+              <Text style={styles.primaryTitle}>
+                {destinationCoords ? 'Book ride now' : 'Choose destination'}
+              </Text>
+            </View>
+            <View style={styles.primaryIconWrap}>
+              <Ionicons color={passengerPalette.text} name="arrow-forward" size={18} />
+            </View>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </PassengerScreenLayout>
   );
 }
 
-// ---- styles
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#141414' },
-  container: { flex: 1, backgroundColor: '#141414' },
-  map: { ...StyleSheet.absoluteFillObject, zIndex: 0 },
-
-  topGradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 220, zIndex: 2 },
-  bottomGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 220, zIndex: 2 },
-
-  header: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 6 : 10,
-    left: 10,
-    right: 10,
-    zIndex: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  iconBtn: {
-    backgroundColor: 'rgba(30,30,30,0.7)',
-    borderRadius: 14,
-    padding: 8,
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#E50914',
-    borderWidth: 1,
-    borderColor: '#fff',
-  },
-  headerCenter: {
+  flex: {
     flex: 1,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    backgroundColor: 'rgba(20,20,20,0.65)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
   },
-  headerTime: {
-    color: '#FFF',
+  mapSection: {
+    height: 300,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+  },
+  map: {
+    borderRadius: passengerRadius.xl,
+    flex: 1,
+  },
+  heroTopRow: {
+    left: 32,
+    position: 'absolute',
+    right: 32,
+    top: 26,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  brandCard: {
+    backgroundColor: passengerPalette.overlay,
+    borderRadius: passengerRadius.lg,
+    gap: 4,
+    maxWidth: 220,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  brandLabel: {
+    color: '#FCD34D',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  brandTitle: {
+    color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '800',
-    letterSpacing: 0.5,
   },
-  headerGreeting: {
-    color: '#e5e7eb',
-    fontSize: 14,
-    marginTop: 2,
+  brandCaption: {
+    color: 'rgba(255, 255, 255, 0.78)',
+    fontSize: 13,
   },
-  headerPlace: {
-    color: '#93c5fd',
+  locateButton: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: passengerRadius.md,
+    height: 46,
+    justifyContent: 'center',
+    width: 46,
+  },
+  heroBottomCard: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: passengerRadius.lg,
+    bottom: 18,
+    flexDirection: 'row',
+    gap: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    position: 'absolute',
+  },
+  heroDivider: {
+    backgroundColor: passengerPalette.border,
+    height: 34,
+    width: 1,
+  },
+  heroEyebrow: {
+    color: passengerPalette.mutedText,
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  heroValue: {
+    color: passengerPalette.text,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  pickupPin: {
+    alignItems: 'center',
+    backgroundColor: passengerPalette.accentSoft,
+    borderColor: passengerPalette.accent,
+    borderRadius: 18,
+    borderWidth: 2,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  pickupPinInner: {
+    backgroundColor: passengerPalette.accent,
+    borderRadius: 7,
+    height: 14,
+    width: 14,
+  },
+  destinationPin: {
+    alignItems: 'center',
+    backgroundColor: passengerPalette.danger,
+    borderRadius: 18,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  sheet: {
+    backgroundColor: 'rgba(246, 241, 231, 0.95)',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    flex: 1,
+    marginTop: -28,
+  },
+  scrollContent: {
+    gap: 22,
+    paddingHorizontal: 20,
+    paddingTop: 30,
+  },
+  introBlock: {
+    gap: 8,
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    backgroundColor: passengerPalette.primarySoft,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  badgeText: {
+    color: passengerPalette.text,
+    fontSize: 12,
     fontWeight: '700',
   },
-
-  searchCard: {
+  headline: {
+    color: passengerPalette.text,
+    fontSize: 30,
+    fontWeight: '800',
+    letterSpacing: -0.7,
+  },
+  subheadline: {
+    color: passengerPalette.mutedText,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  inlineNotice: {
+    alignItems: 'flex-start',
+    backgroundColor: '#FFF5F3',
+    borderColor: '#F7C7C2',
+    borderRadius: passengerRadius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    padding: 14,
+  },
+  inlineNoticeText: {
+    color: passengerPalette.text,
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  sectionHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: {
+    color: passengerPalette.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  sectionLink: {
+    color: passengerPalette.info,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  sectionMeta: {
+    color: passengerPalette.mutedText,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  quickCard: {
+    backgroundColor: passengerPalette.surface,
+    borderColor: passengerPalette.border,
+    borderRadius: passengerRadius.md,
+    borderWidth: 1,
+    flexBasis: '48%',
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 82,
+    padding: 14,
+  },
+  quickIcon: {
+    alignItems: 'center',
+    backgroundColor: passengerPalette.surfaceMuted,
+    borderRadius: 14,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  quickText: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  quickLabel: {
+    color: passengerPalette.text,
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  quickSubtitle: {
+    color: passengerPalette.mutedText,
+    fontSize: 12,
+  },
+  suggestionPanel: {
+    backgroundColor: passengerPalette.surface,
+    borderColor: passengerPalette.border,
+    borderRadius: passengerRadius.lg,
+    borderWidth: 1,
+    padding: 16,
+  },
+  suggestionTitle: {
+    color: passengerPalette.text,
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  suggestionRow: {
+    alignItems: 'center',
+    borderTopColor: passengerPalette.border,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    paddingVertical: 14,
+  },
+  suggestionDot: {
+    backgroundColor: passengerPalette.primary,
+    borderRadius: 6,
+    height: 12,
+    width: 12,
+  },
+  suggestionText: {
+    flex: 1,
+    gap: 2,
+  },
+  suggestionLabel: {
+    color: passengerPalette.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  suggestionSubtitle: {
+    color: passengerPalette.mutedText,
+    fontSize: 12,
+  },
+  summaryCard: {
+    backgroundColor: passengerPalette.surface,
+    borderColor: passengerPalette.border,
+    borderRadius: passengerRadius.lg,
+    borderWidth: 1,
+    gap: 18,
+    padding: 18,
+  },
+  summaryHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  summaryTitle: {
+    color: passengerPalette.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  secondaryButton: {
+    alignItems: 'center',
+    backgroundColor: passengerPalette.surfaceMuted,
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  secondaryButtonText: {
+    color: passengerPalette.text,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  metricRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  metricBlock: {
+    gap: 6,
+  },
+  metricLabel: {
+    color: passengerPalette.mutedText,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  metricValue: {
+    color: passengerPalette.text,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  summaryFooter: {
+    gap: 14,
+  },
+  paymentLabel: {
+    color: passengerPalette.mutedText,
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  paymentValue: {
+    color: passengerPalette.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  routeNote: {
+    alignItems: 'center',
+    backgroundColor: passengerPalette.accentSoft,
+    borderRadius: passengerRadius.md,
+    flexDirection: 'row',
+    gap: 10,
+    padding: 12,
+  },
+  routeNoteText: {
+    color: passengerPalette.text,
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  footerAction: {
+    left: 20,
     position: 'absolute',
-    bottom: 40,
-    left: 16,
-    right: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-    zIndex: 20,
-    backgroundColor: 'transparent',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    right: 20,
+  },
+  primaryButton: {
+    alignItems: 'center',
+    backgroundColor: passengerPalette.primary,
+    borderRadius: passengerRadius.xl,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    shadowColor: passengerPalette.shadow,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 1,
+    shadowRadius: 24,
     elevation: 8,
   },
-  blurContainer: { padding: 16, backgroundColor: 'rgba(20,20,20,0.25)', borderRadius: 16 },
-
-  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, zIndex: 2 },
-  input: { flex: 1, backgroundColor: '#FFF', borderRadius: 10, fontSize: 15, minHeight: 44, paddingHorizontal: 0 },
-
-  locationButton: {
-    marginLeft: 8,
-    backgroundColor: '#FF3B30',
-    borderRadius: 12,
-    minWidth: 44,
-    minHeight: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#E50914',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-
-  swapButton: {
-    alignSelf: 'flex-start',
-    marginLeft: 6,
-    marginTop: 2,
-    backgroundColor: '#E50914',
-    borderRadius: 14,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    zIndex: 5,
-    elevation: 5,
-    shadowColor: '#E50914',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-
-  recentContainer: {
-    backgroundColor: 'rgba(30,30,30,0.95)',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 8,
+  primaryEyebrow: {
+    color: '#7A5400',
+    fontSize: 12,
+    fontWeight: '700',
     marginBottom: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  recentTitle: { color: '#FFF', fontWeight: '700', marginBottom: 8, fontSize: 15 },
-  recentItem: {
-    flexDirection: 'row',
+  primaryTitle: {
+    color: passengerPalette.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  primaryIconWrap: {
     alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  pressed: { opacity: 0.9 },
-  recentIcon: { marginRight: 12, width: 24, textAlign: 'center' },
-  recentText: { flex: 1, color: '#FFF', fontSize: 15 },
-
-  taxiSelector: { marginTop: 10, marginBottom: 12, zIndex: 1 },
-  taxiOption: {
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(50,50,50,0.6)',
-    width: width * 0.28,
-    marginHorizontal: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  selectedTaxiOption: {
-    backgroundColor: '#E50914',
-    borderColor: '#E50914',
-    transform: [{ scale: 1.02 }],
-    shadowColor: '#E50914',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-  },
-  taxiLabel: { color: '#9aa0a6', fontSize: 12, marginTop: 6, fontWeight: '700' },
-  selectedTaxiLabel: { color: '#FFF' },
-  taxiPrice: { color: '#9aa0a6', fontSize: 11, marginTop: 2, fontWeight: '600' },
-  selectedTaxiPrice: { color: '#fff' },
-
-  estimateContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(30,30,30,0.7)',
-    borderRadius: 16,
-    paddingVertical: 12,
-    marginTop: 2,
-    marginBottom: 10,
-    alignItems: 'center',
-  },
-  estimateItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 },
-  estimateSeparator: { width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: 8 },
-  estimateText: { color: '#FFF', marginLeft: 8, fontWeight: '700', fontSize: 15 },
-
-  searchButton: {
-    marginTop: 8,
-    borderRadius: 10,
-    overflow: 'hidden',
-    elevation: 3,
-    shadowColor: '#E50914',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-  },
-  searchButtonDisabled: { opacity: 0.6 },
-  searchButtonGradient: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', borderRadius: 10 },
-  searchButtonText: { color: '#FFF', fontWeight: '900', fontSize: 16, letterSpacing: 0.5, marginRight: 8 },
-  carIcon: { marginLeft: 4 },
-
-  startMarker: {
-    backgroundColor: 'rgba(10, 132, 255, 0.28)',
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
     borderRadius: 20,
-    padding: 5,
-    alignItems: 'center',
+    height: 40,
     justifyContent: 'center',
+    width: 40,
   },
-  destinationMarker: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 12,
-    padding: 5,
-    borderWidth: 2,
-    borderColor: '#FF3B30',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  quickActions: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 120 : 110,
-    right: 16,
-    zIndex: 15,
-    backgroundColor: 'rgba(30,30,30,0.7)',
-    borderRadius: 18,
-    padding: 8,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  quickAction: { alignItems: 'center', marginVertical: 6, width: 72 },
-  quickActionGradient: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
-    shadowColor: '#E50914',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  quickActionText: { color: '#FFF', fontSize: 12, textAlign: 'center' },
 });

@@ -1,283 +1,254 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity, Animated, Platform } from 'react-native';
-import { Text } from 'react-native-paper';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import React from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import PassengerScreenLayout from '../components/passenger/PassengerScreenLayout';
+import { getRideOption, TRIP_HISTORY } from '../data/passenger';
+import { passengerPalette, passengerRadius } from '../theme/passenger';
 import { RootStackParamList } from '../types/navigation';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-interface Trip {
-  id: string;
-  from: string;
-  to: string;
-  date: string;
-  price: string;
-  rating: number;
+type TripHistoryScreenProps = NativeStackScreenProps<RootStackParamList, 'TripHistory'>;
+
+const totalSpent = TRIP_HISTORY.reduce((sum, trip) => sum + trip.price, 0);
+const averageFare = Math.round(totalSpent / TRIP_HISTORY.length);
+
+export default function TripHistoryScreen({ navigation }: TripHistoryScreenProps) {
+  return (
+    <PassengerScreenLayout
+      activeRoute="TripHistory"
+      subtitle="Recent rides stay actionable so repeating them takes one tap."
+      title="Recent rides"
+    >
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.analyticsRow}>
+          <View style={styles.analyticsCard}>
+            <Text style={styles.analyticsValue}>{TRIP_HISTORY.length}</Text>
+            <Text style={styles.analyticsLabel}>Trips this month</Text>
+          </View>
+          <View style={styles.analyticsCard}>
+            <Text style={styles.analyticsValue}>UAH {averageFare}</Text>
+            <Text style={styles.analyticsLabel}>Average fare</Text>
+          </View>
+          <View style={styles.analyticsCard}>
+            <Text style={styles.analyticsValue}>4.9</Text>
+            <Text style={styles.analyticsLabel}>Average rating</Text>
+          </View>
+        </View>
+
+        {TRIP_HISTORY.map((trip) => {
+          const rideOption = getRideOption(trip.rideType);
+
+          return (
+            <View key={trip.id} style={styles.tripCard}>
+              <View style={styles.tripHeader}>
+                <View>
+                  <Text style={styles.tripDate}>{trip.dateLabel}</Text>
+                  <Text style={styles.tripStatus}>{trip.status}</Text>
+                </View>
+                <View style={styles.tripPill}>
+                  <Ionicons color={passengerPalette.text} name="car-outline" size={14} />
+                  <Text style={styles.tripPillText}>{rideOption.label}</Text>
+                </View>
+              </View>
+
+              <View style={styles.routeGroup}>
+                <View style={styles.routeRow}>
+                  <View style={[styles.routeDot, styles.pickupDot]} />
+                  <View style={styles.routeText}>
+                    <Text style={styles.routeLabel}>Pickup</Text>
+                    <Text style={styles.routeValue}>{trip.pickup}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.routeDivider} />
+
+                <View style={styles.routeRow}>
+                  <View style={[styles.routeDot, styles.destinationDot]} />
+                  <View style={styles.routeText}>
+                    <Text style={styles.routeLabel}>Destination</Text>
+                    <Text style={styles.routeValue}>{trip.destination}</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.tripFooter}>
+                <View>
+                  <Text style={styles.metaLabel}>Paid with</Text>
+                  <Text style={styles.metaValue}>{trip.paymentLabel}</Text>
+                </View>
+                <View>
+                  <Text style={styles.metaLabel}>Fare</Text>
+                  <Text style={styles.priceValue}>UAH {trip.price}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() =>
+                  navigation.navigate('Home', {
+                    from: trip.pickup,
+                    to: trip.destination,
+                    rideType: trip.rideType,
+                  })
+                }
+                style={styles.repeatButton}
+              >
+                <Text style={styles.repeatButtonText}>Repeat this ride</Text>
+                <Ionicons color={passengerPalette.text} name="arrow-forward" size={18} />
+              </TouchableOpacity>
+            </View>
+          );
+        })}
+      </ScrollView>
+    </PassengerScreenLayout>
+  );
 }
 
-const TripHistoryScreen = () => {
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const fadeAnim = useState(new Animated.Value(0))[0];
-
-  useEffect(() => {
-    // TODO: fetch from API
-    setTrips([
-      { 
-        id: '1', 
-        from: 'вул. Хрещатик, 25', 
-        to: 'Аеропорт "Бориспіль"', 
-        date: '15 червня 2024, 14:30',
-        price: '₴350',
-        rating: 5
-      },
-      { 
-        id: '2', 
-        from: 'ТРЦ "Ocean Plaza"', 
-        to: 'вул. Лисенка, 12', 
-        date: '14 червня 2024, 18:15',
-        price: '₴120',
-        rating: 4
-      },
-      { 
-        id: '3', 
-        from: 'Залізничний вокзал', 
-        to: 'Софіївська площа', 
-        date: '10 червня 2024, 09:45',
-        price: '₴85',
-        rating: 5
-      },
-    ]);
-    
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 800,
-      useNativeDriver: true,
-    }).start();
-  }, []);
-
-  const handleRepeat = (trip: Trip) => {
-    navigation.navigate('Home', { from: trip.from, to: trip.to } as any);
-  };
-
-  const renderTripCard = ({ item }: { item: Trip }) => (
-    <Animated.View style={[styles.tripCard, { opacity: fadeAnim }]}>
-      <View style={styles.tripHeader}>
-        <FontAwesome5 name="route" size={20} color="#E50914" style={styles.routeIcon} />
-        <Text style={styles.tripDate}>{item.date}</Text>
-      </View>
-      
-      <View style={styles.routeRow}>
-        <MaterialIcons name="location-on" size={18} color="#0A84FF" />
-        <Text style={styles.routeText} numberOfLines={1} ellipsizeMode="tail">{item.from}</Text>
-      </View>
-      
-      <View style={styles.routeRow}>
-        <MaterialIcons name="flag" size={18} color="#FF3B30" />
-        <Text style={styles.routeText} numberOfLines={1} ellipsizeMode="tail">{item.to}</Text>
-      </View>
-      
-      <View style={styles.tripFooter}>
-        <View style={styles.priceContainer}>
-          <Text style={styles.priceText}>{item.price}</Text>
-        </View>
-        
-        <View style={styles.ratingContainer}>
-          <Ionicons name="star" size={16} color="#FFD700" />
-          <Text style={styles.ratingText}>{item.rating}</Text>
-        </View>
-      </View>
-      
-      <TouchableOpacity 
-        style={styles.repeatButton} 
-        onPress={() => handleRepeat(item)}
-      >
-        <LinearGradient
-          colors={['#E50914', '#B20710']}
-          style={styles.repeatButtonGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-        >
-          <Ionicons name="repeat" size={20} color="#FFF" />
-          <Text style={styles.repeatButtonText}>Повторити</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-
-  return (
-    <LinearGradient
-      colors={['#141414', '#1a1a1a', '#000']}
-      style={styles.container}
-    >
-      <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => navigation.goBack()} 
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={28} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Історія поїздок</Text>
-        <View style={{ width: 40 }} />
-      </View>
-      
-      {trips.length > 0 ? (
-        <FlatList
-          data={trips}
-          keyExtractor={item => item.id}
-          renderItem={renderTripCard}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
-      ) : (
-        <View style={styles.emptyContainer}>
-          <FontAwesome5 name="history" size={60} color="#E50914" style={styles.emptyIcon} />
-          <Text style={styles.emptyTitle}>Історія поїздок порожня</Text>
-          <Text style={styles.emptyText}>Тут з'являтимуться ваші попередні поїздки</Text>
-        </View>
-      )}
-    </LinearGradient>
-  );
-};
-
 const styles = StyleSheet.create({
-  container: {
+  content: {
+    gap: 18,
+    paddingBottom: 150,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+  },
+  analyticsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  analyticsCard: {
+    backgroundColor: passengerPalette.surface,
+    borderColor: passengerPalette.border,
+    borderRadius: passengerRadius.lg,
+    borderWidth: 1,
     flex: 1,
     padding: 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+  analyticsValue: {
+    color: passengerPalette.text,
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 6,
   },
-  backButton: {
-    backgroundColor: 'rgba(229, 9, 20, 0.2)',
-    borderRadius: 20,
-    padding: 8,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFF',
-    textAlign: 'center',
-    flex: 1,
-  },
-  listContent: {
-    paddingBottom: 30,
+  analyticsLabel: {
+    color: passengerPalette.mutedText,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
   },
   tripCard: {
-    backgroundColor: 'rgba(30,30,30,0.8)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
+    backgroundColor: passengerPalette.surface,
+    borderColor: passengerPalette.border,
+    borderRadius: passengerRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(80,80,80,0.5)',
+    gap: 18,
+    padding: 18,
   },
   tripHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-    paddingBottom: 12,
-  },
-  routeIcon: {
-    marginRight: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   tripDate: {
-    color: '#BBB',
-    fontSize: 14,
-    fontWeight: '500',
+    color: passengerPalette.text,
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  tripStatus: {
+    color: passengerPalette.mutedText,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  tripPill: {
+    alignItems: 'center',
+    backgroundColor: passengerPalette.surfaceMuted,
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  tripPillText: {
+    color: passengerPalette.text,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  routeGroup: {
+    gap: 12,
   },
   routeRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 8,
+    gap: 12,
+  },
+  routeDot: {
+    borderRadius: 6,
+    height: 12,
+    marginTop: 5,
+    width: 12,
+  },
+  pickupDot: {
+    backgroundColor: passengerPalette.accent,
+  },
+  destinationDot: {
+    backgroundColor: passengerPalette.danger,
   },
   routeText: {
-    color: '#FFF',
-    marginLeft: 10,
-    fontSize: 16,
     flex: 1,
+    gap: 4,
+  },
+  routeLabel: {
+    color: passengerPalette.mutedText,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  routeValue: {
+    color: passengerPalette.text,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 21,
+  },
+  routeDivider: {
+    backgroundColor: passengerPalette.border,
+    height: 1,
+    marginLeft: 24,
   },
   tripFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 15,
   },
-  priceContainer: {
-    backgroundColor: 'rgba(229, 9, 20, 0.15)',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
+  metaLabel: {
+    color: passengerPalette.mutedText,
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 4,
   },
-  priceText: {
-    color: '#E50914',
-    fontWeight: 'bold',
+  metaValue: {
+    color: passengerPalette.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  priceValue: {
+    color: passengerPalette.text,
     fontSize: 18,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,215,0,0.15)',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  ratingText: {
-    color: '#FFD700',
-    fontWeight: '600',
-    marginLeft: 5,
-    fontSize: 16,
+    fontWeight: '800',
   },
   repeatButton: {
-    marginTop: 15,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  repeatButtonGradient: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
+    backgroundColor: passengerPalette.primary,
+    borderRadius: passengerRadius.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 15,
   },
   repeatButtonText: {
-    color: '#FFF',
-    fontWeight: '600',
-    fontSize: 16,
-    marginLeft: 8,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 30,
-  },
-  emptyIcon: {
-    marginBottom: 20,
-    opacity: 0.7,
-  },
-  emptyTitle: {
-    color: '#FFF',
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  emptyText: {
-    color: '#BBB',
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 24,
+    color: passengerPalette.text,
+    fontSize: 15,
+    fontWeight: '800',
   },
 });
 
-export default TripHistoryScreen;

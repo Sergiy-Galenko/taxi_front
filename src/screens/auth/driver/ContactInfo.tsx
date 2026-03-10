@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Dimensions, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, StyleSheet, Dimensions } from 'react-native';
 import { TextInput, Button, Text, IconButton, HelperText } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NavigationProp } from '../../../types/navigation';
@@ -57,8 +57,7 @@ export default function DriverContactInfo() {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={styles.container}>
+    <View style={styles.container}>
         <LinearGradient
           colors={['#1A1A1A', '#2D2D2D']}
           style={styles.background}
@@ -92,7 +91,7 @@ export default function DriverContactInfo() {
             delay={500} 
             style={styles.form}
           >
-            <BlurView intensity={20} style={styles.inputContainer}>
+            <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
               <TextInput
                 mode="outlined"
                 label="Електронна пошта"
@@ -124,7 +123,7 @@ export default function DriverContactInfo() {
               {errors.email}
             </HelperText>
 
-            <BlurView intensity={20} style={styles.inputContainer}>
+            <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
               <TextInput
                 mode="outlined"
                 label="Номер телефону"
@@ -160,7 +159,7 @@ export default function DriverContactInfo() {
               delay={700} 
               style={styles.buttonContainer}
             >
-              <BlurView intensity={20} style={styles.blurContainer}>
+              <BlurView intensity={20} pointerEvents="box-none" style={styles.blurContainer}>
                 <Button
                   mode="contained"
                   onPress={handleNext}
@@ -176,7 +175,6 @@ export default function DriverContactInfo() {
           </Animatable.View>
         </Animatable.View>
       </View>
-    </TouchableWithoutFeedback>
   );
 }
 

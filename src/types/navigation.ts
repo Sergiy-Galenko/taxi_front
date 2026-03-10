@@ -1,4 +1,5 @@
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RideOptionKey } from './passenger';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -44,10 +45,23 @@ export type RootStackParamList = {
     licenseNumber: string;
     password: string;
   };
-  Home: undefined;
+  Home:
+    | {
+        from?: string;
+        to?: string;
+        rideType?: RideOptionKey;
+      }
+    | undefined;
   Main: undefined;
   TripHistory: undefined;
-  Preorder: undefined;
+  Preorder:
+    | {
+        pickup?: string;
+        destination?: string;
+        rideType?: RideOptionKey;
+      }
+    | undefined;
+  Settings: undefined;
   DriverHome: undefined;
 };
 

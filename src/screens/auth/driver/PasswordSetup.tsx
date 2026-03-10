@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { TextInput, Button, Text, IconButton, HelperText, Switch } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NavigationProp } from '../../../types/navigation';
@@ -170,8 +170,7 @@ export default function DriverPasswordSetup() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.container}>
+      <View style={styles.container}>
           <LinearGradient
             colors={['#1A1A1A', '#2A2A2A']}
             style={styles.background}
@@ -204,7 +203,7 @@ export default function DriverPasswordSetup() {
               delay={500} 
               style={styles.form}
             >
-              <BlurView intensity={20} style={styles.inputContainer}>
+              <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
                 <TextInput
                   mode="outlined"
                   label="Пароль"
@@ -250,7 +249,7 @@ export default function DriverPasswordSetup() {
                 {errors.password}
               </HelperText>
 
-              <BlurView intensity={20} style={styles.inputContainer}>
+              <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
                 <TextInput
                   mode="outlined"
                   label="Підтвердження паролю"
@@ -286,7 +285,7 @@ export default function DriverPasswordSetup() {
                 delay={600} 
                 style={styles.generateButtonContainer}
               >
-                <BlurView intensity={20} style={styles.generateButtonBlur}>
+                <BlurView intensity={20} pointerEvents="box-none" style={styles.generateButtonBlur}>
                   <Button
                     mode="outlined"
                     onPress={generatePassword}
@@ -300,7 +299,7 @@ export default function DriverPasswordSetup() {
                 </BlurView>
               </Animatable.View>
 
-              <BlurView intensity={20} style={styles.switchContainer}>
+              <BlurView intensity={20} pointerEvents="box-none" style={styles.switchContainer}>
                 <Text style={styles.switchText}>Я приймаю умови використання та політику конфіденційності</Text>
                 <Switch
                   value={termsAccepted}
@@ -314,7 +313,7 @@ export default function DriverPasswordSetup() {
                 delay={700} 
                 style={styles.buttonContainer}
               >
-                <BlurView intensity={20} style={styles.buttonBlur}>
+                <BlurView intensity={20} pointerEvents="box-none" style={styles.buttonBlur}>
                   <Button
                     mode="contained"
                     onPress={handleSubmit}
@@ -335,7 +334,6 @@ export default function DriverPasswordSetup() {
             </Animatable.View>
           </View>
         </View>
-      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }

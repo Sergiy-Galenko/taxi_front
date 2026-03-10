@@ -1,108 +1,84 @@
 import React from 'react';
-import { View, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import { Button, Text } from 'react-native-paper';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../types/navigation';
 import * as Animatable from 'react-native-animatable';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
+import { RootStackParamList } from '../../types/navigation';
 
 type RoleSelectionScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'RoleSelection'>;
 
-const RoleSelection: React.FC = () => {
+export default function RoleSelection() {
   const navigation = useNavigation<RoleSelectionScreenNavigationProp>();
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <LinearGradient
-        colors={['#1a1a1a', '#000']}
-        style={styles.container}
-        start={{x: 0, y: 0}}
-        end={{x: 1, y: 1}}
-      >
-        {/* Декоративні елементи */}
-        <View style={styles.decorativeCircle} />
-        <View style={[styles.decorativeCircle, styles.circleTopRight]} />
-        
-        <View style={styles.content}>
-          <Animatable.View 
-            animation="fadeInDown" 
-            duration={1000}
-            style={styles.header}
-          >
-            <MaterialIcons name="local-taxi" size={80} color="#FF3B30" />
-            <Text style={styles.title}>Оберіть свою роль</Text>
-            <Text style={styles.subtitle}>Як ви хочете використовувати наш сервіс?</Text>
+    <LinearGradient
+      colors={['#1A1A1A', '#000000']}
+      end={{ x: 1, y: 1 }}
+      start={{ x: 0, y: 0 }}
+      style={styles.container}
+    >
+      <View pointerEvents="none" style={styles.decorativeCircle} />
+      <View pointerEvents="none" style={[styles.decorativeCircle, styles.circleTopRight]} />
+
+      <View style={styles.content}>
+        <Animatable.View animation="fadeInDown" duration={700} style={styles.header}>
+          <MaterialIcons color="#FF3B30" name="local-taxi" size={80} />
+          <Text style={styles.title}>Оберіть свою роль</Text>
+          <Text style={styles.subtitle}>Що ви хочете зробити зараз?</Text>
+        </Animatable.View>
+
+        <View style={styles.panel}>
+          <Animatable.View animation="fadeInLeft" delay={150} duration={500}>
+            <TouchableOpacity
+              activeOpacity={0.92}
+              onPress={() => navigation.replace('PassengerRegistration')}
+              style={[styles.roleCard, styles.passengerCard]}
+            >
+              <View style={styles.roleIconWrap}>
+                <MaterialIcons color="#FFFFFF" name="person" size={26} />
+              </View>
+              <View style={styles.roleText}>
+                <Text style={styles.roleTitle}>Я пасажир</Text>
+                <Text style={styles.roleDescription}>
+                  Замовити поїздку, вказати адресу та швидко перейти до оформлення.
+                </Text>
+              </View>
+              <MaterialIcons color="#FFFFFF" name="arrow-forward" size={24} />
+            </TouchableOpacity>
           </Animatable.View>
 
-          <BlurView intensity={30} tint="dark" style={styles.blurContainer}>
-            <View style={styles.buttonsContainer}>
-              <Animatable.View 
-                animation="fadeInLeft" 
-                duration={800}
-                delay={300}
-                style={styles.buttonWrapper}
-              >
-                <Button
-                  mode="contained"
-                  onPress={() => navigation.navigate('PassengerRegistration')}
-                  style={styles.button}
-                  contentStyle={styles.buttonContent}
-                  labelStyle={styles.buttonLabel}
-                  icon="account"
-                >
-                  Я пасажир
-                </Button>
-                <Text style={styles.buttonDescription}>
-                  Замовляйте поїздки та переміщуйтесь містом з комфортом
-                </Text>
-              </Animatable.View>
-
-              <Animatable.View 
-                animation="fadeInRight" 
-                duration={800}
-                delay={500}
-                style={styles.buttonWrapper}
-              >
-                <Button
-                  mode="contained"
-                  onPress={() => navigation.navigate('DriverRegistration')}
-                  style={[styles.button, styles.driverButton]}
-                  contentStyle={styles.buttonContent}
-                  labelStyle={styles.buttonLabel}
-                  icon="car"
-                >
-                  Я водій
-                </Button>
-                <Text style={styles.buttonDescription}>
-                  Заробляйте, перевозячи пасажирів на своєму автомобілі
-                </Text>
-              </Animatable.View>
-            </View>
-          </BlurView>
-
-          <Animatable.View 
-            animation="fadeInUp" 
-            duration={800}
-            delay={700}
-            style={styles.footer}
-          >
-            <Button
-              mode="text"
-              onPress={() => navigation.goBack()}
-              textColor="#FFFFFF"
-              icon="arrow-left"
+          <Animatable.View animation="fadeInRight" delay={250} duration={500}>
+            <TouchableOpacity
+              activeOpacity={0.92}
+              onPress={() => navigation.replace('DriverRegistration')}
+              style={[styles.roleCard, styles.driverCard]}
             >
-              Повернутися назад
-            </Button>
+              <View style={styles.roleIconWrap}>
+                <MaterialIcons color="#FFFFFF" name="directions-car" size={26} />
+              </View>
+              <View style={styles.roleText}>
+                <Text style={styles.roleTitle}>Я водій</Text>
+                <Text style={styles.roleDescription}>
+                  Почати реєстрацію водія та перейти до заповнення даних.
+                </Text>
+              </View>
+              <MaterialIcons color="#FFFFFF" name="arrow-forward" size={24} />
+            </TouchableOpacity>
           </Animatable.View>
         </View>
-      </LinearGradient>
-    </TouchableWithoutFeedback>
+
+        <Animatable.View animation="fadeInUp" delay={350} duration={500} style={styles.footer}>
+          <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.goBack()} style={styles.backButton}>
+            <MaterialIcons color="#FFFFFF" name="arrow-back" size={18} />
+            <Text style={styles.backButtonText}>Повернутися назад</Text>
+          </TouchableOpacity>
+        </Animatable.View>
+      </View>
+    </LinearGradient>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -110,89 +86,105 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
     justifyContent: 'center',
+    padding: 20,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 36,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
     color: '#FFFFFF',
-    marginTop: 20,
-    marginBottom: 10,
+    fontSize: 30,
+    fontWeight: '700',
+    marginBottom: 8,
+    marginTop: 18,
     textAlign: 'center',
   },
   subtitle: {
+    color: 'rgba(255,255,255,0.72)',
     fontSize: 16,
-    color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
   },
-  blurContainer: {
+  panel: {
+    backgroundColor: 'rgba(30, 30, 30, 0.76)',
+    borderColor: 'rgba(255, 59, 48, 0.16)',
     borderRadius: 24,
-    overflow: 'hidden',
-    padding: 1,
-  },
-  buttonsContainer: {
-    backgroundColor: 'rgba(30, 30, 30, 0.7)',
-    borderRadius: 24,
-    padding: 25,
     borderWidth: 1,
-    borderColor: 'rgba(255, 59, 48, 0.2)',
-    gap: 20,
+    gap: 16,
+    padding: 18,
   },
-  buttonWrapper: {
+  roleCard: {
     alignItems: 'center',
-  },
-  button: {
-    width: '100%',
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: '#FF3B30',
-    shadowColor: '#FF3B30',
+    borderRadius: 20,
+    flexDirection: 'row',
+    gap: 14,
+    minHeight: 92,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
     elevation: 8,
   },
-  driverButton: {
+  passengerCard: {
+    backgroundColor: '#FF3B30',
+    shadowColor: '#FF3B30',
+  },
+  driverCard: {
     backgroundColor: '#007AFF',
     shadowColor: '#007AFF',
   },
-  buttonContent: {
-    height: 56,
+  roleIconWrap: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 18,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
   },
-  buttonLabel: {
-    fontSize: 18,
-    fontWeight: '600',
+  roleText: {
+    flex: 1,
+    gap: 4,
   },
-  buttonDescription: {
+  roleTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  roleDescription: {
+    color: 'rgba(255,255,255,0.84)',
     fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center',
-    marginTop: 10,
-    paddingHorizontal: 20,
+    lineHeight: 20,
   },
   footer: {
-    marginTop: 30,
     alignItems: 'center',
+    marginTop: 24,
+  },
+  backButton: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  backButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
   decorativeCircle: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
     backgroundColor: 'rgba(255, 59, 48, 0.08)',
-    top: -150,
+    borderRadius: 150,
+    height: 300,
     left: -100,
+    position: 'absolute',
+    top: -150,
+    width: 300,
   },
   circleTopRight: {
-    top: -100,
     left: 'auto',
     right: -150,
+    top: -100,
   },
 });
-
-export default RoleSelection; 

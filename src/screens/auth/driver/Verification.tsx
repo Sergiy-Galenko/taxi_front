@@ -95,7 +95,7 @@ export default function DriverVerification() {
             delay={500} 
             style={styles.form}
           >
-            <BlurView intensity={20} style={styles.imageContainer}>
+            <BlurView intensity={20} pointerEvents="box-none" style={styles.imageContainer}>
               <Text style={styles.imageLabel}>Фото водійського посвідчення</Text>
               {images.license ? (
                 <Image source={{ uri: images.license }} style={styles.image} />
@@ -111,7 +111,7 @@ export default function DriverVerification() {
               )}
             </BlurView>
 
-            <BlurView intensity={20} style={styles.imageContainer}>
+            <BlurView intensity={20} pointerEvents="box-none" style={styles.imageContainer}>
               <Text style={styles.imageLabel}>Фото автомобіля</Text>
               {images.car ? (
                 <Image source={{ uri: images.car }} style={styles.image} />
@@ -127,7 +127,7 @@ export default function DriverVerification() {
               )}
             </BlurView>
 
-            <BlurView intensity={20} style={styles.imageContainer}>
+            <BlurView intensity={20} pointerEvents="box-none" style={styles.imageContainer}>
               <Text style={styles.imageLabel}>Селфі з водійським посвідченням</Text>
               {images.selfie ? (
                 <Image source={{ uri: images.selfie }} style={styles.image} />
@@ -148,7 +148,7 @@ export default function DriverVerification() {
               delay={700} 
               style={styles.buttonContainer}
             >
-              <BlurView intensity={20} style={styles.buttonBlur}>
+              <BlurView intensity={20} pointerEvents="box-none" style={styles.buttonBlur}>
                 <Button
                   mode="contained"
                   onPress={handleSubmit}
@@ -170,7 +170,7 @@ export default function DriverVerification() {
           onDismiss={handleModerationClose}
           contentContainerStyle={styles.modalContainer}
         >
-          <BlurView intensity={20} style={styles.modalContent}>
+          <BlurView intensity={20} pointerEvents="box-none" style={styles.modalContent}>
             <Animatable.View animation="fadeIn" duration={500}>
               <Text style={styles.modalTitle}>Дані на модерації</Text>
               <Text style={styles.modalText}>

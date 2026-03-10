@@ -1,40 +1,41 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Platform, TouchableOpacity } from 'react-native';
-import { Text, Switch, Button, Divider, Menu } from 'react-native-paper';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useTheme } from '../hooks/useTheme';
+import React, { useState } from 'react';
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import PassengerScreenLayout from '../components/passenger/PassengerScreenLayout';
+import { LANGUAGE_OPTIONS, PAYMENT_OPTIONS } from '../data/passenger';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigation } from '@react-navigation/native';
-import { NavigationProp } from '../types/navigation';
+import { useTheme } from '../hooks/useTheme';
+import { useUser } from '../hooks/UserContext';
+import { passengerPalette, passengerRadius } from '../theme/passenger';
+import { RootStackParamList } from '../types/navigation';
 
-const MOCK_ROLE: 'passenger' | 'driver' | 'admin' = 'passenger';
+type SettingsScreenProps = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
-export default function NetflixStyleSettingsScreen() {
-  const { theme, mode, setThemeMode } = useTheme();
+const getNextOption = (options: string[], current: string) => {
+  const currentIndex = options.indexOf(current);
+  const nextIndex = currentIndex === options.length - 1 ? 0 : currentIndex + 1;
+  return options[nextIndex];
+};
+
+export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   const { signOut } = useAuth();
-  const navigation = useNavigation<NavigationProp>();
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [online, setOnline] = useState(true);
-  const [paymentMethod, setPaymentMethod] = useState('Карта');
-  const [address, setAddress] = useState('');
-  const [language, setLanguage] = useState('Українська');
-  const [languageMenuVisible, setLanguageMenuVisible] = useState(false);
-  const [paymentMenuVisible, setPaymentMenuVisible] = useState(false);
+  const { mode, setThemeMode } = useTheme();
+  const { user } = useUser();
 
-  const languages = ['Українська', 'English', 'Polski', 'Deutsch'];
-  const paymentMethods = ['Карта', 'Готівка', 'Google Pay', 'Apple Pay'];
-
-  useEffect(() => {
-    AsyncStorage.getItem('themeMode').then(val => {
-      if (val === 'light' || val === 'dark' || val === 'auto') setThemeMode(val);
-    });
-  }, []);
-
-  useEffect(() => {
-    AsyncStorage.setItem('themeMode', mode);
-  }, [mode]);
+  const [paymentMethod, setPaymentMethod] = useState(PAYMENT_OPTIONS[0]);
+  const [language, setLanguage] = useState(LANGUAGE_OPTIONS[0]);
+  const [tripUpdatesEnabled, setTripUpdatesEnabled] = useState(true);
+  const [shareRideEnabled, setShareRideEnabled] = useState(false);
+  const [priceAlertsEnabled, setPriceAlertsEnabled] = useState(true);
 
   const handleLogout = async () => {
     await signOut();
@@ -45,422 +46,324 @@ export default function NetflixStyleSettingsScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={['#141414', '#1a1a1a', '#000']}
-      style={styles.container}
+    <PassengerScreenLayout
+      activeRoute="Settings"
+      subtitle="Reduce friction by keeping preferences close to the booking flow."
+      title="Profile and preferences"
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Налаштування</Text>
-          <Ionicons name="settings-outline" size={28} color="#E50914" style={styles.icon} />
-        </View>
-        
-        {/* Профіль користувача */}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.profileCard}>
-          <View style={styles.profileHeader}>
-            <FontAwesome5 name="user-circle" size={48} color="#E50914" />
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>Олександр Петренко</Text>
-              <Text style={styles.profileRole}>
-                {MOCK_ROLE === 'passenger' ? 'Пасажир' : 
-                 MOCK_ROLE === 'driver' ? 'Водій' : 'Адміністратор'}
-              </Text>
+          <View style={styles.avatar}>
+            <Ionicons color="#FFFFFF" name="person-outline" size={28} />
+          </View>
+          <View style={styles.profileCopy}>
+            <Text style={styles.profileName}>{user?.fullName || 'Guest rider'}</Text>
+            <Text style={styles.profileMeta}>{user?.email || 'Add email in account settings'}</Text>
+            <View style={styles.profileBadge}>
+              <Ionicons color={passengerPalette.primaryDeep} name="star" size={14} />
+              <Text style={styles.profileBadgeText}>4.9 passenger rating</Text>
             </View>
           </View>
-          <View style={styles.ratingContainer}>
-            <Ionicons name="star" size={20} color="#FFD700" />
-            <Text style={styles.ratingText}>4.8</Text>
-            <Text style={styles.ratingLabel}>Рейтинг</Text>
-          </View>
         </View>
-        
-        {/* Секції налаштувань */}
+
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Особисті налаштування</Text>
-          
-          <View style={styles.settingItem}>
-            <MaterialIcons name="language" size={24} color="#888" />
-            <View style={styles.settingText}>
-              <Text style={styles.settingLabel}>Мова</Text>
-              <Menu
-                visible={languageMenuVisible}
-                onDismiss={() => setLanguageMenuVisible(false)}
-                anchor={
-                  <TouchableOpacity 
-                    style={styles.menuButton}
-                    onPress={() => setLanguageMenuVisible(true)}
-                  >
-                    <Text style={styles.menuButtonText}>{language}</Text>
-                    <Ionicons name="chevron-down" size={16} color="#888" />
-                  </TouchableOpacity>
-                }
-                contentStyle={styles.menuContent}
-              >
-                {languages.map((lang) => (
-                  <Menu.Item
-                    key={lang}
-                    onPress={() => {
-                      setLanguage(lang);
-                      setLanguageMenuVisible(false);
-                    }}
-                    title={lang}
-                    titleStyle={{ color: language === lang ? '#E50914' : '#FFF' }}
-                  />
-                ))}
-              </Menu>
+          <Text style={styles.sectionTitle}>Ride preferences</Text>
+
+          <TouchableOpacity
+            activeOpacity={0.86}
+            onPress={() => setPaymentMethod(getNextOption(PAYMENT_OPTIONS, paymentMethod))}
+            style={styles.optionRow}
+          >
+            <View style={styles.optionIcon}>
+              <Ionicons color={passengerPalette.text} name="card-outline" size={18} />
             </View>
-          </View>
-          
-          <Divider style={styles.divider} />
-          
-          <View style={styles.settingItem}>
-            <Ionicons name="notifications-outline" size={24} color="#888" />
-            <View style={styles.settingText}>
-              <Text style={styles.settingLabel}>Сповіщення</Text>
-              <Switch 
-                value={pushEnabled} 
-                onValueChange={setPushEnabled} 
-                color="#E50914"
-                thumbColor="#FFF"
-              />
+            <View style={styles.optionCopy}>
+              <Text style={styles.optionTitle}>Default payment</Text>
+              <Text style={styles.optionHint}>Tap to cycle between saved payment methods.</Text>
             </View>
-          </View>
-          
-          <Divider style={styles.divider} />
-          
-          <View style={styles.settingItem}>
-            <MaterialIcons name="dark-mode" size={24} color="#888" />
-            <View style={styles.settingText}>
-              <Text style={styles.settingLabel}>Темна тема</Text>
-              <Switch 
-                value={mode === 'dark'} 
-                onValueChange={(value) => setThemeMode(value ? 'dark' : 'auto')} 
-                color="#E50914"
-                thumbColor="#FFF"
-              />
+            <Text style={styles.optionValue}>{paymentMethod}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.86}
+            onPress={() => setPriceAlertsEnabled((current) => !current)}
+            style={styles.optionRow}
+          >
+            <View style={styles.optionIcon}>
+              <Ionicons color={passengerPalette.text} name="pricetag-outline" size={18} />
             </View>
-          </View>
+            <View style={styles.optionCopy}>
+              <Text style={styles.optionTitle}>Price alerts</Text>
+              <Text style={styles.optionHint}>Warn users when fares are likely to surge.</Text>
+            </View>
+            <Switch
+              onValueChange={setPriceAlertsEnabled}
+              thumbColor="#FFFFFF"
+              trackColor={{ false: '#D6D3D1', true: passengerPalette.accent }}
+              value={priceAlertsEnabled}
+            />
+          </TouchableOpacity>
         </View>
-        
-        {/* Роль-специфічні налаштування */}
-        {MOCK_ROLE === 'passenger' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Налаштування поїздок</Text>
-            
-            <View style={styles.settingItem}>
-              <FontAwesome5 name="money-bill-wave" size={20} color="#888" />
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Спосіб оплати</Text>
-                <Menu
-                  visible={paymentMenuVisible}
-                  onDismiss={() => setPaymentMenuVisible(false)}
-                  anchor={
-                    <TouchableOpacity 
-                      style={styles.menuButton}
-                      onPress={() => setPaymentMenuVisible(true)}
-                    >
-                      <Text style={styles.menuButtonText}>{paymentMethod}</Text>
-                      <Ionicons name="chevron-down" size={16} color="#888" />
-                    </TouchableOpacity>
-                  }
-                  contentStyle={styles.menuContent}
-                >
-                  {paymentMethods.map((method) => (
-                    <Menu.Item
-                      key={method}
-                      onPress={() => {
-                        setPaymentMethod(method);
-                        setPaymentMenuVisible(false);
-                      }}
-                      title={method}
-                      titleStyle={{ color: paymentMethod === method ? '#E50914' : '#FFF' }}
-                    />
-                  ))}
-                </Menu>
-              </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Communication</Text>
+
+          <TouchableOpacity
+            activeOpacity={0.86}
+            onPress={() => setTripUpdatesEnabled((current) => !current)}
+            style={styles.optionRow}
+          >
+            <View style={styles.optionIcon}>
+              <Ionicons color={passengerPalette.text} name="notifications-outline" size={18} />
             </View>
-            
-            <Divider style={styles.divider} />
-            
-            <View style={styles.settingItem}>
-              <Ionicons name="location-outline" size={24} color="#888" />
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Улюблені адреси</Text>
-                <Button 
-                  mode="text" 
-                  onPress={() => {}} 
-                  textColor="#E50914"
-                  icon="plus"
-                >
-                  Додати
-                </Button>
-              </View>
+            <View style={styles.optionCopy}>
+              <Text style={styles.optionTitle}>Ride updates</Text>
+              <Text style={styles.optionHint}>Driver arrival, plate number, and pickup status.</Text>
             </View>
-          </View>
-        )}
-        
-        {MOCK_ROLE === 'driver' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Налаштування водія</Text>
-            
-            <View style={styles.settingItem}>
-              <Ionicons name="car-sport-outline" size={24} color="#888" />
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Статус</Text>
-                <View style={styles.statusContainer}>
-                  <Text style={styles.statusText}>
-                    {online ? 'Онлайн' : 'Офлайн'}
-                  </Text>
-                  <Switch 
-                    value={online} 
-                    onValueChange={setOnline} 
-                    color="#E50914"
-                    thumbColor="#FFF"
-                  />
-                </View>
-              </View>
+            <Switch
+              onValueChange={setTripUpdatesEnabled}
+              thumbColor="#FFFFFF"
+              trackColor={{ false: '#D6D3D1', true: passengerPalette.accent }}
+              value={tripUpdatesEnabled}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.86}
+            onPress={() => setShareRideEnabled((current) => !current)}
+            style={styles.optionRow}
+          >
+            <View style={styles.optionIcon}>
+              <Ionicons color={passengerPalette.text} name="share-social-outline" size={18} />
             </View>
-            
-            <Divider style={styles.divider} />
-            
-            <View style={styles.settingItem}>
-              <Ionicons name="car-outline" size={24} color="#888" />
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Дані авто</Text>
-                <Button 
-                  mode="text" 
-                  onPress={() => {}} 
-                  textColor="#E50914"
-                  icon="pencil"
-                >
-                  Редагувати
-                </Button>
-              </View>
+            <View style={styles.optionCopy}>
+              <Text style={styles.optionTitle}>Share trip status</Text>
+              <Text style={styles.optionHint}>Let contacts track the ride in real time.</Text>
             </View>
-            
-            <Divider style={styles.divider} />
-            
-            <View style={styles.settingItem}>
-              <MaterialIcons name="description" size={24} color="#888" />
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Документи</Text>
-                <Button 
-                  mode="text" 
-                  onPress={() => {}} 
-                  textColor="#E50914"
-                  icon="eye"
-                >
-                  Переглянути
-                </Button>
-              </View>
+            <Switch
+              onValueChange={setShareRideEnabled}
+              thumbColor="#FFFFFF"
+              trackColor={{ false: '#D6D3D1', true: passengerPalette.accent }}
+              value={shareRideEnabled}
+            />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>App experience</Text>
+
+          <TouchableOpacity
+            activeOpacity={0.86}
+            onPress={() => setLanguage(getNextOption(LANGUAGE_OPTIONS, language))}
+            style={styles.optionRow}
+          >
+            <View style={styles.optionIcon}>
+              <Ionicons color={passengerPalette.text} name="language-outline" size={18} />
             </View>
-          </View>
-        )}
-        
-        {MOCK_ROLE === 'admin' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Адміністрування</Text>
-            
-            <Button 
-              mode="contained" 
-              style={styles.adminButton}
-              buttonColor="#E50914"
-              textColor="#FFF"
-              icon="account-group"
-            >
-              Керування користувачами
-            </Button>
-            
-            <Button 
-              mode="contained" 
-              style={styles.adminButton}
-              buttonColor="#E50914"
-              textColor="#FFF"
-              icon="chart-bar"
-            >
-              Аналітика та звіти
-            </Button>
-            
-            <Button 
-              mode="contained" 
-              style={styles.adminButton}
-              buttonColor="#E50914"
-              textColor="#FFF"
-              icon="cash"
-            >
-              Налаштування тарифів
-            </Button>
-          </View>
-        )}
-        
-        {/* Кнопка виходу */}
-        <Button 
-          mode="outlined" 
-          style={styles.logoutButton}
-          textColor="#E50914"
-          icon="logout"
-          onPress={handleLogout}
+            <View style={styles.optionCopy}>
+              <Text style={styles.optionTitle}>Language</Text>
+              <Text style={styles.optionHint}>Keep copy understandable for first-time riders.</Text>
+            </View>
+            <Text style={styles.optionValue}>{language}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.86}
+            onPress={() => setThemeMode(mode === 'dark' ? 'light' : 'dark')}
+            style={styles.optionRow}
+          >
+            <View style={styles.optionIcon}>
+              <Ionicons color={passengerPalette.text} name="color-palette-outline" size={18} />
+            </View>
+            <View style={styles.optionCopy}>
+              <Text style={styles.optionTitle}>Theme mode</Text>
+              <Text style={styles.optionHint}>Use the mode that feels most readable on the go.</Text>
+            </View>
+            <Text style={styles.optionValue}>{mode === 'dark' ? 'Dark' : 'Light'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() =>
+            Alert.alert(
+              'Safety support',
+              'In production, this would open SOS, trip support, and reporting actions.'
+            )
+          }
+          style={styles.supportCard}
         >
-          Вийти з акаунту
-        </Button>
-        
-        <Text style={styles.versionText}>Версія додатку 1.2.0</Text>
+          <View style={styles.supportIcon}>
+            <Ionicons color="#FFFFFF" name="shield-checkmark-outline" size={20} />
+          </View>
+          <View style={styles.supportCopy}>
+            <Text style={styles.supportTitle}>Safety center</Text>
+            <Text style={styles.supportHint}>
+              Keep help, reporting, and emergency actions accessible without cluttering the booking flow.
+            </Text>
+          </View>
+          <Ionicons color={passengerPalette.text} name="arrow-forward" size={18} />
+        </TouchableOpacity>
+
+        <TouchableOpacity activeOpacity={0.9} onPress={handleLogout} style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Sign out</Text>
+          <Ionicons color={passengerPalette.danger} name="log-out-outline" size={18} />
+        </TouchableOpacity>
       </ScrollView>
-    </LinearGradient>
+    </PassengerScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContainer: {
-    padding: 20,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 30,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#E50914',
-    letterSpacing: -0.5,
-  },
-  icon: {
-    backgroundColor: 'rgba(229, 9, 20, 0.1)',
-    padding: 10,
-    borderRadius: 20,
+  content: {
+    gap: 18,
+    paddingBottom: 150,
+    paddingHorizontal: 20,
+    paddingTop: 18,
   },
   profileCard: {
-    backgroundColor: 'rgba(30,30,30,0.7)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 25,
+    backgroundColor: passengerPalette.surface,
+    borderColor: passengerPalette.border,
+    borderRadius: passengerRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(80,80,80,0.5)',
-  },
-  profileHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
+    gap: 16,
+    padding: 18,
   },
-  profileInfo: {
-    marginLeft: 15,
+  avatar: {
+    alignItems: 'center',
+    backgroundColor: passengerPalette.accent,
+    borderRadius: 24,
+    height: 56,
+    justifyContent: 'center',
+    width: 56,
+  },
+  profileCopy: {
+    flex: 1,
+    gap: 6,
   },
   profileName: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '600',
+    color: passengerPalette.text,
+    fontSize: 20,
+    fontWeight: '800',
   },
-  profileRole: {
-    color: '#E50914',
-    fontSize: 14,
-    marginTop: 2,
+  profileMeta: {
+    color: passengerPalette.mutedText,
+    fontSize: 13,
   },
-  ratingContainer: {
-    flexDirection: 'row',
+  profileBadge: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,215,0,0.1)',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
     alignSelf: 'flex-start',
+    backgroundColor: passengerPalette.primarySoft,
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  ratingText: {
-    color: '#FFD700',
+  profileBadgeText: {
+    color: passengerPalette.text,
+    fontSize: 12,
     fontWeight: '700',
-    marginLeft: 5,
-    marginRight: 8,
-  },
-  ratingLabel: {
-    color: '#AAA',
-    fontSize: 14,
   },
   section: {
-    backgroundColor: 'rgba(30,30,30,0.7)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
+    backgroundColor: passengerPalette.surface,
+    borderColor: passengerPalette.border,
+    borderRadius: passengerRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(80,80,80,0.5)',
+    gap: 6,
+    padding: 18,
   },
   sectionTitle: {
-    color: '#E50914',
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 15,
-    letterSpacing: 0.5,
+    color: passengerPalette.text,
+    fontSize: 17,
+    fontWeight: '800',
+    marginBottom: 8,
   },
-  settingItem: {
-    flexDirection: 'row',
+  optionRow: {
     alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
     paddingVertical: 12,
   },
-  settingText: {
+  optionIcon: {
+    alignItems: 'center',
+    backgroundColor: passengerPalette.surfaceMuted,
+    borderRadius: 16,
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
+  },
+  optionCopy: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginLeft: 15,
+    gap: 4,
   },
-  settingLabel: {
-    color: '#FFF',
+  optionTitle: {
+    color: passengerPalette.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  optionHint: {
+    color: passengerPalette.mutedText,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  optionValue: {
+    color: passengerPalette.text,
+    fontSize: 13,
+    fontWeight: '700',
+    maxWidth: 110,
+    textAlign: 'right',
+  },
+  supportCard: {
+    alignItems: 'center',
+    backgroundColor: passengerPalette.primarySoft,
+    borderRadius: passengerRadius.lg,
+    flexDirection: 'row',
+    gap: 14,
+    padding: 18,
+  },
+  supportIcon: {
+    alignItems: 'center',
+    backgroundColor: passengerPalette.text,
+    borderRadius: 18,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  supportCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  supportTitle: {
+    color: passengerPalette.text,
     fontSize: 16,
+    fontWeight: '800',
   },
-  divider: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    height: 1,
-    marginVertical: 5,
-  },
-  menuButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    paddingHorizontal: 12,
-    backgroundColor: 'rgba(50,50,50,0.6)',
-    borderRadius: 12,
-    minWidth: 120,
-  },
-  menuButtonText: {
-    color: '#FFF',
-    marginRight: 5,
-  },
-  menuContent: {
-    backgroundColor: '#1f1f1f',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusText: {
-    color: '#FFF',
-    marginRight: 10,
-  },
-  adminButton: {
-    marginBottom: 15,
-    borderRadius: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#333',
+  supportHint: {
+    color: passengerPalette.mutedText,
+    fontSize: 13,
+    lineHeight: 18,
   },
   logoutButton: {
-    marginTop: 10,
-    borderColor: '#E50914',
-    borderRadius: 12,
-    paddingVertical: 8,
-    borderWidth: 2,
+    alignItems: 'center',
+    backgroundColor: passengerPalette.surface,
+    borderColor: '#F2B0AB',
+    borderRadius: passengerRadius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 16,
   },
-  versionText: {
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 25,
-    marginBottom: 10,
+  logoutText: {
+    color: passengerPalette.danger,
+    fontSize: 16,
+    fontWeight: '800',
   },
 });
+

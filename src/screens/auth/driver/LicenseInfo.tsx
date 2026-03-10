@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { TextInput, Button, Text, IconButton, HelperText } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NavigationProp } from '../../../types/navigation';
@@ -86,8 +86,7 @@ export default function DriverLicenseInfo() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.container}>
+      <View style={styles.container}>
           <LinearGradient
             colors={['#1A1A1A', '#2A2A2A']}
             style={styles.background}
@@ -120,7 +119,7 @@ export default function DriverLicenseInfo() {
               delay={500} 
               style={styles.form}
             >
-              <BlurView intensity={20} style={styles.inputContainer}>
+              <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
                 <TextInput
                   mode="outlined"
                   label="Номер водійського посвідчення"
@@ -160,7 +159,7 @@ export default function DriverLicenseInfo() {
                 delay={700} 
                 style={styles.buttonContainer}
               >
-                <BlurView intensity={20} style={styles.buttonBlur}>
+                <BlurView intensity={20} pointerEvents="box-none" style={styles.buttonBlur}>
                   <Button
                     mode="contained"
                     onPress={handleNext}
@@ -176,7 +175,6 @@ export default function DriverLicenseInfo() {
             </Animatable.View>
           </View>
         </View>
-      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }

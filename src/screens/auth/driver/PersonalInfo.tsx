@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Animated, TouchableWithoutFeedback, Keyboard, Dimensions } from 'react-native';
+import { View, StyleSheet, Animated, Dimensions } from 'react-native';
 import { TextInput, Button, Text, IconButton, HelperText } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../../../types/navigation';
@@ -26,8 +26,7 @@ export default function DriverPersonalInfo() {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={styles.container}>
+    <View style={styles.container}>
         <LinearGradient
           colors={['#1A1A1A', '#2D2D2D']}
           style={styles.background}
@@ -61,7 +60,7 @@ export default function DriverPersonalInfo() {
             delay={500} 
             style={styles.form}
           >
-            <BlurView intensity={20} style={styles.inputContainer}>
+            <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
               <TextInput
                 mode="outlined"
                 label="Повне ім'я"
@@ -99,7 +98,7 @@ export default function DriverPersonalInfo() {
               delay={700} 
               style={styles.buttonContainer}
             >
-              <BlurView intensity={20} style={styles.blurContainer}>
+              <BlurView intensity={20} pointerEvents="box-none" style={styles.blurContainer}>
                 <Button
                   mode="contained"
                   onPress={handleNext}
@@ -115,7 +114,6 @@ export default function DriverPersonalInfo() {
           </Animatable.View>
         </Animatable.View>
       </View>
-    </TouchableWithoutFeedback>
   );
 }
 
