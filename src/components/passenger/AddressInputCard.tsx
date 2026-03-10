@@ -30,45 +30,55 @@ export default function AddressInputCard({
 }: AddressInputCardProps) {
   return (
     <View style={styles.card}>
-      <View style={styles.row}>
-        <View style={[styles.marker, styles.pickupMarker]} />
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Pickup</Text>
-          <TextInput
-            onChangeText={onPickupChange}
-            placeholder="Set pickup point"
-            placeholderTextColor={passengerPalette.mutedText}
-            style={styles.input}
-            value={pickup}
-          />
-        </View>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={onUseCurrentLocation}
-          style={styles.iconButton}
-        >
-          <Ionicons color={passengerPalette.info} name="locate-outline" size={20} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.divider} />
+      <Text style={styles.header}>Route</Text>
 
       <View style={styles.row}>
-        <View style={[styles.marker, styles.destinationMarker]} />
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Destination</Text>
-          <TextInput
-            onChangeText={onDestinationChange}
-            onFocus={onDestinationFocus}
-            placeholder="Where do you need to go?"
-            placeholderTextColor={passengerPalette.mutedText}
-            style={styles.input}
-            value={destination}
-          />
+        <View style={styles.timelineColumn}>
+          <View style={[styles.marker, styles.pickupMarker]} />
+          <View style={styles.timelineLine} />
+          <View style={[styles.marker, styles.destinationMarker]} />
         </View>
-        <TouchableOpacity activeOpacity={0.85} onPress={onSwap} style={styles.iconButton}>
-          <Ionicons color={passengerPalette.text} name="swap-vertical-outline" size={20} />
-        </TouchableOpacity>
+
+        <View style={styles.fieldsColumn}>
+          <View style={styles.fieldRow}>
+            <View style={styles.fieldCopy}>
+              <Text style={styles.label}>Pickup</Text>
+              <TextInput
+                onChangeText={onPickupChange}
+                placeholder="Use current location"
+                placeholderTextColor={passengerPalette.mutedText}
+                style={styles.input}
+                value={pickup}
+              />
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={onUseCurrentLocation}
+              style={styles.sideButton}
+            >
+              <Ionicons color={passengerPalette.info} name="locate-outline" size={20} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.innerDivider} />
+
+          <View style={styles.fieldRow}>
+            <View style={styles.fieldCopy}>
+              <Text style={styles.label}>Destination</Text>
+              <TextInput
+                onChangeText={onDestinationChange}
+                onFocus={onDestinationFocus}
+                placeholder="Where to?"
+                placeholderTextColor={passengerPalette.mutedText}
+                style={styles.input}
+                value={destination}
+              />
+            </View>
+            <TouchableOpacity activeOpacity={0.88} onPress={onSwap} style={styles.sideButton}>
+              <Ionicons color={passengerPalette.text} name="swap-vertical-outline" size={20} />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -78,25 +88,35 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: passengerPalette.surface,
     borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.lg,
+    borderRadius: passengerRadius.xl,
     borderWidth: 1,
-    gap: 12,
+    gap: 16,
     padding: 18,
     shadowColor: passengerPalette.shadow,
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 1,
-    shadowRadius: 20,
-    elevation: 6,
+    shadowRadius: 28,
+    elevation: 8,
+  },
+  header: {
+    color: passengerPalette.mutedText,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
   row: {
-    alignItems: 'center',
     flexDirection: 'row',
     gap: 12,
   },
+  timelineColumn: {
+    alignItems: 'center',
+    paddingTop: 12,
+  },
   marker: {
-    borderRadius: 6,
-    height: 12,
     width: 12,
+    height: 12,
+    borderRadius: 6,
   },
   pickupMarker: {
     backgroundColor: passengerPalette.accent,
@@ -104,36 +124,49 @@ const styles = StyleSheet.create({
   destinationMarker: {
     backgroundColor: passengerPalette.danger,
   },
-  inputGroup: {
+  timelineLine: {
+    width: 2,
     flex: 1,
-    gap: 2,
+    minHeight: 42,
+    backgroundColor: passengerPalette.border,
+    marginVertical: 6,
+  },
+  fieldsColumn: {
+    flex: 1,
+    gap: 10,
+  },
+  fieldRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  fieldCopy: {
+    flex: 1,
+    gap: 4,
   },
   label: {
     color: passengerPalette.mutedText,
     fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 0.2,
   },
   input: {
     color: passengerPalette.text,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    paddingVertical: 2,
+    paddingVertical: 0,
   },
-  iconButton: {
+  sideButton: {
     alignItems: 'center',
+    justifyContent: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 16,
     backgroundColor: passengerPalette.surfaceMuted,
-    borderRadius: passengerRadius.sm,
     borderWidth: 1,
     borderColor: passengerPalette.border,
-    height: 42,
-    justifyContent: 'center',
-    width: 42,
   },
-  divider: {
-    backgroundColor: passengerPalette.border,
+  innerDivider: {
     height: 1,
-    marginLeft: 24,
+    backgroundColor: passengerPalette.border,
   },
 });
-

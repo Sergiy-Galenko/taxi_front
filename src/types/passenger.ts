@@ -13,6 +13,14 @@ export interface LocationSuggestion {
   category: 'favorite' | 'recent' | 'hub';
 }
 
+export interface DestinationSuggestion {
+  id: string;
+  title: string;
+  subtitle: string;
+  category: 'favorite' | 'recent' | 'hub' | 'history';
+  coords?: Coordinates;
+}
+
 export interface RideOption {
   key: RideOptionKey;
   label: string;
@@ -42,4 +50,3 @@ export interface TripHistoryEntry {
   paymentLabel: string;
   status: string;
 }
-

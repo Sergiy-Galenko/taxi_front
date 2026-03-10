@@ -20,6 +20,9 @@ import SettingsScreen from '../screens/Settings';
 import TripHistoryScreen from '../screens/TripHistoryScreen';
 import PreorderScreen from '../screens/PreorderScreen';
 import DriverHomeScreen from '../screens/driver/Home';
+import VehicleSelectionScreen from '../screens/passenger/VehicleSelection';
+import DriverSearchScreen from '../screens/passenger/DriverSearch';
+import ActiveRideScreen from '../screens/passenger/ActiveRide';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -70,6 +73,9 @@ export default function AppNavigator() {
 
         <Stack.Screen name="Main" component={Home} />
         <Stack.Screen name="Home" component={Home} />
+        <Stack.Screen name="VehicleSelection" component={VehicleSelectionScreen} />
+        <Stack.Screen name="DriverSearch" component={DriverSearchScreen} />
+        <Stack.Screen name="ActiveRide" component={ActiveRideScreen} />
         <Stack.Screen name="Preorder" component={PreorderScreen} />
         <Stack.Screen name="TripHistory" component={TripHistoryScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />

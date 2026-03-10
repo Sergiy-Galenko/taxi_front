@@ -2,6 +2,7 @@ import { Region } from 'react-native-maps';
 import { passengerPalette } from '../theme/passenger';
 import {
   Coordinates,
+  DestinationSuggestion,
   LocationSuggestion,
   RideOption,
   RideOptionKey,
@@ -151,6 +152,92 @@ export const LANGUAGE_OPTIONS = ['English', 'Ukrainian', 'Polish'];
 export const getRideOption = (key: RideOptionKey): RideOption =>
   RIDE_OPTIONS.find((option) => option.key === key) ?? RIDE_OPTIONS[0];
 
+const normalizeSuggestionText = (value: string): string => value.trim().toLowerCase();
+
+const destinationMatches = (query: string, suggestion: DestinationSuggestion): boolean => {
+  if (!query) {
+    return true;
+  }
+
+  const normalizedQuery = normalizeSuggestionText(query);
+  const title = normalizeSuggestionText(suggestion.title);
+  const subtitle = normalizeSuggestionText(suggestion.subtitle);
+
+  return title.includes(normalizedQuery) || subtitle.includes(normalizedQuery);
+};
+
+const destinationScore = (query: string, suggestion: DestinationSuggestion): number => {
+  if (!query) {
+    return 0;
+  }
+
+  const normalizedQuery = normalizeSuggestionText(query);
+  const title = normalizeSuggestionText(suggestion.title);
+  const subtitle = normalizeSuggestionText(suggestion.subtitle);
+
+  if (title.startsWith(normalizedQuery)) {
+    return 0;
+  }
+
+  if (title.includes(normalizedQuery)) {
+    return 1;
+  }
+
+  if (subtitle.startsWith(normalizedQuery)) {
+    return 2;
+  }
+
+  if (subtitle.includes(normalizedQuery)) {
+    return 3;
+  }
+
+  return 4;
+};
+
+const categoryWeight: Record<DestinationSuggestion['category'], number> = {
+  favorite: 0,
+  hub: 1,
+  recent: 2,
+  history: 3,
+};
+
+const recentDestinationSuggestions: DestinationSuggestion[] = TRIP_HISTORY.reduce<DestinationSuggestion[]>(
+  (acc, trip, index) => {
+    const existingSuggestion = LOCATION_SUGGESTIONS.find((suggestion) => {
+      const normalizedDestination = normalizeSuggestionText(trip.destination);
+
+      return (
+        normalizeSuggestionText(suggestion.title) === normalizedDestination ||
+        normalizeSuggestionText(suggestion.subtitle) === normalizedDestination
+      );
+    });
+
+    const duplicate = acc.some((suggestion) => {
+      return normalizeSuggestionText(suggestion.title) === normalizeSuggestionText(trip.destination);
+    });
+
+    if (duplicate) {
+      return acc;
+    }
+
+    acc.push({
+      id: `history-${index + 1}`,
+      title: trip.destination,
+      subtitle: `${trip.dateLabel} · ${trip.paymentLabel}`,
+      category: 'history',
+      coords: existingSuggestion?.coords,
+    });
+
+    return acc;
+  },
+  []
+);
+
+const DESTINATION_SUGGESTIONS: DestinationSuggestion[] = [
+  ...LOCATION_SUGGESTIONS,
+  ...recentDestinationSuggestions,
+];
+
 export const findLocationSuggestion = (label: string): LocationSuggestion | undefined => {
   const normalizedLabel = label.trim().toLowerCase();
 
@@ -160,6 +247,33 @@ export const findLocationSuggestion = (label: string): LocationSuggestion | unde
       suggestion.subtitle.toLowerCase() === normalizedLabel
     );
   });
+};
+
+export const searchDestinationSuggestions = (
+  query: string,
+  limit = 6
+): DestinationSuggestion[] => {
+  const normalizedQuery = normalizeSuggestionText(query);
+
+  return DESTINATION_SUGGESTIONS.filter((suggestion) => {
+    return destinationMatches(normalizedQuery, suggestion);
+  })
+    .sort((left, right) => {
+      const scoreDifference = destinationScore(normalizedQuery, left) - destinationScore(normalizedQuery, right);
+
+      if (scoreDifference !== 0) {
+        return scoreDifference;
+      }
+
+      const categoryDifference = categoryWeight[left.category] - categoryWeight[right.category];
+
+      if (categoryDifference !== 0) {
+        return categoryDifference;
+      }
+
+      return left.title.localeCompare(right.title);
+    })
+    .slice(0, limit);
 };
 
 const distanceBetweenKm = (from: Coordinates, to: Coordinates): number => {
@@ -196,4 +310,3 @@ export const calculateTripSummary = (
     price: Math.round(rideOption.baseFare + distanceKm * rideOption.perKm),
   };
 };
-

@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,19 +15,17 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AddressInputCard from '../components/passenger/AddressInputCard';
 import PassengerScreenLayout from '../components/passenger/PassengerScreenLayout';
-import RideOptionCard from '../components/passenger/RideOptionCard';
 import {
   calculateTripSummary,
   DEFAULT_CITY_CENTER,
   DEFAULT_REGION,
   findLocationSuggestion,
   getRideOption,
-  LOCATION_SUGGESTIONS,
-  RIDE_OPTIONS,
+  searchDestinationSuggestions,
 } from '../data/passenger';
 import { passengerPalette, passengerRadius } from '../theme/passenger';
 import { RootStackParamList } from '../types/navigation';
-import { Coordinates, RideOptionKey } from '../types/passenger';
+import { Coordinates, DestinationSuggestion, RideOptionKey } from '../types/passenger';
 
 type HomeScreenProps =
   | NativeStackScreenProps<RootStackParamList, 'Home'>
@@ -45,7 +42,6 @@ const formatAddressLabel = (place: Location.LocationGeocodedAddress | undefined)
   }
 
   const line = [place.streetNumber, place.street].filter(Boolean).join(' ').trim();
-
   return line || place.name || place.city || 'Current location';
 };
 
@@ -67,18 +63,39 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
   const [pickupCoords, setPickupCoords] = useState<Coordinates | null>(DEFAULT_CITY_CENTER);
   const [destinationCoords, setDestinationCoords] = useState<Coordinates | null>(null);
   const [currentCoords, setCurrentCoords] = useState<Coordinates | null>(null);
-  const [selectedRide, setSelectedRide] = useState<RideOptionKey>('economy');
+  const [selectedRide, setSelectedRide] = useState<RideOptionKey>('comfort');
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [areaLabel, setAreaLabel] = useState('Checking nearby drivers...');
   const [permissionDenied, setPermissionDenied] = useState(false);
-
-  const selectedRideConfig = getRideOption(selectedRide);
-  const tripSummary = calculateTripSummary(pickupCoords, destinationCoords, selectedRide);
 
   const routeLine =
     pickupCoords && destinationCoords
       ? [pickupCoords, buildMidPoint(pickupCoords, destinationCoords), destinationCoords]
       : [];
+
+  const tripPreview = useMemo(() => {
+    return destinationCoords ? calculateTripSummary(pickupCoords, destinationCoords, 'comfort') : null;
+  }, [destinationCoords, pickupCoords]);
+
+  const priceRange = useMemo(() => {
+    if (!destinationCoords) {
+      return null;
+    }
+
+    const economy = calculateTripSummary(pickupCoords, destinationCoords, 'economy');
+    const xl = calculateTripSummary(pickupCoords, destinationCoords, 'xl');
+
+    return {
+      min: economy.price,
+      max: xl.price,
+    };
+  }, [destinationCoords, pickupCoords]);
+
+  const preferredRide = getRideOption(selectedRide);
+  const destinationQuery = destination.trim();
+  const destinationSuggestions = useMemo(() => {
+    return searchDestinationSuggestions(destination, destinationQuery ? 6 : 4);
+  }, [destination, destinationQuery]);
 
   useEffect(() => {
     let active = true;
@@ -91,7 +108,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
           if (active) {
             setPermissionDenied(true);
             setPickup('Kyiv center');
-            setAreaLabel('Location access off');
+            setAreaLabel('Location access is off');
           }
           return;
         }
@@ -173,10 +190,10 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
     mapRef.current?.fitToCoordinates([pickupCoords, destinationCoords], {
       animated: true,
       edgePadding: {
-        top: 90,
-        right: 50,
-        bottom: 90,
-        left: 50,
+        top: 110,
+        right: 54,
+        bottom: 120,
+        left: 54,
       },
     });
   }, [pickupCoords, destinationCoords]);
@@ -254,7 +271,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
         setDestinationCoords(nextCoords);
       }
     } catch {
-      // Ignore geocoding errors and preserve user input.
+      // Keep the typed address even if geocoding fails.
     }
   };
 
@@ -285,22 +302,41 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
     setDestinationCoords(pickupCoords);
   };
 
-  const handleDestinationSelect = (label: string, coords: Coordinates) => {
-    setDestination(label);
-    setDestinationCoords(coords);
-    setShowSuggestions(false);
+  const handleDestinationChange = (value: string) => {
+    setDestination(value);
+    setShowSuggestions(true);
+
+    if (!value.trim()) {
+      setDestinationCoords(null);
+    }
   };
 
-  const handleBookRide = () => {
+  const handleDestinationSuggestionSelect = (suggestion: DestinationSuggestion) => {
+    setDestination(suggestion.title);
+    setShowSuggestions(false);
+
+    if (suggestion.coords) {
+      setDestinationCoords(suggestion.coords);
+      return;
+    }
+
+    setDestinationCoords(null);
+    void resolveAddress(suggestion.title, false);
+  };
+
+  const handleOrderTaxi = () => {
     if (!destinationCoords || !destination.trim()) {
       setShowSuggestions(true);
       return;
     }
 
-    Alert.alert(
-      'Ride requested',
-      `${selectedRideConfig.label} confirmed to ${destination}. Driver arrives in about ${tripSummary.pickupEtaMin} minutes.`
-    );
+    navigation.navigate('VehicleSelection', {
+      from: pickup,
+      to: destination,
+      pickupCoords,
+      destinationCoords,
+      rideType: selectedRide,
+    });
   };
 
   const footerOffset = insets.bottom + 102;
@@ -329,7 +365,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
             {destinationCoords ? (
               <Marker coordinate={destinationCoords}>
                 <View style={styles.destinationPin}>
-                  <Ionicons color="#FFFFFF" name="flag" size={14} />
+                  <Ionicons color="#FFFFFF" name="flag" size={13} />
                 </View>
               </Marker>
             ) : null}
@@ -344,10 +380,10 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
           </MapView>
 
           <View style={styles.heroTopRow}>
-            <View style={styles.brandCard}>
-              <Text style={styles.brandLabel}>CABLINE</Text>
-              <Text style={styles.brandTitle}>Order in seconds</Text>
-              <Text style={styles.brandCaption}>{areaLabel}</Text>
+            <View style={styles.heroCard}>
+              <Text style={styles.heroBadge}>Book in two steps</Text>
+              <Text style={styles.heroTitle}>Where do you want to go?</Text>
+              <Text style={styles.heroCaption}>{areaLabel}</Text>
             </View>
 
             <TouchableOpacity
@@ -361,36 +397,38 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
 
           <View style={styles.heroBottomCard}>
             <View>
-              <Text style={styles.heroEyebrow}>Fast pickup</Text>
-              <Text style={styles.heroValue}>{tripSummary.pickupEtaMin} min away</Text>
+              <Text style={styles.heroStatLabel}>Pickup</Text>
+              <Text style={styles.heroStatValue}>
+                {tripPreview ? `${tripPreview.pickupEtaMin} min` : 'Fast nearby'}
+              </Text>
             </View>
             <View style={styles.heroDivider} />
             <View>
-              <Text style={styles.heroEyebrow}>Selected ride</Text>
-              <Text style={styles.heroValue}>{selectedRideConfig.label}</Text>
+              <Text style={styles.heroStatLabel}>Vehicle step</Text>
+              <Text style={styles.heroStatValue}>Choose after order</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.sheet}>
           <ScrollView
-            contentContainerStyle={[styles.scrollContent, { paddingBottom: footerOffset + 36 }]}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: footerOffset + 42 }]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.introBlock}>
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>Fast booking</Text>
+                <Text style={styles.badgeText}>Simpler booking flow</Text>
               </View>
-              <Text style={styles.headline}>Set route, choose ride, confirm.</Text>
+              <Text style={styles.headline}>Set route now. Choose the car next.</Text>
               <Text style={styles.subheadline}>
-                The flow is linear on purpose. The app surfaces only the next action you need.
+                This screen is focused only on the route so first-time users always know the next step.
               </Text>
             </View>
 
             <AddressInputCard
               destination={destination}
-              onDestinationChange={setDestination}
+              onDestinationChange={handleDestinationChange}
               onDestinationFocus={() => setShowSuggestions(true)}
               onPickupChange={setPickup}
               onSwap={handleSwapLocations}
@@ -402,155 +440,127 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
               <View style={styles.inlineNotice}>
                 <Ionicons color={passengerPalette.danger} name="alert-circle-outline" size={18} />
                 <Text style={styles.inlineNoticeText}>
-                  Location access is off, so pickup stays manual until the user enables it.
+                  Location is off, so pickup stays manual until the user enables access.
                 </Text>
               </View>
             ) : null}
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Quick destinations</Text>
-              <TouchableOpacity activeOpacity={0.75} onPress={() => navigation.navigate('TripHistory')}>
-                <Text style={styles.sectionLink}>Use recent rides</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.quickGrid}>
-              {LOCATION_SUGGESTIONS.slice(0, 4).map((suggestion) => (
-                <TouchableOpacity
-                  key={suggestion.id}
-                  activeOpacity={0.88}
-                  onPress={() => handleDestinationSelect(suggestion.title, suggestion.coords)}
-                  style={styles.quickCard}
-                >
-                  <View style={styles.quickIcon}>
-                    <Ionicons
-                      color={passengerPalette.text}
-                      name={
-                        suggestion.category === 'favorite'
-                          ? 'heart-outline'
-                          : suggestion.category === 'hub'
-                            ? 'airplane-outline'
-                            : 'time-outline'
-                      }
-                      size={18}
-                    />
-                  </View>
-                  <View style={styles.quickText}>
-                    <Text style={styles.quickLabel}>{suggestion.title}</Text>
-                    <Text style={styles.quickSubtitle}>{suggestion.subtitle}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {showSuggestions ? (
-              <View style={styles.suggestionPanel}>
-                <Text style={styles.suggestionTitle}>Suggested destinations</Text>
-                {LOCATION_SUGGESTIONS.map((suggestion) => (
+            {tripPreview && priceRange ? (
+              <View style={styles.previewCard}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Trip preview</Text>
                   <TouchableOpacity
-                    key={suggestion.id}
-                    activeOpacity={0.85}
-                    onPress={() => handleDestinationSelect(suggestion.title, suggestion.coords)}
-                    style={styles.suggestionRow}
+                    activeOpacity={0.8}
+                    onPress={() =>
+                      navigation.navigate('Preorder', {
+                        pickup,
+                        destination,
+                        rideType: selectedRide,
+                      })
+                    }
                   >
-                    <View style={styles.suggestionDot} />
-                    <View style={styles.suggestionText}>
-                      <Text style={styles.suggestionLabel}>{suggestion.title}</Text>
-                      <Text style={styles.suggestionSubtitle}>{suggestion.subtitle}</Text>
-                    </View>
-                    <Ionicons color={passengerPalette.mutedText} name="chevron-forward" size={18} />
+                    <Text style={styles.sectionLink}>Schedule instead</Text>
                   </TouchableOpacity>
-                ))}
+                </View>
+
+                <View style={styles.metricRow}>
+                  <View style={styles.metricBlock}>
+                    <Text style={styles.metricLabel}>Ride time</Text>
+                    <Text style={styles.metricValue}>{tripPreview.durationMin} min</Text>
+                  </View>
+                  <View style={styles.metricBlock}>
+                    <Text style={styles.metricLabel}>Distance</Text>
+                    <Text style={styles.metricValue}>{tripPreview.distanceKm} km</Text>
+                  </View>
+                  <View style={styles.metricBlock}>
+                    <Text style={styles.metricLabel}>Estimated fare</Text>
+                    <Text style={styles.metricValue}>UAH {priceRange.min}-{priceRange.max}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.previewNote}>
+                  <Ionicons color={passengerPalette.accent} name="sparkles-outline" size={16} />
+                  <Text style={styles.previewNoteText}>
+                    {preferredRide.label} stays preselected when you open the car selection screen.
+                  </Text>
+                </View>
               </View>
             ) : null}
 
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Choose your ride</Text>
-              <Text style={styles.sectionMeta}>
-                {destinationCoords ? `${tripSummary.durationMin} min trip` : 'Waiting for route'}
+              <Text style={styles.sectionTitle}>
+                {destinationQuery ? 'Location suggestions' : 'Saved and recent places'}
               </Text>
+              <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('TripHistory')}>
+                <Text style={styles.sectionLink}>
+                  {destinationQuery ? `${destinationSuggestions.length} matches` : 'Recent rides'}
+                </Text>
+              </TouchableOpacity>
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {RIDE_OPTIONS.map((option) => (
-                <RideOptionCard
-                  key={option.key}
-                  onPress={() => setSelectedRide(option.key)}
-                  option={option}
-                  selected={selectedRide === option.key}
-                  summary={calculateTripSummary(pickupCoords, destinationCoords, option.key)}
-                />
-              ))}
-            </ScrollView>
-
-            <View style={styles.summaryCard}>
-              <View style={styles.summaryHeader}>
-                <Text style={styles.summaryTitle}>Trip summary</Text>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() =>
-                    navigation.navigate('Preorder', {
-                      pickup,
-                      destination,
-                      rideType: selectedRide,
-                    })
-                  }
-                  style={styles.secondaryButton}
-                >
-                  <Ionicons color={passengerPalette.text} name="calendar-outline" size={16} />
-                  <Text style={styles.secondaryButtonText}>Schedule instead</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.metricRow}>
-                <View style={styles.metricBlock}>
-                  <Text style={styles.metricLabel}>Distance</Text>
-                  <Text style={styles.metricValue}>
-                    {destinationCoords ? `${tripSummary.distanceKm} km` : 'Add route'}
-                  </Text>
+            {showSuggestions ? (
+              destinationSuggestions.length ? (
+                <View style={styles.savedList}>
+                  {destinationSuggestions.map((suggestion) => (
+                    <TouchableOpacity
+                      key={suggestion.id}
+                      activeOpacity={0.88}
+                      onPress={() => handleDestinationSuggestionSelect(suggestion)}
+                      style={styles.savedRow}
+                    >
+                      <View style={styles.savedIcon}>
+                        <Ionicons
+                          color={passengerPalette.text}
+                          name={
+                            suggestion.category === 'favorite'
+                              ? 'heart-outline'
+                              : suggestion.category === 'hub'
+                                ? 'business-outline'
+                                : suggestion.category === 'history'
+                                  ? 'reload-outline'
+                                  : 'time-outline'
+                          }
+                          size={18}
+                        />
+                      </View>
+                      <View style={styles.savedCopy}>
+                        <Text style={styles.savedLabel}>{suggestion.title}</Text>
+                        <Text style={styles.savedSubtitle}>{suggestion.subtitle}</Text>
+                      </View>
+                      <Ionicons color={passengerPalette.mutedText} name="chevron-forward" size={18} />
+                    </TouchableOpacity>
+                  ))}
                 </View>
-                <View style={styles.metricBlock}>
-                  <Text style={styles.metricLabel}>Ride time</Text>
-                  <Text style={styles.metricValue}>
-                    {destinationCoords ? `${tripSummary.durationMin} min` : 'Pending'}
-                  </Text>
+              ) : destinationQuery ? (
+                <View style={styles.emptySuggestionsCard}>
+                  <Ionicons color={passengerPalette.mutedText} name="search-outline" size={18} />
+                  <View style={styles.emptySuggestionsCopy}>
+                    <Text style={styles.emptySuggestionsTitle}>No quick match yet</Text>
+                    <Text style={styles.emptySuggestionsText}>
+                      Keep typing the address and the app will use the typed destination directly.
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.metricBlock}>
-                  <Text style={styles.metricLabel}>Fare</Text>
-                  <Text style={styles.metricValue}>UAH {tripSummary.price}</Text>
-                </View>
-              </View>
-
-              <View style={styles.summaryFooter}>
-                <View>
-                  <Text style={styles.paymentLabel}>Payment</Text>
-                  <Text style={styles.paymentValue}>Visa •••• 4219</Text>
-                </View>
-                <View style={styles.routeNote}>
-                  <Ionicons color={passengerPalette.accent} name="shield-checkmark-outline" size={16} />
-                  <Text style={styles.routeNoteText}>Driver and vehicle details show before pickup.</Text>
-                </View>
-              </View>
-            </View>
+              ) : null
+            ) : null}
           </ScrollView>
         </View>
 
-        <View style={[styles.footerAction, { bottom: footerOffset }]}>
+        <View style={[styles.footerAction, { bottom: footerOffset }]}> 
           <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={handleBookRide}
-            style={styles.primaryButton}
+            activeOpacity={0.92}
+            disabled={!destinationCoords}
+            onPress={handleOrderTaxi}
+            style={[styles.primaryButton, !destinationCoords && styles.primaryButtonDisabled]}
           >
             <View>
               <Text style={styles.primaryEyebrow}>
-                {destinationCoords ? `${selectedRideConfig.label} · UAH ${tripSummary.price}` : 'Set destination first'}
+                {destinationCoords ? 'Next: choose vehicle type' : 'Add destination to continue'}
               </Text>
-              <Text style={styles.primaryTitle}>
-                {destinationCoords ? 'Book ride now' : 'Choose destination'}
-              </Text>
+              <Text style={styles.primaryTitle}>Order Taxi</Text>
             </View>
             <View style={styles.primaryIconWrap}>
-              <Ionicons color={passengerPalette.text} name="arrow-forward" size={18} />
+              <Ionicons color="#FFFFFF" name="arrow-forward" size={18} />
             </View>
           </TouchableOpacity>
         </View>
@@ -564,117 +574,123 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mapSection: {
-    height: 300,
+    height: 290,
     paddingHorizontal: 16,
     paddingTop: 10,
   },
   map: {
-    borderRadius: passengerRadius.xl,
     flex: 1,
+    borderRadius: passengerRadius.xl,
   },
   heroTopRow: {
-    left: 32,
     position: 'absolute',
-    right: 32,
-    top: 26,
+    top: 24,
+    left: 28,
+    right: 28,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 12,
   },
-  brandCard: {
-    backgroundColor: passengerPalette.overlay,
+  heroCard: {
+    flex: 1,
+    maxWidth: 250,
+    backgroundColor: 'rgba(21, 32, 43, 0.7)',
     borderRadius: passengerRadius.lg,
-    gap: 4,
-    maxWidth: 220,
     paddingHorizontal: 16,
     paddingVertical: 14,
+    gap: 5,
   },
-  brandLabel: {
+  heroBadge: {
     color: '#FCD34D',
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
-  brandTitle: {
+  heroTitle: {
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '800',
+    lineHeight: 25,
   },
-  brandCaption: {
-    color: 'rgba(255, 255, 255, 0.78)',
+  heroCaption: {
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 13,
+    lineHeight: 18,
   },
   locateButton: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: passengerRadius.md,
-    height: 46,
-    justifyContent: 'center',
     width: 46,
+    height: 46,
+    borderRadius: passengerRadius.md,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   heroBottomCard: {
-    alignItems: 'center',
-    alignSelf: 'center',
+    position: 'absolute',
+    left: 34,
+    right: 34,
+    bottom: 18,
     backgroundColor: '#FFFFFF',
     borderRadius: passengerRadius.lg,
-    bottom: 18,
-    flexDirection: 'row',
-    gap: 20,
     paddingHorizontal: 18,
     paddingVertical: 14,
-    position: 'absolute',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  heroDivider: {
-    backgroundColor: passengerPalette.border,
-    height: 34,
-    width: 1,
-  },
-  heroEyebrow: {
+  heroStatLabel: {
     color: passengerPalette.mutedText,
     fontSize: 11,
     fontWeight: '700',
     marginBottom: 4,
     textTransform: 'uppercase',
   },
-  heroValue: {
+  heroStatValue: {
     color: passengerPalette.text,
     fontSize: 16,
     fontWeight: '800',
   },
+  heroDivider: {
+    width: 1,
+    height: 34,
+    backgroundColor: passengerPalette.border,
+  },
   pickupPin: {
     alignItems: 'center',
-    backgroundColor: passengerPalette.accentSoft,
-    borderColor: passengerPalette.accent,
+    justifyContent: 'center',
+    width: 36,
+    height: 36,
     borderRadius: 18,
     borderWidth: 2,
-    height: 36,
-    justifyContent: 'center',
-    width: 36,
+    borderColor: passengerPalette.accent,
+    backgroundColor: passengerPalette.accentSoft,
   },
   pickupPinInner: {
-    backgroundColor: passengerPalette.accent,
-    borderRadius: 7,
-    height: 14,
     width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: passengerPalette.accent,
   },
   destinationPin: {
-    alignItems: 'center',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: passengerPalette.danger,
-    borderRadius: 18,
-    height: 36,
+    alignItems: 'center',
     justifyContent: 'center',
-    width: 36,
   },
   sheet: {
-    backgroundColor: 'rgba(246, 241, 231, 0.95)',
+    flex: 1,
+    marginTop: -24,
+    backgroundColor: 'rgba(246, 241, 231, 0.96)',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    flex: 1,
-    marginTop: -28,
   },
   scrollContent: {
-    gap: 22,
+    gap: 20,
     paddingHorizontal: 20,
-    paddingTop: 30,
+    paddingTop: 28,
   },
   introBlock: {
     gap: 8,
@@ -695,7 +711,8 @@ const styles = StyleSheet.create({
     color: passengerPalette.text,
     fontSize: 30,
     fontWeight: '800',
-    letterSpacing: -0.7,
+    letterSpacing: -0.8,
+    lineHeight: 36,
   },
   subheadline: {
     color: passengerPalette.mutedText,
@@ -704,24 +721,33 @@ const styles = StyleSheet.create({
   },
   inlineNotice: {
     alignItems: 'flex-start',
-    backgroundColor: '#FFF5F3',
-    borderColor: '#F7C7C2',
-    borderRadius: passengerRadius.md,
-    borderWidth: 1,
     flexDirection: 'row',
     gap: 10,
+    backgroundColor: '#FFF5F3',
+    borderWidth: 1,
+    borderColor: '#F7C7C2',
+    borderRadius: passengerRadius.md,
     padding: 14,
   },
   inlineNoticeText: {
     color: passengerPalette.text,
     flex: 1,
     fontSize: 13,
-    lineHeight: 19,
+    lineHeight: 18,
+  },
+  previewCard: {
+    backgroundColor: passengerPalette.surface,
+    borderColor: passengerPalette.border,
+    borderRadius: passengerRadius.lg,
+    borderWidth: 1,
+    gap: 14,
+    padding: 18,
   },
   sectionHeader: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 12,
   },
   sectionTitle: {
     color: passengerPalette.text,
@@ -733,202 +759,141 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  sectionMeta: {
-    color: passengerPalette.mutedText,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  quickGrid: {
+  metricRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
-  quickCard: {
+  metricBlock: {
+    flex: 1,
+    backgroundColor: passengerPalette.surfaceMuted,
+    borderRadius: passengerRadius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  metricLabel: {
+    color: passengerPalette.mutedText,
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 5,
+    textTransform: 'uppercase',
+  },
+  metricValue: {
+    color: passengerPalette.text,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
+  previewNote: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: passengerPalette.surfaceMuted,
+    borderRadius: passengerRadius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  previewNoteText: {
+    color: passengerPalette.text,
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  savedList: {
     backgroundColor: passengerPalette.surface,
     borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.md,
+    borderRadius: passengerRadius.lg,
     borderWidth: 1,
-    flexBasis: '48%',
+    overflow: 'hidden',
+  },
+  savedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: passengerPalette.border,
+  },
+  savedIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    backgroundColor: passengerPalette.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  savedCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  savedLabel: {
+    color: passengerPalette.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  savedSubtitle: {
+    color: passengerPalette.mutedText,
+    fontSize: 13,
+  },
+  emptySuggestionsCard: {
+    alignItems: 'flex-start',
     flexDirection: 'row',
     gap: 12,
-    minHeight: 82,
-    padding: 14,
-  },
-  quickIcon: {
-    alignItems: 'center',
-    backgroundColor: passengerPalette.surfaceMuted,
-    borderRadius: 14,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  quickText: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  quickLabel: {
-    color: passengerPalette.text,
-    fontSize: 14,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  quickSubtitle: {
-    color: passengerPalette.mutedText,
-    fontSize: 12,
-  },
-  suggestionPanel: {
     backgroundColor: passengerPalette.surface,
     borderColor: passengerPalette.border,
     borderRadius: passengerRadius.lg,
     borderWidth: 1,
     padding: 16,
   },
-  suggestionTitle: {
-    color: passengerPalette.text,
-    fontSize: 15,
-    fontWeight: '800',
-    marginBottom: 10,
-  },
-  suggestionRow: {
-    alignItems: 'center',
-    borderTopColor: passengerPalette.border,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 14,
-  },
-  suggestionDot: {
-    backgroundColor: passengerPalette.primary,
-    borderRadius: 6,
-    height: 12,
-    width: 12,
-  },
-  suggestionText: {
+  emptySuggestionsCopy: {
     flex: 1,
-    gap: 2,
+    gap: 4,
   },
-  suggestionLabel: {
-    color: passengerPalette.text,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  suggestionSubtitle: {
-    color: passengerPalette.mutedText,
-    fontSize: 12,
-  },
-  summaryCard: {
-    backgroundColor: passengerPalette.surface,
-    borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.lg,
-    borderWidth: 1,
-    gap: 18,
-    padding: 18,
-  },
-  summaryHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  summaryTitle: {
-    color: passengerPalette.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  secondaryButton: {
-    alignItems: 'center',
-    backgroundColor: passengerPalette.surfaceMuted,
-    borderRadius: 999,
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  secondaryButtonText: {
-    color: passengerPalette.text,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  metricRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  metricBlock: {
-    gap: 6,
-  },
-  metricLabel: {
-    color: passengerPalette.mutedText,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  metricValue: {
-    color: passengerPalette.text,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  summaryFooter: {
-    gap: 14,
-  },
-  paymentLabel: {
-    color: passengerPalette.mutedText,
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  paymentValue: {
+  emptySuggestionsTitle: {
     color: passengerPalette.text,
     fontSize: 15,
     fontWeight: '700',
   },
-  routeNote: {
-    alignItems: 'center',
-    backgroundColor: passengerPalette.accentSoft,
-    borderRadius: passengerRadius.md,
-    flexDirection: 'row',
-    gap: 10,
-    padding: 12,
-  },
-  routeNoteText: {
-    color: passengerPalette.text,
-    flex: 1,
-    fontSize: 12,
+  emptySuggestionsText: {
+    color: passengerPalette.mutedText,
+    fontSize: 13,
     lineHeight: 18,
   },
   footerAction: {
-    left: 20,
     position: 'absolute',
-    right: 20,
+    left: 16,
+    right: 16,
   },
   primaryButton: {
-    alignItems: 'center',
-    backgroundColor: passengerPalette.primary,
-    borderRadius: passengerRadius.xl,
+    backgroundColor: passengerPalette.primaryDeep,
+    borderRadius: passengerRadius.lg,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    shadowColor: passengerPalette.shadow,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 1,
-    shadowRadius: 24,
-    elevation: 8,
+  },
+  primaryButtonDisabled: {
+    backgroundColor: '#C9B78A',
   },
   primaryEyebrow: {
-    color: '#7A5400',
+    color: '#FDE6B8',
     fontSize: 12,
     fontWeight: '700',
     marginBottom: 4,
+    textTransform: 'uppercase',
   },
   primaryTitle: {
-    color: passengerPalette.text,
-    fontSize: 18,
+    color: '#FFFFFF',
+    fontSize: 20,
     fontWeight: '800',
   },
   primaryIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    borderRadius: 20,
-    height: 40,
     justifyContent: 'center',
-    width: 40,
   },
 });
