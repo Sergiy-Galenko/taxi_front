@@ -1,9 +1,10 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useMemo } from 'react';
 import { StyleProp, StatusBar, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import PassengerTabBar from './PassengerTabBar';
-import { passengerPalette } from '../../theme/passenger';
+import { usePassengerTheme } from '../../hooks/usePassengerTheme';
+import { PassengerPalette } from '../../theme/passenger';
 
 type PassengerRoute = 'Home' | 'Preorder' | 'TripHistory' | 'Settings';
 
@@ -28,12 +29,15 @@ export default function PassengerScreenLayout({
   contentStyle,
   titleStyle,
 }: PassengerScreenLayoutProps) {
+  const { palette } = usePassengerTheme();
+  const styles = useMemo(() => createStyles(palette), [palette]);
+
   return (
     <LinearGradient
-      colors={[passengerPalette.background, '#FFFDF8', passengerPalette.background]}
+      colors={[palette.background, palette.backgroundSecondary, palette.background]}
       style={styles.background}
     >
-      <StatusBar barStyle="dark-content" backgroundColor={passengerPalette.background} />
+      <StatusBar barStyle={palette.statusBar} backgroundColor={palette.background} />
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <View pointerEvents="none" style={[styles.blob, styles.blobPrimary]} />
         <View pointerEvents="none" style={[styles.blob, styles.blobSecondary]} />
@@ -55,7 +59,7 @@ export default function PassengerScreenLayout({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (palette: PassengerPalette) => StyleSheet.create({
   background: {
     flex: 1,
   },
@@ -67,7 +71,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   blobPrimary: {
-    backgroundColor: passengerPalette.backgroundAccent,
+    backgroundColor: palette.backgroundAccent,
     height: 220,
     opacity: 0.45,
     right: -70,
@@ -75,7 +79,7 @@ const styles = StyleSheet.create({
     width: 220,
   },
   blobSecondary: {
-    backgroundColor: passengerPalette.primarySoft,
+    backgroundColor: palette.primarySoft,
     bottom: 160,
     height: 180,
     left: -90,
@@ -94,13 +98,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   title: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 30,
     fontWeight: '800',
     letterSpacing: -0.7,
   },
   subtitle: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 14,
     lineHeight: 20,
     maxWidth: 320,
@@ -109,4 +113,3 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
-

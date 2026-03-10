@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useMemo } from 'react';
 import {
   StatusBar,
   StyleProp,
@@ -12,7 +12,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { passengerPalette, passengerRadius } from '../../theme/passenger';
+import { usePassengerTheme } from '../../hooks/usePassengerTheme';
+import { PassengerPalette } from '../../theme/passenger';
 
 interface BookingFlowLayoutProps {
   title: string;
@@ -34,13 +35,15 @@ export default function BookingFlowLayout({
   onBack,
 }: BookingFlowLayoutProps) {
   const navigation = useNavigation();
+  const { palette, radius } = usePassengerTheme();
+  const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
 
   return (
     <LinearGradient
-      colors={[passengerPalette.background, '#FFFDF8', passengerPalette.background]}
+      colors={[palette.background, palette.backgroundSecondary, palette.background]}
       style={styles.background}
     >
-      <StatusBar barStyle="dark-content" backgroundColor={passengerPalette.background} />
+      <StatusBar barStyle={palette.statusBar} backgroundColor={palette.background} />
       <SafeAreaView style={styles.safeArea}>
         <View pointerEvents="none" style={[styles.blob, styles.blobPrimary]} />
         <View pointerEvents="none" style={[styles.blob, styles.blobSecondary]} />
@@ -51,7 +54,7 @@ export default function BookingFlowLayout({
             onPress={onBack ?? navigation.goBack}
             style={styles.backButton}
           >
-            <Ionicons color={passengerPalette.text} name="chevron-back" size={20} />
+            <Ionicons color={palette.text} name="chevron-back" size={20} />
           </TouchableOpacity>
 
           <View style={styles.headerText}>
@@ -69,7 +72,10 @@ export default function BookingFlowLayout({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (
+  palette: PassengerPalette,
+  radius: typeof import('../../theme/passenger').passengerRadius
+) => StyleSheet.create({
   background: {
     flex: 1,
   },
@@ -81,7 +87,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   blobPrimary: {
-    backgroundColor: passengerPalette.backgroundAccent,
+    backgroundColor: palette.backgroundAccent,
     width: 220,
     height: 220,
     right: -80,
@@ -89,7 +95,7 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   blobSecondary: {
-    backgroundColor: passengerPalette.primarySoft,
+    backgroundColor: palette.primarySoft,
     width: 180,
     height: 180,
     left: -70,
@@ -105,10 +111,10 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: passengerRadius.md,
+    backgroundColor: palette.tabBar,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: passengerPalette.border,
+    borderColor: palette.border,
     height: 42,
     justifyContent: 'center',
     width: 42,
@@ -119,13 +125,13 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
   title: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 26,
     fontWeight: '800',
     letterSpacing: -0.6,
   },
   subtitle: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 14,
     lineHeight: 20,
   },

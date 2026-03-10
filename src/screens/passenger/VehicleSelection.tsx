@@ -7,27 +7,33 @@ import RouteSummaryCard from '../../components/passenger/RouteSummaryCard';
 import VehicleOptionCard from '../../components/passenger/VehicleOptionCard';
 import {
   calculateTripSummary,
-  getRideOption,
-  PAYMENT_OPTIONS,
+  PAYMENT_METHODS,
   RIDE_OPTIONS,
 } from '../../data/passenger';
-import { passengerPalette, passengerRadius } from '../../theme/passenger';
+import { useI18n } from '../../hooks/useI18n';
+import { useSettings } from '../../hooks/useSettings';
+import { PassengerPalette } from '../../theme/passenger';
+import { usePassengerTheme } from '../../hooks/usePassengerTheme';
 import { RootStackParamList } from '../../types/navigation';
-import { RideOptionKey } from '../../types/passenger';
+import { PaymentMethodKey, RideOptionKey } from '../../types/passenger';
 
 type VehicleSelectionScreenProps = NativeStackScreenProps<RootStackParamList, 'VehicleSelection'>;
 
 export default function VehicleSelectionScreen({ navigation, route }: VehicleSelectionScreenProps) {
+  const { t } = useI18n();
+  const { defaultPaymentMethod, setDefaultPaymentMethod, priceAlertsEnabled } = useSettings();
+  const { palette, radius } = usePassengerTheme();
+  const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
   const [selectedRide, setSelectedRide] = useState<RideOptionKey>(route.params.rideType ?? 'comfort');
-  const [paymentMethod, setPaymentMethod] = useState(PAYMENT_OPTIONS[0]);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodKey>(defaultPaymentMethod);
 
   const summary = useMemo(() => {
     return calculateTripSummary(route.params.pickupCoords ?? null, route.params.destinationCoords ?? null, selectedRide);
   }, [route.params.destinationCoords, route.params.pickupCoords, selectedRide]);
 
-  const selectedRideConfig = getRideOption(selectedRide);
+  const handleConfirmRide = async () => {
+    await setDefaultPaymentMethod(paymentMethod);
 
-  const handleConfirmRide = () => {
     navigation.navigate('DriverSearch', {
       ...route.params,
       rideType: selectedRide,
@@ -41,13 +47,15 @@ export default function VehicleSelectionScreen({ navigation, route }: VehicleSel
 
   return (
     <BookingFlowLayout
-      subtitle="Compare the options, pick the best fit, and confirm without leaving this step."
-      title="Choose your ride"
+      subtitle={t('vehicleSelection.subtitle')}
+      title={t('vehicleSelection.title')}
       footer={
         <TouchableOpacity activeOpacity={0.92} onPress={handleConfirmRide} style={styles.primaryButton}>
           <View>
-            <Text style={styles.primaryEyebrow}>{selectedRideConfig.label} selected</Text>
-            <Text style={styles.primaryTitle}>Confirm ride · UAH {summary.price}</Text>
+            <Text style={styles.primaryEyebrow}>
+              {t('vehicleSelection.confirmEyebrow', { ride: t(`rideOptions.${selectedRide}.label`) })}
+            </Text>
+            <Text style={styles.primaryTitle}>{t('vehicleSelection.confirmTitle', { price: summary.price })}</Text>
           </View>
           <Ionicons color="#FFFFFF" name="arrow-forward" size={18} />
         </TouchableOpacity>
@@ -55,20 +63,20 @@ export default function VehicleSelectionScreen({ navigation, route }: VehicleSel
     >
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <RouteSummaryCard
-          badge="Step 2 of 4"
+          badge={t('common.stepOf', { current: 2, total: 4 })}
           destination={route.params.to}
           meta={[
-            { icon: 'time-outline', label: `${summary.durationMin} min ride` },
-            { icon: 'map-outline', label: `${summary.distanceKm || 0} km` },
-            { icon: 'car-outline', label: `${summary.pickupEtaMin} min pickup` },
+            { icon: 'time-outline', label: t('common.minutesShort', { count: summary.durationMin }) },
+            { icon: 'map-outline', label: t('common.kilometersShort', { count: summary.distanceKm || 0 }) },
+            { icon: 'car-outline', label: t('common.minutesShort', { count: summary.pickupEtaMin }) },
           ]}
           onPressEdit={() => navigation.goBack()}
           pickup={route.params.from}
         />
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Available cars</Text>
-          <Text style={styles.sectionMeta}>{RIDE_OPTIONS.length} options nearby</Text>
+          <Text style={styles.sectionTitle}>{t('vehicleSelection.availableCars')}</Text>
+          <Text style={styles.sectionMeta}>{t('vehicleSelection.optionsNearby', { count: RIDE_OPTIONS.length })}</Text>
         </View>
 
         <View style={styles.vehicleList}>
@@ -89,12 +97,12 @@ export default function VehicleSelectionScreen({ navigation, route }: VehicleSel
 
         <View style={styles.paymentCard}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Payment</Text>
-            <Text style={styles.sectionMeta}>Change anytime</Text>
+            <Text style={styles.sectionTitle}>{t('vehicleSelection.payment')}</Text>
+            <Text style={styles.sectionMeta}>{t('vehicleSelection.paymentHint')}</Text>
           </View>
 
           <View style={styles.paymentRow}>
-            {PAYMENT_OPTIONS.map((option) => {
+            {PAYMENT_METHODS.map((option) => {
               const active = option === paymentMethod;
 
               return (
@@ -104,12 +112,22 @@ export default function VehicleSelectionScreen({ navigation, route }: VehicleSel
                   onPress={() => setPaymentMethod(option)}
                   style={[styles.paymentChip, active && styles.paymentChipActive]}
                 >
-                  <Text style={[styles.paymentChipText, active && styles.paymentChipTextActive]}>{option}</Text>
+                  <Text style={[styles.paymentChipText, active && styles.paymentChipTextActive]}>{t(`payments.${option}`)}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
         </View>
+
+        {priceAlertsEnabled ? (
+          <View style={styles.infoCard}>
+            <Ionicons color={palette.primaryDeep} name="pricetag-outline" size={18} />
+            <View style={styles.infoCopy}>
+              <Text style={styles.infoTitle}>{t('home.priceAlertTitle')}</Text>
+              <Text style={styles.infoHint}>{t('home.priceAlertText')}</Text>
+            </View>
+          </View>
+        ) : null}
 
         <TouchableOpacity
           activeOpacity={0.88}
@@ -123,20 +141,20 @@ export default function VehicleSelectionScreen({ navigation, route }: VehicleSel
           style={styles.scheduleCard}
         >
           <View style={styles.scheduleIconWrap}>
-            <Ionicons color={passengerPalette.text} name="calendar-outline" size={18} />
+            <Ionicons color={palette.text} name="calendar-outline" size={18} />
           </View>
           <View style={styles.scheduleCopy}>
-            <Text style={styles.scheduleTitle}>Need pickup later?</Text>
-            <Text style={styles.scheduleHint}>Schedule this route instead of booking immediately.</Text>
+            <Text style={styles.scheduleTitle}>{t('vehicleSelection.scheduleTitle')}</Text>
+            <Text style={styles.scheduleHint}>{t('vehicleSelection.scheduleHint')}</Text>
           </View>
-          <Ionicons color={passengerPalette.mutedText} name="chevron-forward" size={18} />
+          <Ionicons color={palette.mutedText} name="chevron-forward" size={18} />
         </TouchableOpacity>
       </ScrollView>
     </BookingFlowLayout>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (palette: PassengerPalette, radius: typeof import('../../theme/passenger').passengerRadius) => StyleSheet.create({
   content: {
     gap: 18,
     paddingHorizontal: 20,
@@ -150,12 +168,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sectionTitle: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 18,
     fontWeight: '800',
   },
   sectionMeta: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -163,9 +181,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   paymentCard: {
-    backgroundColor: passengerPalette.surface,
-    borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.lg,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
     gap: 14,
     padding: 18,
@@ -178,28 +196,52 @@ const styles = StyleSheet.create({
   paymentChip: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: passengerPalette.border,
-    backgroundColor: passengerPalette.surfaceMuted,
+    borderColor: palette.border,
+    backgroundColor: palette.surfaceMuted,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   paymentChipActive: {
-    backgroundColor: passengerPalette.text,
-    borderColor: passengerPalette.text,
+    backgroundColor: palette.text,
+    borderColor: palette.text,
   },
   paymentChipText: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 13,
     fontWeight: '700',
   },
   paymentChipTextActive: {
     color: '#FFFFFF',
   },
+  infoCard: {
+    alignItems: 'flex-start',
+    backgroundColor: palette.warningSurface,
+    borderColor: palette.warningBorder,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    padding: 16,
+  },
+  infoCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  infoTitle: {
+    color: palette.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  infoHint: {
+    color: palette.mutedText,
+    fontSize: 12,
+    lineHeight: 18,
+  },
   scheduleCard: {
     alignItems: 'center',
-    backgroundColor: passengerPalette.surface,
-    borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.lg,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 14,
@@ -207,7 +249,7 @@ const styles = StyleSheet.create({
   },
   scheduleIconWrap: {
     alignItems: 'center',
-    backgroundColor: passengerPalette.primarySoft,
+    backgroundColor: palette.primarySoft,
     borderRadius: 16,
     height: 42,
     justifyContent: 'center',
@@ -218,19 +260,19 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   scheduleTitle: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 16,
     fontWeight: '800',
   },
   scheduleHint: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 13,
     lineHeight: 18,
   },
   primaryButton: {
     alignItems: 'center',
-    backgroundColor: passengerPalette.primaryDeep,
-    borderRadius: passengerRadius.lg,
+    backgroundColor: palette.primaryDeep,
+    borderRadius: radius.lg,
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,

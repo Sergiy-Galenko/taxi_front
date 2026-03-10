@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useI18n } from '../../hooks/useI18n';
+import { usePassengerTheme } from '../../hooks/usePassengerTheme';
 import { RootStackParamList } from '../../types/navigation';
-import { passengerPalette, passengerRadius } from '../../theme/passenger';
+import { PassengerPalette } from '../../theme/passenger';
 
 type PassengerRoute = 'Home' | 'Preorder' | 'TripHistory' | 'Settings';
 
@@ -27,6 +29,9 @@ const tabs: Array<{
 export default function PassengerTabBar({ activeRoute }: PassengerTabBarProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
+  const { palette, radius } = usePassengerTheme();
+  const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
 
   return (
     <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 10) }]}>
@@ -46,11 +51,11 @@ export default function PassengerTabBar({ activeRoute }: PassengerTabBarProps) {
               style={[styles.tab, active && styles.activeTab]}
             >
               <Ionicons
-                color={active ? passengerPalette.text : passengerPalette.mutedText}
+                color={active ? palette.text : palette.mutedText}
                 name={tab.icon}
                 size={20}
               />
-              <Text style={[styles.label, active && styles.activeLabel]}>{tab.label}</Text>
+              <Text style={[styles.label, active && styles.activeLabel]}>{t(`tabs.${tab.route === 'Home' ? 'book' : tab.route === 'Preorder' ? 'schedule' : tab.route === 'TripHistory' ? 'trips' : 'profile'}`)}</Text>
             </TouchableOpacity>
           );
         })}
@@ -59,7 +64,10 @@ export default function PassengerTabBar({ activeRoute }: PassengerTabBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (
+  palette: PassengerPalette,
+  radius: typeof import('../../theme/passenger').passengerRadius
+) => StyleSheet.create({
   wrapper: {
     position: 'absolute',
     left: 16,
@@ -67,13 +75,13 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   container: {
-    backgroundColor: passengerPalette.tabBar,
-    borderRadius: passengerRadius.lg,
+    backgroundColor: palette.tabBar,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(232, 222, 201, 0.9)',
+    borderColor: palette.border,
     flexDirection: 'row',
     padding: 8,
-    shadowColor: passengerPalette.shadow,
+    shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 1,
     shadowRadius: 24,
@@ -81,21 +89,20 @@ const styles = StyleSheet.create({
   },
   tab: {
     alignItems: 'center',
-    borderRadius: passengerRadius.md,
+    borderRadius: radius.md,
     flex: 1,
     gap: 4,
     paddingVertical: 10,
   },
   activeTab: {
-    backgroundColor: passengerPalette.primarySoft,
+    backgroundColor: palette.primarySoft,
   },
   label: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 12,
     fontWeight: '700',
   },
   activeLabel: {
-    color: passengerPalette.text,
+    color: palette.text,
   },
 });
-

@@ -7,7 +7,7 @@ export interface User {
   fullName: string;
   role: string;
   phoneNumber?: string;
-  rating?: number;
+  rating?: number | string | null;
   [key: string]: any;
 }
 

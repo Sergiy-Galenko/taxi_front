@@ -5,8 +5,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import BookingFlowLayout from '../../components/passenger/BookingFlowLayout';
 import RouteSummaryCard from '../../components/passenger/RouteSummaryCard';
-import { getRideOption } from '../../data/passenger';
-import { passengerPalette, passengerRadius } from '../../theme/passenger';
+import { useI18n } from '../../hooks/useI18n';
+import { useNotifications, getPaymentMethodTranslationKey } from '../../hooks/useNotifications';
+import { PassengerPalette } from '../../theme/passenger';
+import { usePassengerTheme } from '../../hooks/usePassengerTheme';
 import { RootStackParamList } from '../../types/navigation';
 
 type DriverSearchScreenProps = NativeStackScreenProps<RootStackParamList, 'DriverSearch'>;
@@ -36,19 +38,31 @@ const driverMatches = {
 } as const;
 
 export default function DriverSearchScreen({ navigation, route }: DriverSearchScreenProps) {
+  const { t } = useI18n();
+  const { notifyRideEvent } = useNotifications();
+  const { palette, radius } = usePassengerTheme();
+  const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
   const [driverFound, setDriverFound] = useState(false);
-  const rideOption = getRideOption(route.params.rideType);
   const matchedDriver = useMemo(() => driverMatches[route.params.rideType], [route.params.rideType]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setDriverFound(true), 2200);
+    void notifyRideEvent('search_started');
+
+    const timer = setTimeout(() => {
+      setDriverFound(true);
+      void notifyRideEvent('driver_found', {
+        driver: matchedDriver.name,
+        car: matchedDriver.car,
+      });
+    }, 2200);
+
     return () => clearTimeout(timer);
-  }, []);
+  }, [matchedDriver.car, matchedDriver.name, notifyRideEvent]);
 
   return (
     <BookingFlowLayout
-      subtitle="We keep this step focused: matching first, details next, tracking after that."
-      title={driverFound ? 'Driver found' : 'Looking for a driver'}
+      subtitle={t('driverSearch.subtitle')}
+      title={driverFound ? t('driverSearch.titleFound') : t('driverSearch.titleSearching')}
       footer={
         driverFound ? (
           <TouchableOpacity
@@ -66,18 +80,21 @@ export default function DriverSearchScreen({ navigation, route }: DriverSearchSc
             style={styles.primaryButton}
           >
             <View>
-              <Text style={styles.primaryEyebrow}>{matchedDriver.etaMin} min away</Text>
-              <Text style={styles.primaryTitle}>Track driver</Text>
+              <Text style={styles.primaryEyebrow}>{t('driverSearch.trackEyebrow', { count: matchedDriver.etaMin })}</Text>
+              <Text style={styles.primaryTitle}>{t('driverSearch.trackTitle')}</Text>
             </View>
             <Ionicons color="#FFFFFF" name="navigate-outline" size={18} />
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
             activeOpacity={0.92}
-            onPress={() => navigation.navigate('Home')}
+            onPress={() => {
+              Alert.alert(t('alerts.searchCancelledTitle'), t('alerts.searchCancelledText'));
+              navigation.navigate('Home');
+            }}
             style={styles.secondaryButton}
           >
-            <Text style={styles.secondaryButtonText}>Cancel request</Text>
+            <Text style={styles.secondaryButtonText}>{t('driverSearch.cancelRequest')}</Text>
           </TouchableOpacity>
         )
       }
@@ -91,23 +108,17 @@ export default function DriverSearchScreen({ navigation, route }: DriverSearchSc
               </View>
             </View>
           </View>
-          <Text style={styles.searchTitle}>
-            {driverFound ? 'Your driver accepted the ride' : 'Matching the best driver nearby'}
-          </Text>
-          <Text style={styles.searchHint}>
-            {driverFound
-              ? 'Vehicle and contact details are ready. Open live tracking when you are ready.'
-              : 'We are checking drivers around your pickup point and prioritizing the fastest arrival.'}
-          </Text>
+          <Text style={styles.searchTitle}>{driverFound ? t('driverSearch.heroFound') : t('driverSearch.heroSearching')}</Text>
+          <Text style={styles.searchHint}>{driverFound ? t('driverSearch.foundHint') : t('driverSearch.searchHint')}</Text>
         </Animatable.View>
 
         <RouteSummaryCard
-          badge="Step 3 of 4"
+          badge={t('common.stepOf', { current: 3, total: 4 })}
           destination={route.params.to}
           meta={[
-            { icon: 'car-outline', label: rideOption.label },
-            { icon: 'wallet-outline', label: route.params.paymentMethod },
-            { icon: 'cash-outline', label: `UAH ${route.params.price}` },
+            { icon: 'car-outline', label: t(`rideOptions.${route.params.rideType}.label`) },
+            { icon: 'wallet-outline', label: t(getPaymentMethodTranslationKey(route.params.paymentMethod)) },
+            { icon: 'cash-outline', label: t('common.priceUah', { amount: route.params.price }) },
           ]}
           pickup={route.params.from}
         />
@@ -115,18 +126,18 @@ export default function DriverSearchScreen({ navigation, route }: DriverSearchSc
         <View style={styles.progressCard}>
           {[
             {
-              title: 'Request sent',
-              hint: 'Your trip request is already in the queue.',
+              title: t('driverSearch.progress.sentTitle'),
+              hint: t('driverSearch.progress.sentHint'),
               active: true,
             },
             {
-              title: 'Driver matched',
-              hint: driverFound ? 'A driver accepted your request.' : 'Usually takes a few seconds.',
+              title: t('driverSearch.progress.matchedTitle'),
+              hint: driverFound ? t('driverSearch.progress.matchedHintReady') : t('driverSearch.progress.matchedHintPending'),
               active: driverFound,
             },
             {
-              title: 'Ready for live tracking',
-              hint: 'Driver card and route details appear before pickup.',
+              title: t('driverSearch.progress.liveTitle'),
+              hint: t('driverSearch.progress.liveHint'),
               active: driverFound,
             },
           ].map((step) => (
@@ -149,16 +160,16 @@ export default function DriverSearchScreen({ navigation, route }: DriverSearchSc
               <Text style={styles.driverName}>{matchedDriver.name}</Text>
               <Text style={styles.driverMeta}>{matchedDriver.car} • {matchedDriver.plate}</Text>
               <View style={styles.driverRatingRow}>
-                <Ionicons color={passengerPalette.primaryDeep} name="star" size={14} />
-                <Text style={styles.driverRatingText}>{matchedDriver.rating} driver rating</Text>
+                <Ionicons color={palette.primaryDeep} name="star" size={14} />
+                <Text style={styles.driverRatingText}>{t('driverSearch.driverRating', { rating: matchedDriver.rating })}</Text>
               </View>
             </View>
             <TouchableOpacity
               activeOpacity={0.86}
-              onPress={() => Alert.alert('Driver call', 'Calling is a placeholder in this demo flow.')}
+              onPress={() => Alert.alert(t('driverSearch.callDriver'), t('driverSearch.callDriverHint'))}
               style={styles.callButton}
             >
-              <Ionicons color={passengerPalette.text} name="call-outline" size={18} />
+              <Ionicons color={palette.text} name="call-outline" size={18} />
             </TouchableOpacity>
           </View>
         ) : null}
@@ -167,7 +178,7 @@ export default function DriverSearchScreen({ navigation, route }: DriverSearchSc
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (palette: PassengerPalette, radius: typeof import('../../theme/passenger').passengerRadius) => StyleSheet.create({
   content: {
     gap: 18,
     paddingHorizontal: 20,
@@ -176,9 +187,9 @@ const styles = StyleSheet.create({
   },
   searchHero: {
     alignItems: 'center',
-    backgroundColor: passengerPalette.surface,
-    borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.lg,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
     gap: 12,
     paddingHorizontal: 22,
@@ -206,24 +217,24 @@ const styles = StyleSheet.create({
     width: 66,
     height: 66,
     borderRadius: 33,
-    backgroundColor: passengerPalette.primaryDeep,
+    backgroundColor: palette.primaryDeep,
   },
   searchTitle: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 22,
     fontWeight: '800',
     textAlign: 'center',
   },
   searchHint: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
   },
   progressCard: {
-    backgroundColor: passengerPalette.surface,
-    borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.lg,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
     gap: 16,
     padding: 18,
@@ -236,30 +247,30 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: passengerPalette.border,
+    backgroundColor: palette.border,
     marginTop: 6,
   },
   progressDotActive: {
-    backgroundColor: passengerPalette.accent,
+    backgroundColor: palette.accent,
   },
   progressCopy: {
     flex: 1,
     gap: 4,
   },
   progressTitle: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 15,
     fontWeight: '800',
   },
   progressHint: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 13,
     lineHeight: 18,
   },
   driverCard: {
-    backgroundColor: passengerPalette.surface,
-    borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.lg,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 14,
@@ -269,7 +280,7 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: passengerPalette.accent,
+    backgroundColor: palette.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -283,12 +294,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   driverName: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 18,
     fontWeight: '800',
   },
   driverMeta: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 13,
   },
   driverRatingRow: {
@@ -298,13 +309,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   driverRatingText: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 12,
     fontWeight: '700',
   },
   callButton: {
     alignItems: 'center',
-    backgroundColor: passengerPalette.surfaceMuted,
+    backgroundColor: palette.surfaceMuted,
     borderRadius: 16,
     height: 42,
     justifyContent: 'center',
@@ -312,8 +323,8 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     alignItems: 'center',
-    backgroundColor: passengerPalette.accent,
-    borderRadius: passengerRadius.lg,
+    backgroundColor: palette.accent,
+    borderRadius: radius.lg,
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
@@ -333,14 +344,14 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     alignItems: 'center',
-    backgroundColor: passengerPalette.surface,
-    borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.lg,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
     paddingVertical: 18,
   },
   secondaryButtonText: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 16,
     fontWeight: '700',
   },

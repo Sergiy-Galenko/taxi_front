@@ -3,6 +3,9 @@ import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider, useTheme } from './src/hooks/useTheme';
+import { I18nProvider } from './src/hooks/useI18n';
+import { NotificationsProvider } from './src/hooks/useNotifications';
+import { SettingsProvider } from './src/hooks/useSettings';
 import AppNavigator from './src/navigation/AppNavigator';
 import { UserProvider } from './src/hooks/UserContext';
 
@@ -20,9 +23,15 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <UserProvider>
-            <Main />
-          </UserProvider>
+          <I18nProvider>
+            <SettingsProvider>
+              <NotificationsProvider>
+                <UserProvider>
+                  <Main />
+                </UserProvider>
+              </NotificationsProvider>
+            </SettingsProvider>
+          </I18nProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

@@ -1,4 +1,5 @@
 export type RideOptionKey = 'economy' | 'comfort' | 'xl';
+export type PaymentMethodKey = 'visa' | 'apple_pay' | 'cash';
 
 export interface Coordinates {
   latitude: number;
@@ -17,7 +18,7 @@ export interface DestinationSuggestion {
   id: string;
   title: string;
   subtitle: string;
-  category: 'favorite' | 'recent' | 'hub' | 'history';
+  category: 'favorite' | 'recent' | 'hub' | 'history' | 'live';
   coords?: Coordinates;
 }
 

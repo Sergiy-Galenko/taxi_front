@@ -1,53 +1,66 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { theme as lightTheme } from '../theme';
+import { AppTheme, darkTheme, lightTheme } from '../theme';
 
-const darkTheme = {
-  ...lightTheme,
-  colors: {
-    ...lightTheme.colors,
-    background: '#000000',
-    text: '#FFFFFF',
-    surface: '#222222',
-    primary: '#E50914',
-  },
+export type ThemeMode = 'light' | 'dark' | 'auto';
+
+interface ThemeContextValue {
+  theme: AppTheme;
+  mode: ThemeMode;
+  isDark: boolean;
+  setThemeMode: (mode: ThemeMode) => void;
+}
+
+const THEME_STORAGE_KEY = 'themeMode';
+
+const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+
+const resolveTheme = (mode: ThemeMode, colorScheme: ReturnType<typeof useColorScheme>) => {
+  if (mode === 'dark') {
+    return darkTheme;
+  }
+
+  if (mode === 'auto') {
+    return colorScheme === 'dark' ? darkTheme : lightTheme;
+  }
+
+  return lightTheme;
 };
-
-const ThemeContext = createContext({
-  theme: lightTheme,
-  mode: 'auto',
-  setThemeMode: (mode: 'light' | 'dark' | 'auto') => {},
-});
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const colorScheme = useColorScheme();
-  const [mode, setMode] = useState<'light' | 'dark' | 'auto'>('auto');
-  const [theme, setTheme] = useState(lightTheme);
+  const [mode, setMode] = useState<ThemeMode>('auto');
 
   useEffect(() => {
-    AsyncStorage.getItem('themeMode').then(val => {
-      if (val === 'light' || val === 'dark' || val === 'auto') setMode(val);
+    AsyncStorage.getItem(THEME_STORAGE_KEY).then((storedMode) => {
+      if (storedMode === 'light' || storedMode === 'dark' || storedMode === 'auto') {
+        setMode(storedMode);
+      }
     });
   }, []);
 
-  useEffect(() => {
-    AsyncStorage.setItem('themeMode', mode);
-    let resolvedTheme = lightTheme;
-    if (mode === 'auto') {
-      const hour = new Date().getHours();
-      resolvedTheme = (hour >= 20 || hour < 7) ? darkTheme : lightTheme;
-    } else if (mode === 'dark') {
-      resolvedTheme = darkTheme;
-    }
-    setTheme(resolvedTheme);
-  }, [mode]);
+  const setThemeMode = useCallback((nextMode: ThemeMode) => {
+    setMode(nextMode);
+    void AsyncStorage.setItem(THEME_STORAGE_KEY, nextMode);
+  }, []);
+
+  const theme = useMemo(() => resolveTheme(mode, colorScheme), [mode, colorScheme]);
+  const isDark = theme.dark;
 
   return (
-    <ThemeContext.Provider value={{ theme, mode, setThemeMode: setMode }}>
+    <ThemeContext.Provider value={{ theme, mode, isDark, setThemeMode }}>
       {children}
     </ThemeContext.Provider>
   );
 };
 
-export const useTheme = () => useContext(ThemeContext); 
+export const useTheme = () => {
+  const context = useContext(ThemeContext);
+
+  if (!context) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+
+  return context;
+};

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,30 +7,48 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { passengerPalette, passengerRadius } from '../../theme/passenger';
+import { usePassengerTheme } from '../../hooks/usePassengerTheme';
+import { PassengerPalette } from '../../theme/passenger';
 
 interface AddressInputCardProps {
+  headerLabel: string;
+  pickupLabel: string;
+  destinationLabel: string;
+  pickupPlaceholder: string;
+  destinationPlaceholder: string;
   pickup: string;
   destination: string;
   onPickupChange: (value: string) => void;
   onDestinationChange: (value: string) => void;
   onUseCurrentLocation: () => void;
   onSwap: () => void;
+  onPickupFocus: () => void;
   onDestinationFocus: () => void;
+  focusedField?: 'pickup' | 'destination' | null;
 }
 
 export default function AddressInputCard({
+  headerLabel,
+  pickupLabel,
+  destinationLabel,
+  pickupPlaceholder,
+  destinationPlaceholder,
   pickup,
   destination,
   onPickupChange,
   onDestinationChange,
   onUseCurrentLocation,
   onSwap,
+  onPickupFocus,
   onDestinationFocus,
+  focusedField = null,
 }: AddressInputCardProps) {
+  const { palette, radius } = usePassengerTheme();
+  const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
+
   return (
     <View style={styles.card}>
-      <Text style={styles.header}>Route</Text>
+      <Text style={styles.header}>{headerLabel}</Text>
 
       <View style={styles.row}>
         <View style={styles.timelineColumn}>
@@ -40,13 +58,14 @@ export default function AddressInputCard({
         </View>
 
         <View style={styles.fieldsColumn}>
-          <View style={styles.fieldRow}>
+          <View style={[styles.fieldRow, focusedField === 'pickup' && styles.fieldRowActive]}>
             <View style={styles.fieldCopy}>
-              <Text style={styles.label}>Pickup</Text>
+              <Text style={styles.label}>{pickupLabel}</Text>
               <TextInput
                 onChangeText={onPickupChange}
-                placeholder="Use current location"
-                placeholderTextColor={passengerPalette.mutedText}
+                onFocus={onPickupFocus}
+                placeholder={pickupPlaceholder}
+                placeholderTextColor={palette.mutedText}
                 style={styles.input}
                 value={pickup}
               />
@@ -56,26 +75,26 @@ export default function AddressInputCard({
               onPress={onUseCurrentLocation}
               style={styles.sideButton}
             >
-              <Ionicons color={passengerPalette.info} name="locate-outline" size={20} />
+              <Ionicons color={palette.info} name="locate-outline" size={20} />
             </TouchableOpacity>
           </View>
 
           <View style={styles.innerDivider} />
 
-          <View style={styles.fieldRow}>
+          <View style={[styles.fieldRow, focusedField === 'destination' && styles.fieldRowActive]}>
             <View style={styles.fieldCopy}>
-              <Text style={styles.label}>Destination</Text>
+              <Text style={styles.label}>{destinationLabel}</Text>
               <TextInput
                 onChangeText={onDestinationChange}
                 onFocus={onDestinationFocus}
-                placeholder="Where to?"
-                placeholderTextColor={passengerPalette.mutedText}
+                placeholder={destinationPlaceholder}
+                placeholderTextColor={palette.mutedText}
                 style={styles.input}
                 value={destination}
               />
             </View>
             <TouchableOpacity activeOpacity={0.88} onPress={onSwap} style={styles.sideButton}>
-              <Ionicons color={passengerPalette.text} name="swap-vertical-outline" size={20} />
+              <Ionicons color={palette.text} name="swap-vertical-outline" size={20} />
             </TouchableOpacity>
           </View>
         </View>
@@ -84,22 +103,25 @@ export default function AddressInputCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (
+  palette: PassengerPalette,
+  radius: typeof import('../../theme/passenger').passengerRadius
+) => StyleSheet.create({
   card: {
-    backgroundColor: passengerPalette.surface,
-    borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.xl,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.xl,
     borderWidth: 1,
     gap: 16,
     padding: 18,
-    shadowColor: passengerPalette.shadow,
+    shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 1,
     shadowRadius: 28,
     elevation: 8,
   },
   header: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.6,
@@ -119,16 +141,16 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   pickupMarker: {
-    backgroundColor: passengerPalette.accent,
+    backgroundColor: palette.accent,
   },
   destinationMarker: {
-    backgroundColor: passengerPalette.danger,
+    backgroundColor: palette.danger,
   },
   timelineLine: {
     width: 2,
     flex: 1,
     minHeight: 42,
-    backgroundColor: passengerPalette.border,
+    backgroundColor: palette.border,
     marginVertical: 6,
   },
   fieldsColumn: {
@@ -137,20 +159,26 @@ const styles = StyleSheet.create({
   },
   fieldRow: {
     alignItems: 'center',
+    borderRadius: 18,
     flexDirection: 'row',
     gap: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  fieldRowActive: {
+    backgroundColor: palette.surfaceMuted,
   },
   fieldCopy: {
     flex: 1,
     gap: 4,
   },
   label: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 12,
     fontWeight: '700',
   },
   input: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 18,
     fontWeight: '700',
     paddingVertical: 0,
@@ -161,12 +189,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 16,
-    backgroundColor: passengerPalette.surfaceMuted,
+    backgroundColor: palette.surfaceMuted,
     borderWidth: 1,
-    borderColor: passengerPalette.border,
+    borderColor: palette.border,
   },
   innerDivider: {
     height: 1,
-    backgroundColor: passengerPalette.border,
+    backgroundColor: palette.border,
   },
 });

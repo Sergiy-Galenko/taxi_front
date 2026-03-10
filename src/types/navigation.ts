@@ -1,5 +1,5 @@
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Coordinates, RideOptionKey } from './passenger';
+import { Coordinates, PaymentMethodKey, RideOptionKey } from './passenger';
 
 type BookingRouteParams = {
   from: string;
@@ -11,7 +11,7 @@ type BookingRouteParams = {
 
 type ConfirmedRideParams = BookingRouteParams & {
   rideType: RideOptionKey;
-  paymentMethod: string;
+  paymentMethod: PaymentMethodKey;
   price: number;
   pickupEtaMin: number;
   durationMin: number;

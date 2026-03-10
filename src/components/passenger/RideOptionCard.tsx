@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { passengerPalette, passengerRadius } from '../../theme/passenger';
+import { useI18n } from '../../hooks/useI18n';
+import { usePassengerTheme } from '../../hooks/usePassengerTheme';
+import { PassengerPalette } from '../../theme/passenger';
 import { RideOption, TripSummary } from '../../types/passenger';
 
 interface RideOptionCardProps {
@@ -17,6 +19,10 @@ export default function RideOptionCard({
   summary,
   onPress,
 }: RideOptionCardProps) {
+  const { t } = useI18n();
+  const { palette, radius } = usePassengerTheme();
+  const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
+
   return (
     <TouchableOpacity
       activeOpacity={0.88}
@@ -24,42 +30,45 @@ export default function RideOptionCard({
       style={[styles.card, selected && styles.selectedCard]}
     >
       <View style={styles.header}>
-        <View style={[styles.iconBadge, { backgroundColor: selected ? option.accentColor : passengerPalette.surfaceMuted }]}>
+        <View style={[styles.iconBadge, { backgroundColor: selected ? option.accentColor : palette.surfaceMuted }]}>
           <Ionicons
-            color={selected ? '#FFFFFF' : passengerPalette.text}
+            color={selected ? '#FFFFFF' : palette.text}
             name={option.icon as keyof typeof Ionicons.glyphMap}
             size={20}
           />
         </View>
         <View style={styles.headerText}>
-          <Text style={styles.label}>{option.label}</Text>
-          <Text style={styles.description}>{option.description}</Text>
+          <Text style={styles.label}>{t(`rideOptions.${option.key}.label`)}</Text>
+          <Text style={styles.description}>{t(`rideOptions.${option.key}.description`)}</Text>
         </View>
       </View>
 
       <View style={styles.metricsRow}>
         <View>
-          <Text style={styles.metricLabel}>Pickup</Text>
-          <Text style={styles.metricValue}>{summary.pickupEtaMin} min</Text>
+          <Text style={styles.metricLabel}>{t('home.pickupStat')}</Text>
+          <Text style={styles.metricValue}>{t('common.minutesShort', { count: summary.pickupEtaMin })}</Text>
         </View>
         <View>
-          <Text style={styles.metricLabel}>Seats</Text>
+          <Text style={styles.metricLabel}>{t('vehicleSelection.capacity')}</Text>
           <Text style={styles.metricValue}>{option.capacity}</Text>
         </View>
         <View>
-          <Text style={styles.metricLabel}>Fare</Text>
-          <Text style={styles.metricValue}>UAH {summary.price}</Text>
+          <Text style={styles.metricLabel}>{t('vehicleSelection.fare')}</Text>
+          <Text style={styles.metricValue}>{t('common.priceUah', { amount: summary.price })}</Text>
         </View>
       </View>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (
+  palette: PassengerPalette,
+  radius: typeof import('../../theme/passenger').passengerRadius
+) => StyleSheet.create({
   card: {
-    backgroundColor: passengerPalette.surface,
-    borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.lg,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
     gap: 16,
     marginRight: 12,
@@ -67,8 +76,8 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   selectedCard: {
-    borderColor: passengerPalette.primary,
-    shadowColor: passengerPalette.shadow,
+    borderColor: palette.primary,
+    shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 1,
     shadowRadius: 16,
@@ -90,12 +99,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   label: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 16,
     fontWeight: '800',
   },
   description: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 13,
     lineHeight: 18,
   },
@@ -104,13 +113,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   metricLabel: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 12,
     fontWeight: '700',
     marginBottom: 4,
   },
   metricValue: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 13,
     fontWeight: '700',
   },

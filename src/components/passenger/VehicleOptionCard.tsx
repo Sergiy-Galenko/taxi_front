@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { passengerPalette, passengerRadius } from '../../theme/passenger';
+import { useI18n } from '../../hooks/useI18n';
+import { usePassengerTheme } from '../../hooks/usePassengerTheme';
+import { PassengerPalette } from '../../theme/passenger';
 import { RideOption, TripSummary } from '../../types/passenger';
 
 interface VehicleOptionCardProps {
@@ -17,6 +19,10 @@ export default function VehicleOptionCard({
   selected,
   onPress,
 }: VehicleOptionCardProps) {
+  const { t } = useI18n();
+  const { palette, radius } = usePassengerTheme();
+  const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
+
   return (
     <TouchableOpacity
       activeOpacity={0.9}
@@ -24,9 +30,9 @@ export default function VehicleOptionCard({
       style={[styles.card, selected && styles.cardSelected]}
     >
       <View style={styles.header}>
-        <View style={[styles.iconWrap, { backgroundColor: selected ? option.accentColor : passengerPalette.surfaceMuted }]}> 
+        <View style={[styles.iconWrap, { backgroundColor: selected ? option.accentColor : palette.surfaceMuted }]}> 
           <Ionicons
-            color={selected ? '#FFFFFF' : passengerPalette.text}
+            color={selected ? '#FFFFFF' : palette.text}
             name={option.icon as keyof typeof Ionicons.glyphMap}
             size={22}
           />
@@ -34,34 +40,34 @@ export default function VehicleOptionCard({
 
         <View style={styles.headerCopy}>
           <View style={styles.titleRow}>
-            <Text style={styles.title}>{option.label}</Text>
+            <Text style={styles.title}>{t(`rideOptions.${option.key}.label`)}</Text>
             {selected ? (
               <View style={styles.selectedPill}>
-                <Ionicons color={passengerPalette.text} name="checkmark-circle" size={14} />
-                <Text style={styles.selectedText}>Selected</Text>
+                <Ionicons color={palette.text} name="checkmark-circle" size={14} />
+                <Text style={styles.selectedText}>{t('vehicleSelection.selected')}</Text>
               </View>
             ) : null}
           </View>
-          <Text style={styles.description}>{option.description}</Text>
+          <Text style={styles.description}>{t(`rideOptions.${option.key}.description`)}</Text>
         </View>
 
         <View style={styles.priceWrap}>
-          <Text style={styles.priceLabel}>Fare</Text>
-          <Text style={styles.priceValue}>UAH {summary.price}</Text>
+          <Text style={styles.priceLabel}>{t('vehicleSelection.fare')}</Text>
+          <Text style={styles.priceValue}>{t('common.priceUah', { amount: summary.price })}</Text>
         </View>
       </View>
 
       <View style={styles.metaRow}>
         <View style={styles.metaBlock}>
-          <Text style={styles.metaLabel}>Arrival</Text>
-          <Text style={styles.metaValue}>{summary.pickupEtaMin} min</Text>
+          <Text style={styles.metaLabel}>{t('vehicleSelection.arrival')}</Text>
+          <Text style={styles.metaValue}>{t('common.minutesShort', { count: summary.pickupEtaMin })}</Text>
         </View>
         <View style={styles.metaBlock}>
-          <Text style={styles.metaLabel}>Trip</Text>
-          <Text style={styles.metaValue}>{summary.durationMin} min</Text>
+          <Text style={styles.metaLabel}>{t('vehicleSelection.trip')}</Text>
+          <Text style={styles.metaValue}>{t('common.minutesShort', { count: summary.durationMin })}</Text>
         </View>
         <View style={styles.metaBlock}>
-          <Text style={styles.metaLabel}>Capacity</Text>
+          <Text style={styles.metaLabel}>{t('vehicleSelection.capacity')}</Text>
           <Text style={styles.metaValue}>{option.capacity}</Text>
         </View>
       </View>
@@ -69,18 +75,21 @@ export default function VehicleOptionCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (
+  palette: PassengerPalette,
+  radius: typeof import('../../theme/passenger').passengerRadius
+) => StyleSheet.create({
   card: {
-    backgroundColor: passengerPalette.surface,
-    borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.lg,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
     gap: 16,
     padding: 18,
   },
   cardSelected: {
-    borderColor: passengerPalette.primaryDeep,
-    shadowColor: passengerPalette.shadow,
+    borderColor: palette.primaryDeep,
+    shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 1,
     shadowRadius: 20,
@@ -108,13 +117,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   title: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 18,
     fontWeight: '800',
   },
   selectedPill: {
     alignItems: 'center',
-    backgroundColor: passengerPalette.primarySoft,
+    backgroundColor: palette.primarySoft,
     borderRadius: 999,
     flexDirection: 'row',
     gap: 5,
@@ -122,12 +131,12 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   selectedText: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 11,
     fontWeight: '700',
   },
   description: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -136,14 +145,14 @@ const styles = StyleSheet.create({
     minWidth: 78,
   },
   priceLabel: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 11,
     fontWeight: '700',
     marginBottom: 4,
     textTransform: 'uppercase',
   },
   priceValue: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 18,
     fontWeight: '800',
   },
@@ -154,19 +163,19 @@ const styles = StyleSheet.create({
   metaBlock: {
     flex: 1,
     borderRadius: 18,
-    backgroundColor: passengerPalette.surfaceMuted,
+    backgroundColor: palette.surfaceMuted,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   metaLabel: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 11,
     fontWeight: '700',
     marginBottom: 5,
     textTransform: 'uppercase',
   },
   metaValue: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 13,
     fontWeight: '700',
   },

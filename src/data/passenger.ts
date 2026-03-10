@@ -4,6 +4,7 @@ import {
   Coordinates,
   DestinationSuggestion,
   LocationSuggestion,
+  PaymentMethodKey,
   RideOption,
   RideOptionKey,
   TripHistoryEntry,
@@ -145,9 +146,7 @@ export const TRIP_HISTORY: TripHistoryEntry[] = [
   },
 ];
 
-export const PAYMENT_OPTIONS = ['Visa •••• 4219', 'Apple Pay', 'Cash'];
-
-export const LANGUAGE_OPTIONS = ['English', 'Ukrainian', 'Polish'];
+export const PAYMENT_METHODS: PaymentMethodKey[] = ['visa', 'apple_pay', 'cash'];
 
 export const getRideOption = (key: RideOptionKey): RideOption =>
   RIDE_OPTIONS.find((option) => option.key === key) ?? RIDE_OPTIONS[0];
@@ -199,6 +198,7 @@ const categoryWeight: Record<DestinationSuggestion['category'], number> = {
   hub: 1,
   recent: 2,
   history: 3,
+  live: 4,
 };
 
 const recentDestinationSuggestions: DestinationSuggestion[] = TRIP_HISTORY.reduce<DestinationSuggestion[]>(

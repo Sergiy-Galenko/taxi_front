@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { passengerPalette, passengerRadius } from '../../theme/passenger';
+import { useI18n } from '../../hooks/useI18n';
+import { usePassengerTheme } from '../../hooks/usePassengerTheme';
+import { PassengerPalette } from '../../theme/passenger';
 
 interface MetaItem {
   icon: keyof typeof Ionicons.glyphMap;
@@ -23,13 +25,17 @@ export default function RouteSummaryCard({
   meta = [],
   onPressEdit,
 }: RouteSummaryCardProps) {
+  const { t } = useI18n();
+  const { palette, radius } = usePassengerTheme();
+  const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
+
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
         {badge ? <Text style={styles.badge}>{badge}</Text> : <View />}
         {onPressEdit ? (
           <TouchableOpacity activeOpacity={0.85} onPress={onPressEdit} style={styles.editButton}>
-            <Text style={styles.editText}>Edit route</Text>
+            <Text style={styles.editText}>{t('common.editRoute')}</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -38,7 +44,7 @@ export default function RouteSummaryCard({
         <View style={styles.routeRow}>
           <View style={[styles.dot, styles.pickupDot]} />
           <View style={styles.routeText}>
-            <Text style={styles.routeLabel}>Pickup</Text>
+            <Text style={styles.routeLabel}>{t('history.pickup')}</Text>
             <Text style={styles.routeValue}>{pickup}</Text>
           </View>
         </View>
@@ -48,7 +54,7 @@ export default function RouteSummaryCard({
         <View style={styles.routeRow}>
           <View style={[styles.dot, styles.destinationDot]} />
           <View style={styles.routeText}>
-            <Text style={styles.routeLabel}>Destination</Text>
+            <Text style={styles.routeLabel}>{t('history.destination')}</Text>
             <Text style={styles.routeValue}>{destination}</Text>
           </View>
         </View>
@@ -58,7 +64,7 @@ export default function RouteSummaryCard({
         <View style={styles.metaRow}>
           {meta.map((item) => (
             <View key={`${item.icon}-${item.label}`} style={styles.metaChip}>
-              <Ionicons color={passengerPalette.text} name={item.icon} size={15} />
+              <Ionicons color={palette.text} name={item.icon} size={15} />
               <Text style={styles.metaChipText}>{item.label}</Text>
             </View>
           ))}
@@ -68,11 +74,14 @@ export default function RouteSummaryCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (
+  palette: PassengerPalette,
+  radius: typeof import('../../theme/passenger').passengerRadius
+) => StyleSheet.create({
   card: {
-    backgroundColor: passengerPalette.surface,
-    borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.lg,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
     gap: 16,
     padding: 18,
@@ -84,8 +93,8 @@ const styles = StyleSheet.create({
   },
   badge: {
     alignSelf: 'flex-start',
-    backgroundColor: passengerPalette.primarySoft,
-    color: passengerPalette.text,
+    backgroundColor: palette.primarySoft,
+    color: palette.text,
     borderRadius: 999,
     overflow: 'hidden',
     fontSize: 12,
@@ -94,13 +103,13 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   editButton: {
-    backgroundColor: passengerPalette.surfaceMuted,
+    backgroundColor: palette.surfaceMuted,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
   editText: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -118,30 +127,30 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   pickupDot: {
-    backgroundColor: passengerPalette.accent,
+    backgroundColor: palette.accent,
   },
   destinationDot: {
-    backgroundColor: passengerPalette.danger,
+    backgroundColor: palette.danger,
   },
   routeText: {
     flex: 1,
     gap: 4,
   },
   routeLabel: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
   },
   routeValue: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 22,
   },
   routeDivider: {
     height: 1,
-    backgroundColor: passengerPalette.border,
+    backgroundColor: palette.border,
     marginLeft: 24,
   },
   metaRow: {
@@ -151,7 +160,7 @@ const styles = StyleSheet.create({
   },
   metaChip: {
     alignItems: 'center',
-    backgroundColor: passengerPalette.surfaceMuted,
+    backgroundColor: palette.surfaceMuted,
     borderRadius: 999,
     flexDirection: 'row',
     gap: 6,
@@ -159,7 +168,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   metaChipText: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 12,
     fontWeight: '700',
   },

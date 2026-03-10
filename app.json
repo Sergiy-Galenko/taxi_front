@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash.png",
@@ -35,6 +35,7 @@
       "package": "com.taxiapp",
       "permissions": [
         "CAMERA",
+        "POST_NOTIFICATIONS",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
       ]
@@ -49,7 +50,9 @@
           "photosPermission": "Додатку потрібен доступ до ваших фотографій для завантаження документів."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-localization",
+      "expo-notifications"
     ],
     "sdkVersion": "54.0.0"
   }

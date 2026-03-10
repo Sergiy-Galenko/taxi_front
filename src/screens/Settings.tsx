@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   Alert,
+  Linking,
   ScrollView,
   StyleSheet,
   Switch,
@@ -11,31 +12,193 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import PassengerScreenLayout from '../components/passenger/PassengerScreenLayout';
-import { LANGUAGE_OPTIONS, PAYMENT_OPTIONS } from '../data/passenger';
+import { PAYMENT_METHODS } from '../data/passenger';
 import { useAuth } from '../hooks/useAuth';
-import { useTheme } from '../hooks/useTheme';
+import { useI18n } from '../hooks/useI18n';
+import { useNotifications } from '../hooks/useNotifications';
+import { useSettings } from '../hooks/useSettings';
+import { ThemeMode, useTheme } from '../hooks/useTheme';
 import { useUser } from '../hooks/UserContext';
-import { passengerPalette, passengerRadius } from '../theme/passenger';
+import { PassengerPalette } from '../theme/passenger';
+import { usePassengerTheme } from '../hooks/usePassengerTheme';
 import { RootStackParamList } from '../types/navigation';
+import { AppLanguage, PaymentMethodKey } from '../types/settings';
 
 type SettingsScreenProps = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
-const getNextOption = (options: string[], current: string) => {
-  const currentIndex = options.indexOf(current);
-  const nextIndex = currentIndex === options.length - 1 ? 0 : currentIndex + 1;
-  return options[nextIndex];
+type IconName = keyof typeof Ionicons.glyphMap;
+
+type ToggleSettingKey =
+  | 'priceAlertsEnabled'
+  | 'notificationsEnabled'
+  | 'rideUpdatesEnabled'
+  | 'driverAlertsEnabled'
+  | 'paymentUpdatesEnabled'
+  | 'shareRideEnabled';
+
+const LANGUAGE_OPTIONS: AppLanguage[] = ['uk', 'en'];
+const THEME_OPTIONS: ThemeMode[] = ['light', 'dark', 'auto'];
+
+const paymentIcons: Record<PaymentMethodKey, IconName> = {
+  visa: 'card-outline',
+  apple_pay: 'logo-apple',
+  cash: 'cash-outline',
+};
+
+const themeIcons: Record<ThemeMode, IconName> = {
+  light: 'sunny-outline',
+  dark: 'moon-outline',
+  auto: 'contrast-outline',
+};
+
+const themeLabelKeys: Record<ThemeMode, string> = {
+  light: 'settings.themeLight',
+  dark: 'settings.themeDark',
+  auto: 'settings.themeAuto',
+};
+
+interface SectionCardProps {
+  title: string;
+  children: React.ReactNode;
+  styles: any;
+}
+
+const SectionCard = ({ title, children, styles }: SectionCardProps) => (
+  <View style={styles.section}>
+    <Text style={styles.sectionTitle}>{title}</Text>
+    <View style={styles.sectionCard}>{children}</View>
+  </View>
+);
+
+interface ChoiceChipProps {
+  active: boolean;
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  palette: PassengerPalette;
+  styles: any;
+}
+
+const ChoiceChip = ({ active, icon, label, onPress, palette, styles }: ChoiceChipProps) => (
+  <TouchableOpacity
+    activeOpacity={0.88}
+    onPress={onPress}
+    style={[styles.choiceChip, active && styles.choiceChipActive]}
+  >
+    <Ionicons
+      color={active ? palette.text : palette.mutedText}
+      name={icon}
+      size={16}
+    />
+    <Text style={[styles.choiceChipLabel, active && styles.choiceChipLabelActive]}>{label}</Text>
+  </TouchableOpacity>
+);
+
+interface SelectorRowProps {
+  title: string;
+  hint: string;
+  children: React.ReactNode;
+  styles: any;
+}
+
+const SelectorRow = ({ title, hint, children, styles }: SelectorRowProps) => (
+  <View style={styles.selectorRow}>
+    <View style={styles.rowCopy}>
+      <Text style={styles.rowTitle}>{title}</Text>
+      <Text style={styles.rowHint}>{hint}</Text>
+    </View>
+    <View style={styles.choiceGrid}>{children}</View>
+  </View>
+);
+
+interface ToggleRowProps {
+  icon: IconName;
+  title: string;
+  hint: string;
+  value: boolean;
+  disabled?: boolean;
+  onChange: (value: boolean) => void | Promise<void>;
+  palette: PassengerPalette;
+  styles: any;
+}
+
+const ToggleRow = ({
+  icon,
+  title,
+  hint,
+  value,
+  disabled = false,
+  onChange,
+  palette,
+  styles,
+}: ToggleRowProps) => (
+  <TouchableOpacity
+    activeOpacity={disabled ? 1 : 0.88}
+    onPress={() => {
+      if (!disabled) {
+        void onChange(!value);
+      }
+    }}
+    style={[styles.toggleRow, disabled && styles.toggleRowDisabled]}
+  >
+    <View style={styles.toggleIconWrap}>
+      <Ionicons color={palette.text} name={icon} size={18} />
+    </View>
+
+    <View style={styles.rowCopy}>
+      <Text style={styles.rowTitle}>{title}</Text>
+      <Text style={styles.rowHint}>{hint}</Text>
+    </View>
+
+    <Switch
+      disabled={disabled}
+      onValueChange={(nextValue) => void onChange(nextValue)}
+      thumbColor="#FFFFFF"
+      trackColor={{ false: '#D6D3D1', true: palette.accent }}
+      value={value}
+    />
+  </TouchableOpacity>
+);
+
+const getProfileInitial = (fullName?: string) => fullName?.trim().charAt(0).toUpperCase() || 'P';
+
+const formatUserRating = (rating: unknown): string | null => {
+  if (typeof rating === 'number' && Number.isFinite(rating)) {
+    return rating.toFixed(1);
+  }
+
+  if (typeof rating === 'string') {
+    const parsed = Number.parseFloat(rating);
+
+    if (Number.isFinite(parsed)) {
+      return parsed.toFixed(1);
+    }
+  }
+
+  return null;
 };
 
 export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   const { signOut } = useAuth();
   const { mode, setThemeMode } = useTheme();
+  const { palette, radius } = usePassengerTheme();
+  const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
   const { user } = useUser();
-
-  const [paymentMethod, setPaymentMethod] = useState(PAYMENT_OPTIONS[0]);
-  const [language, setLanguage] = useState(LANGUAGE_OPTIONS[0]);
-  const [tripUpdatesEnabled, setTripUpdatesEnabled] = useState(true);
-  const [shareRideEnabled, setShareRideEnabled] = useState(false);
-  const [priceAlertsEnabled, setPriceAlertsEnabled] = useState(true);
+  const { t, language, setLanguage } = useI18n();
+  const {
+    defaultPaymentMethod,
+    notificationsEnabled,
+    rideUpdatesEnabled,
+    driverAlertsEnabled,
+    paymentUpdatesEnabled,
+    shareRideEnabled,
+    priceAlertsEnabled,
+    updateSetting,
+    setDefaultPaymentMethod,
+    settingsReady,
+  } = useSettings();
+  const { notificationsGranted, notificationsSupported, requestPermissions } = useNotifications();
+  const formattedUserRating = formatUserRating(user?.rating);
 
   const handleLogout = async () => {
     await signOut();
@@ -45,11 +208,59 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
     });
   };
 
+  const handleNotificationMasterChange = async (nextValue: boolean) => {
+    if (!notificationsSupported) {
+      await updateSetting('notificationsEnabled', false);
+      return;
+    }
+
+    if (!nextValue) {
+      await updateSetting('notificationsEnabled', false);
+      return;
+    }
+
+    const granted = await requestPermissions();
+
+    if (!granted) {
+      await updateSetting('notificationsEnabled', false);
+      Alert.alert(t('settings.notificationsPermissionTitle'), t('settings.notificationsPermissionText'));
+      return;
+    }
+
+    await updateSetting('notificationsEnabled', true);
+  };
+
+  const handleBooleanSetting = async (key: ToggleSettingKey, value: boolean) => {
+    await updateSetting(key, value);
+  };
+
+  const handleOpenSystemSettings = async () => {
+    try {
+      await Linking.openSettings();
+    } catch {
+      Alert.alert(t('settings.notificationsPermissionTitle'), t('settings.notificationsPermissionText'));
+    }
+  };
+
+  if (!settingsReady) {
+    return (
+      <PassengerScreenLayout
+        activeRoute="Settings"
+        subtitle={t('settings.subtitle')}
+        title={t('settings.title')}
+      >
+        <View style={styles.loadingState}>
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
+        </View>
+      </PassengerScreenLayout>
+    );
+  }
+
   return (
     <PassengerScreenLayout
       activeRoute="Settings"
-      subtitle="Reduce friction by keeping preferences close to the booking flow."
-      title="Profile and preferences"
+      subtitle={t('settings.subtitle')}
+      title={t('settings.title')}
     >
       <ScrollView
         contentContainerStyle={styles.content}
@@ -57,142 +268,188 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       >
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Ionicons color="#FFFFFF" name="person-outline" size={28} />
+            <Text style={styles.avatarText}>{getProfileInitial(user?.fullName)}</Text>
           </View>
+
           <View style={styles.profileCopy}>
-            <Text style={styles.profileName}>{user?.fullName || 'Guest rider'}</Text>
-            <Text style={styles.profileMeta}>{user?.email || 'Add email in account settings'}</Text>
+            <Text style={styles.profileName}>{user?.fullName || t('settings.guestRider')}</Text>
+            <Text style={styles.profileMeta}>{user?.email || t('settings.addEmail')}</Text>
             <View style={styles.profileBadge}>
-              <Ionicons color={passengerPalette.primaryDeep} name="star" size={14} />
-              <Text style={styles.profileBadgeText}>4.9 passenger rating</Text>
+              <Ionicons color={palette.primaryDeep} name="star" size={14} />
+              <Text style={styles.profileBadgeText}>
+                {formattedUserRating ? `${formattedUserRating} ★` : t('settings.passengerRating')}
+              </Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ride preferences</Text>
-
-          <TouchableOpacity
-            activeOpacity={0.86}
-            onPress={() => setPaymentMethod(getNextOption(PAYMENT_OPTIONS, paymentMethod))}
-            style={styles.optionRow}
-          >
-            <View style={styles.optionIcon}>
-              <Ionicons color={passengerPalette.text} name="card-outline" size={18} />
-            </View>
-            <View style={styles.optionCopy}>
-              <Text style={styles.optionTitle}>Default payment</Text>
-              <Text style={styles.optionHint}>Tap to cycle between saved payment methods.</Text>
-            </View>
-            <Text style={styles.optionValue}>{paymentMethod}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.86}
-            onPress={() => setPriceAlertsEnabled((current) => !current)}
-            style={styles.optionRow}
-          >
-            <View style={styles.optionIcon}>
-              <Ionicons color={passengerPalette.text} name="pricetag-outline" size={18} />
-            </View>
-            <View style={styles.optionCopy}>
-              <Text style={styles.optionTitle}>Price alerts</Text>
-              <Text style={styles.optionHint}>Warn users when fares are likely to surge.</Text>
-            </View>
-            <Switch
-              onValueChange={setPriceAlertsEnabled}
-              thumbColor="#FFFFFF"
-              trackColor={{ false: '#D6D3D1', true: passengerPalette.accent }}
-              value={priceAlertsEnabled}
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryPill}>
+            <Ionicons color={palette.text} name="language-outline" size={16} />
+            <Text style={styles.summaryPillText}>{t(`languages.${language}`)}</Text>
+          </View>
+          <View style={styles.summaryPill}>
+            <Ionicons color={palette.text} name={themeIcons[mode]} size={16} />
+            <Text style={styles.summaryPillText}>{t(themeLabelKeys[mode])}</Text>
+          </View>
+          <View style={styles.summaryPill}>
+            <Ionicons
+              color={palette.text}
+              name={notificationsEnabled && notificationsGranted ? 'notifications-outline' : 'notifications-off-outline'}
+              size={16}
             />
-          </TouchableOpacity>
+            <Text style={styles.summaryPillText}>
+              {notificationsSupported && notificationsEnabled && notificationsGranted ? t('common.on') : t('common.off')}
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Communication</Text>
+        <SectionCard styles={styles} title={t('settings.sectionRide')}>
+          <SelectorRow styles={styles} title={t('settings.defaultPayment')} hint={t('settings.defaultPaymentHint')}>
+            {PAYMENT_METHODS.map((method) => (
+              <ChoiceChip
+                key={method}
+                active={defaultPaymentMethod === method}
+                icon={paymentIcons[method]}
+                label={t(`payments.${method}`)}
+                palette={palette}
+                styles={styles}
+                onPress={() => {
+                  void setDefaultPaymentMethod(method);
+                }}
+              />
+            ))}
+          </SelectorRow>
 
-          <TouchableOpacity
-            activeOpacity={0.86}
-            onPress={() => setTripUpdatesEnabled((current) => !current)}
-            style={styles.optionRow}
-          >
-            <View style={styles.optionIcon}>
-              <Ionicons color={passengerPalette.text} name="notifications-outline" size={18} />
-            </View>
-            <View style={styles.optionCopy}>
-              <Text style={styles.optionTitle}>Ride updates</Text>
-              <Text style={styles.optionHint}>Driver arrival, plate number, and pickup status.</Text>
-            </View>
-            <Switch
-              onValueChange={setTripUpdatesEnabled}
-              thumbColor="#FFFFFF"
-              trackColor={{ false: '#D6D3D1', true: passengerPalette.accent }}
-              value={tripUpdatesEnabled}
-            />
-          </TouchableOpacity>
+          <ToggleRow
+            palette={palette}
+            styles={styles}
+            hint={t('settings.priceAlertsHint')}
+            icon="pricetag-outline"
+            onChange={(value) => handleBooleanSetting('priceAlertsEnabled', value)}
+            title={t('settings.priceAlerts')}
+            value={priceAlertsEnabled}
+          />
+        </SectionCard>
 
-          <TouchableOpacity
-            activeOpacity={0.86}
-            onPress={() => setShareRideEnabled((current) => !current)}
-            style={styles.optionRow}
-          >
-            <View style={styles.optionIcon}>
-              <Ionicons color={passengerPalette.text} name="share-social-outline" size={18} />
-            </View>
-            <View style={styles.optionCopy}>
-              <Text style={styles.optionTitle}>Share trip status</Text>
-              <Text style={styles.optionHint}>Let contacts track the ride in real time.</Text>
-            </View>
-            <Switch
-              onValueChange={setShareRideEnabled}
-              thumbColor="#FFFFFF"
-              trackColor={{ false: '#D6D3D1', true: passengerPalette.accent }}
-              value={shareRideEnabled}
-            />
-          </TouchableOpacity>
-        </View>
+        <SectionCard styles={styles} title={t('settings.sectionNotifications')}>
+          <ToggleRow
+            palette={palette}
+            styles={styles}
+            disabled={!notificationsSupported}
+            hint={t('settings.notificationsMasterHint')}
+            icon={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'}
+            onChange={handleNotificationMasterChange}
+            title={t('settings.notificationsMaster')}
+            value={notificationsEnabled}
+          />
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>App experience</Text>
+          {!notificationsSupported ? (
+            <View style={[styles.banner, styles.bannerWarning]}>
+              <Ionicons color={palette.mutedText} name="construct-outline" size={18} />
+              <Text style={styles.bannerText}>{t('settings.notificationsExpoGoBanner')}</Text>
+            </View>
+          ) : null}
 
-          <TouchableOpacity
-            activeOpacity={0.86}
-            onPress={() => setLanguage(getNextOption(LANGUAGE_OPTIONS, language))}
-            style={styles.optionRow}
-          >
-            <View style={styles.optionIcon}>
-              <Ionicons color={passengerPalette.text} name="language-outline" size={18} />
+          {!notificationsEnabled ? (
+            <View style={styles.banner}>
+              <Ionicons color={palette.mutedText} name="notifications-off-outline" size={18} />
+              <Text style={styles.bannerText}>{t('settings.notificationsDisabledBanner')}</Text>
             </View>
-            <View style={styles.optionCopy}>
-              <Text style={styles.optionTitle}>Language</Text>
-              <Text style={styles.optionHint}>Keep copy understandable for first-time riders.</Text>
-            </View>
-            <Text style={styles.optionValue}>{language}</Text>
-          </TouchableOpacity>
+          ) : null}
 
-          <TouchableOpacity
-            activeOpacity={0.86}
-            onPress={() => setThemeMode(mode === 'dark' ? 'light' : 'dark')}
-            style={styles.optionRow}
-          >
-            <View style={styles.optionIcon}>
-              <Ionicons color={passengerPalette.text} name="color-palette-outline" size={18} />
+          {notificationsSupported && notificationsEnabled && !notificationsGranted ? (
+            <View style={[styles.banner, styles.bannerWarning]}>
+              <View style={styles.bannerCopy}>
+                <Text style={styles.bannerTitle}>{t('settings.notificationsPermissionTitle')}</Text>
+                <Text style={styles.bannerText}>{t('settings.notificationsPermissionBanner')}</Text>
+              </View>
+              <TouchableOpacity activeOpacity={0.88} onPress={handleOpenSystemSettings} style={styles.bannerButton}>
+                <Text style={styles.bannerButtonText}>{t('settings.openSystemSettings')}</Text>
+              </TouchableOpacity>
             </View>
-            <View style={styles.optionCopy}>
-              <Text style={styles.optionTitle}>Theme mode</Text>
-              <Text style={styles.optionHint}>Use the mode that feels most readable on the go.</Text>
-            </View>
-            <Text style={styles.optionValue}>{mode === 'dark' ? 'Dark' : 'Light'}</Text>
-          </TouchableOpacity>
-        </View>
+          ) : null}
+
+          <ToggleRow
+            palette={palette}
+            styles={styles}
+            disabled={!notificationsSupported || !notificationsEnabled}
+            hint={t('settings.rideUpdatesHint')}
+            icon="navigate-outline"
+            onChange={(value) => handleBooleanSetting('rideUpdatesEnabled', value)}
+            title={t('settings.rideUpdates')}
+            value={rideUpdatesEnabled}
+          />
+
+          <ToggleRow
+            palette={palette}
+            styles={styles}
+            disabled={!notificationsSupported || !notificationsEnabled}
+            hint={t('settings.driverAlertsHint')}
+            icon="car-sport-outline"
+            onChange={(value) => handleBooleanSetting('driverAlertsEnabled', value)}
+            title={t('settings.driverAlerts')}
+            value={driverAlertsEnabled}
+          />
+
+          <ToggleRow
+            palette={palette}
+            styles={styles}
+            disabled={!notificationsSupported || !notificationsEnabled}
+            hint={t('settings.paymentUpdatesHint')}
+            icon="wallet-outline"
+            onChange={(value) => handleBooleanSetting('paymentUpdatesEnabled', value)}
+            title={t('settings.paymentUpdates')}
+            value={paymentUpdatesEnabled}
+          />
+        </SectionCard>
+
+        <SectionCard styles={styles} title={t('settings.sectionExperience')}>
+          <SelectorRow styles={styles} title={t('settings.language')} hint={t('settings.languageHint')}>
+            {LANGUAGE_OPTIONS.map((option) => (
+              <ChoiceChip
+                key={option}
+                active={language === option}
+                icon={option === 'uk' ? 'flag-outline' : 'globe-outline'}
+                label={t(`languages.${option}`)}
+                palette={palette}
+                styles={styles}
+                onPress={() => {
+                  void setLanguage(option);
+                }}
+              />
+            ))}
+          </SelectorRow>
+
+          <SelectorRow styles={styles} title={t('settings.theme')} hint={t('settings.themeHint')}>
+            {THEME_OPTIONS.map((themeOption) => (
+              <ChoiceChip
+                key={themeOption}
+                active={mode === themeOption}
+                icon={themeIcons[themeOption]}
+                label={t(themeLabelKeys[themeOption])}
+                palette={palette}
+                styles={styles}
+                onPress={() => setThemeMode(themeOption)}
+              />
+            ))}
+          </SelectorRow>
+
+          <ToggleRow
+            palette={palette}
+            styles={styles}
+            hint={t('settings.shareRideHint')}
+            icon="share-social-outline"
+            onChange={(value) => handleBooleanSetting('shareRideEnabled', value)}
+            title={t('settings.shareRide')}
+            value={shareRideEnabled}
+          />
+        </SectionCard>
 
         <TouchableOpacity
           activeOpacity={0.9}
           onPress={() =>
-            Alert.alert(
-              'Safety support',
-              'In production, this would open SOS, trip support, and reporting actions.'
-            )
+            Alert.alert(t('settings.safetyCenterTitle'), t('settings.safetyCenterAlert'))
           }
           style={styles.supportCard}
         >
@@ -200,170 +457,289 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
             <Ionicons color="#FFFFFF" name="shield-checkmark-outline" size={20} />
           </View>
           <View style={styles.supportCopy}>
-            <Text style={styles.supportTitle}>Safety center</Text>
-            <Text style={styles.supportHint}>
-              Keep help, reporting, and emergency actions accessible without cluttering the booking flow.
-            </Text>
+            <Text style={styles.supportTitle}>{t('settings.safetyCenter')}</Text>
+            <Text style={styles.supportHint}>{t('settings.safetyCenterHint')}</Text>
           </View>
-          <Ionicons color={passengerPalette.text} name="arrow-forward" size={18} />
+          <Ionicons color={palette.text} name="arrow-forward" size={18} />
         </TouchableOpacity>
 
         <TouchableOpacity activeOpacity={0.9} onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Sign out</Text>
-          <Ionicons color={passengerPalette.danger} name="log-out-outline" size={18} />
+          <Text style={styles.logoutText}>{t('settings.signOut')}</Text>
+          <Ionicons color={palette.danger} name="log-out-outline" size={18} />
         </TouchableOpacity>
       </ScrollView>
     </PassengerScreenLayout>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (palette: PassengerPalette, radius: typeof import('../theme/passenger').passengerRadius) => StyleSheet.create({
   content: {
     gap: 18,
     paddingBottom: 150,
     paddingHorizontal: 20,
     paddingTop: 18,
   },
+  loadingState: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  loadingText: {
+    color: palette.mutedText,
+    fontSize: 15,
+    fontWeight: '600',
+  },
   profileCard: {
-    backgroundColor: passengerPalette.surface,
-    borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.lg,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 16,
     padding: 18,
+    shadowColor: palette.shadow,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    elevation: 4,
   },
   avatar: {
     alignItems: 'center',
-    backgroundColor: passengerPalette.accent,
-    borderRadius: 24,
+    backgroundColor: palette.primarySoft,
+    borderRadius: 28,
     height: 56,
     justifyContent: 'center',
     width: 56,
+  },
+  avatarText: {
+    color: palette.text,
+    fontSize: 22,
+    fontWeight: '800',
   },
   profileCopy: {
     flex: 1,
     gap: 6,
   },
   profileName: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 20,
     fontWeight: '800',
   },
   profileMeta: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 13,
   },
   profileBadge: {
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: passengerPalette.primarySoft,
+    backgroundColor: palette.primarySoft,
     borderRadius: 999,
     flexDirection: 'row',
     gap: 6,
-    marginTop: 2,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   profileBadgeText: {
-    color: passengerPalette.text,
+    color: palette.primaryDeep,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  summaryPill: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: palette.tabBar,
+    borderColor: palette.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  summaryPillText: {
+    color: palette.text,
     fontSize: 12,
     fontWeight: '700',
   },
   section: {
-    backgroundColor: passengerPalette.surface,
-    borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.lg,
-    borderWidth: 1,
-    gap: 6,
-    padding: 18,
+    gap: 10,
   },
   sectionTitle: {
-    color: passengerPalette.text,
-    fontSize: 17,
+    color: palette.text,
+    fontSize: 16,
     fontWeight: '800',
-    marginBottom: 8,
+    paddingHorizontal: 4,
   },
-  optionRow: {
-    alignItems: 'center',
+  sectionCard: {
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  selectorRow: {
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+  },
+  choiceGrid: {
     flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 12,
+    flexWrap: 'wrap',
+    gap: 10,
   },
-  optionIcon: {
+  choiceChip: {
     alignItems: 'center',
-    backgroundColor: passengerPalette.surfaceMuted,
-    borderRadius: 16,
-    height: 38,
-    justifyContent: 'center',
-    width: 38,
+    backgroundColor: palette.surfaceMuted,
+    borderColor: palette.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    minHeight: 42,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  optionCopy: {
+  choiceChipActive: {
+    backgroundColor: palette.primarySoft,
+    borderColor: '#E3C15E',
+  },
+  choiceChipLabel: {
+    color: palette.mutedText,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  choiceChipLabelActive: {
+    color: palette.text,
+  },
+  toggleRow: {
+    alignItems: 'center',
+    borderTopColor: palette.border,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+  },
+  toggleRowDisabled: {
+    opacity: 0.55,
+  },
+  toggleIconWrap: {
+    alignItems: 'center',
+    backgroundColor: palette.surfaceMuted,
+    borderRadius: 16,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  rowCopy: {
     flex: 1,
     gap: 4,
   },
-  optionTitle: {
-    color: passengerPalette.text,
+  rowTitle: {
+    color: palette.text,
     fontSize: 15,
     fontWeight: '700',
   },
-  optionHint: {
-    color: passengerPalette.mutedText,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  optionValue: {
-    color: passengerPalette.text,
+  rowHint: {
+    color: palette.mutedText,
     fontSize: 13,
+    lineHeight: 18,
+  },
+  banner: {
+    alignItems: 'flex-start',
+    backgroundColor: palette.surfaceMuted,
+    borderTopColor: palette.border,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  bannerWarning: {
+    backgroundColor: palette.warningSurface,
+  },
+  bannerCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  bannerTitle: {
+    color: palette.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  bannerText: {
+    color: palette.mutedText,
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  bannerButton: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: palette.text,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  bannerButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: '700',
-    maxWidth: 110,
-    textAlign: 'right',
   },
   supportCard: {
     alignItems: 'center',
-    backgroundColor: passengerPalette.primarySoft,
-    borderRadius: passengerRadius.lg,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
     flexDirection: 'row',
     gap: 14,
     padding: 18,
   },
   supportIcon: {
     alignItems: 'center',
-    backgroundColor: passengerPalette.text,
+    backgroundColor: palette.accent,
     borderRadius: 18,
-    height: 36,
+    height: 38,
     justifyContent: 'center',
-    width: 36,
+    width: 38,
   },
   supportCopy: {
     flex: 1,
     gap: 4,
   },
   supportTitle: {
-    color: passengerPalette.text,
-    fontSize: 16,
+    color: palette.text,
+    fontSize: 15,
     fontWeight: '800',
   },
   supportHint: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 13,
     lineHeight: 18,
   },
   logoutButton: {
     alignItems: 'center',
-    backgroundColor: passengerPalette.surface,
-    borderColor: '#F2B0AB',
-    borderRadius: passengerRadius.lg,
+    alignSelf: 'stretch',
+    backgroundColor: palette.surfaceMuted,
+    borderColor: palette.danger,
+    borderRadius: radius.lg,
     borderWidth: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 10,
+    justifyContent: 'center',
     paddingHorizontal: 18,
     paddingVertical: 16,
   },
   logoutText: {
-    color: passengerPalette.danger,
-    fontSize: 16,
+    color: palette.danger,
+    fontSize: 15,
     fontWeight: '800',
   },
 });
-

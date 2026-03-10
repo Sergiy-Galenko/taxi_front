@@ -1,6 +1,11 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useMemo } from 'react';
+import {
+  DarkTheme as NavigationDarkTheme,
+  DefaultTheme as NavigationDefaultTheme,
+  NavigationContainer,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTheme } from '../hooks/useTheme';
 import { RootStackParamList } from '../types/navigation';
 
 import Login from '../screens/auth/Login';
@@ -27,8 +32,26 @@ import ActiveRideScreen from '../screens/passenger/ActiveRide';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
+  const { isDark, theme } = useTheme();
+  const navigationTheme = useMemo(() => {
+    const baseTheme = isDark ? NavigationDarkTheme : NavigationDefaultTheme;
+
+    return {
+      ...baseTheme,
+      colors: {
+        ...baseTheme.colors,
+        background: theme.colors.background,
+        card: theme.colors.surface,
+        text: theme.colors.onSurface,
+        border: isDark ? '#274150' : '#E8DEC9',
+        primary: theme.colors.primary,
+        notification: theme.colors.error,
+      },
+    };
+  }, [isDark, theme.colors.background, theme.colors.error, theme.colors.onSurface, theme.colors.primary, theme.colors.surface]);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator
         initialRouteName="Login"
         screenOptions={{

@@ -1,16 +1,22 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import BookingFlowLayout from '../../components/passenger/BookingFlowLayout';
 import RouteSummaryCard from '../../components/passenger/RouteSummaryCard';
-import { DEFAULT_CITY_CENTER, DEFAULT_REGION, getRideOption } from '../../data/passenger';
-import { passengerPalette, passengerRadius } from '../../theme/passenger';
+import { DEFAULT_CITY_CENTER, DEFAULT_REGION } from '../../data/passenger';
+import { useI18n } from '../../hooks/useI18n';
+import { getPaymentMethodTranslationKey, useNotifications } from '../../hooks/useNotifications';
+import { useSettings } from '../../hooks/useSettings';
+import { PassengerPalette } from '../../theme/passenger';
+import { usePassengerTheme } from '../../hooks/usePassengerTheme';
 import { RootStackParamList } from '../../types/navigation';
 import { Coordinates } from '../../types/passenger';
 
 type ActiveRideScreenProps = NativeStackScreenProps<RootStackParamList, 'ActiveRide'>;
+
+type RideStage = 'driver_delayed' | 'driver_arriving' | 'driver_arrived' | 'trip_started' | 'trip_completed';
 
 const buildDriverCoords = (pickup: Coordinates | null | undefined, destination: Coordinates | null | undefined): Coordinates => {
   if (pickup && destination) {
@@ -47,7 +53,12 @@ const buildRegion = (pickup: Coordinates | null | undefined, destination: Coordi
 };
 
 export default function ActiveRideScreen({ navigation, route }: ActiveRideScreenProps) {
-  const rideOption = getRideOption(route.params.rideType);
+  const { t } = useI18n();
+  const { notifyRideEvent } = useNotifications();
+  const { shareRideEnabled } = useSettings();
+  const { palette, radius } = usePassengerTheme();
+  const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
+  const [rideStage, setRideStage] = useState<RideStage>('driver_delayed');
   const driverCoords = useMemo(
     () => buildDriverCoords(route.params.pickupCoords ?? null, route.params.destinationCoords ?? null),
     [route.params.destinationCoords, route.params.pickupCoords]
@@ -58,25 +69,101 @@ export default function ActiveRideScreen({ navigation, route }: ActiveRideScreen
   );
   const routeLine = [driverCoords, route.params.pickupCoords ?? DEFAULT_CITY_CENTER, route.params.destinationCoords ?? DEFAULT_CITY_CENTER];
 
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => {
+        setRideStage('driver_delayed');
+        void notifyRideEvent('driver_delayed', { count: route.params.driverEtaMin + 2 });
+      }, 1200),
+      setTimeout(() => {
+        setRideStage('driver_arriving');
+        void notifyRideEvent('driver_arriving_soon', { driver: route.params.driverName });
+      }, 5200),
+      setTimeout(() => {
+        setRideStage('driver_arrived');
+        void notifyRideEvent('driver_arrived', { driver: route.params.driverName });
+      }, 9200),
+      setTimeout(() => {
+        setRideStage('trip_started');
+        void notifyRideEvent('trip_started', { destination: route.params.to });
+      }, 13200),
+      setTimeout(() => {
+        setRideStage('trip_completed');
+        void notifyRideEvent('trip_completed', { destination: route.params.to });
+        void notifyRideEvent('payment_update', {
+          amount: String(route.params.price),
+          paymentMethod: t(getPaymentMethodTranslationKey(route.params.paymentMethod)),
+        });
+      }, 18200),
+    ];
+
+    return () => {
+      timers.forEach(clearTimeout);
+    };
+  }, [notifyRideEvent, route.params.driverEtaMin, route.params.driverName, route.params.paymentMethod, route.params.price, route.params.to, t]);
+
+  const statusContent = useMemo(() => {
+    switch (rideStage) {
+      case 'driver_delayed':
+        return {
+          title: t('activeRide.driverDelayedTitle'),
+          text: t('activeRide.driverDelayedText', { count: route.params.driverEtaMin + 2 }),
+          accentColor: palette.warningSurface,
+          icon: 'time-outline' as const,
+        };
+      case 'driver_arriving':
+        return {
+          title: t('activeRide.driverArrivingTitle'),
+          text: t('activeRide.driverArrivingText', { driver: route.params.driverName }),
+          accentColor: palette.warningSurface,
+          icon: 'navigate-outline' as const,
+        };
+      case 'driver_arrived':
+        return {
+          title: t('activeRide.driverArrivedTitle'),
+          text: t('activeRide.driverArrivedText', { driver: route.params.driverName }),
+          accentColor: palette.accentSoft,
+          icon: 'checkmark-circle-outline' as const,
+        };
+      case 'trip_started':
+        return {
+          title: t('activeRide.tripStartedTitle'),
+          text: t('activeRide.tripStartedText', { destination: route.params.to }),
+          accentColor: palette.backgroundAccent,
+          icon: 'car-outline' as const,
+        };
+      case 'trip_completed':
+      default:
+        return {
+          title: t('activeRide.tripCompletedTitle'),
+          text: t('activeRide.tripCompletedText', { destination: route.params.to }),
+          accentColor: palette.surfaceMuted,
+          icon: 'flag-outline' as const,
+        };
+    }
+  }, [palette.accentSoft, palette.backgroundAccent, palette.surfaceMuted, palette.warningSurface, rideStage, route.params.driverEtaMin, route.params.driverName, route.params.to, t]);
+
+  const arrivalValue = rideStage === 'driver_delayed' ? route.params.driverEtaMin + 2 : rideStage === 'driver_arrived' ? 0 : Math.max(1, route.params.driverEtaMin - 1);
+
   return (
     <BookingFlowLayout
-      subtitle="Key details stay close to the thumb: arrival, driver card, support, and destination."
-      title="Driver on the way"
+      subtitle={t('activeRide.subtitle')}
+      title={t('activeRide.title')}
       footer={
         <View style={styles.footerActions}>
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => Alert.alert('Share trip', 'Sharing is a placeholder in this redesigned flow.')}
+            onPress={() => Alert.alert(t('activeRide.shareTrip'), t('activeRide.shareHint'))}
             style={styles.ghostButton}
           >
-            <Text style={styles.ghostButtonText}>Share trip</Text>
+            <Text style={styles.ghostButtonText}>{t('activeRide.shareTrip')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.92}
             onPress={() => navigation.navigate('Home')}
             style={styles.primaryButton}
           >
-            <Text style={styles.primaryButtonText}>Done</Text>
+            <Text style={styles.primaryButtonText}>{t('common.done')}</Text>
           </TouchableOpacity>
         </View>
       }
@@ -101,12 +188,22 @@ export default function ActiveRideScreen({ navigation, route }: ActiveRideScreen
                 </View>
               </Marker>
             ) : null}
-            <Polyline coordinates={routeLine} strokeColor={passengerPalette.primaryDeep} strokeWidth={4} />
+            <Polyline coordinates={routeLine} strokeColor={palette.primaryDeep} strokeWidth={4} />
           </MapView>
 
           <View style={styles.arrivalCard}>
-            <Text style={styles.arrivalEyebrow}>Arriving soon</Text>
-            <Text style={styles.arrivalValue}>{route.params.driverEtaMin} min</Text>
+            <Text style={styles.arrivalEyebrow}>{t('activeRide.arrivingSoon')}</Text>
+            <Text style={styles.arrivalValue}>
+              {arrivalValue <= 0 ? t('common.now') : t('common.minutesShort', { count: arrivalValue })}
+            </Text>
+          </View>
+        </View>
+
+        <View style={[styles.statusCard, { backgroundColor: statusContent.accentColor }]}> 
+          <Ionicons color={palette.text} name={statusContent.icon} size={18} />
+          <View style={styles.statusCopy}>
+            <Text style={styles.statusTitle}>{statusContent.title}</Text>
+            <Text style={styles.statusText}>{statusContent.text}</Text>
           </View>
         </View>
 
@@ -119,8 +216,8 @@ export default function ActiveRideScreen({ navigation, route }: ActiveRideScreen
               <Text style={styles.driverName}>{route.params.driverName}</Text>
               <Text style={styles.driverMeta}>{route.params.driverCar} • {route.params.driverPlate}</Text>
               <View style={styles.ratingRow}>
-                <Ionicons color={passengerPalette.primaryDeep} name="star" size={14} />
-                <Text style={styles.ratingText}>{route.params.driverRating} rating</Text>
+                <Ionicons color={palette.primaryDeep} name="star" size={14} />
+                <Text style={styles.ratingText}>{route.params.driverRating}</Text>
               </View>
             </View>
           </View>
@@ -128,47 +225,55 @@ export default function ActiveRideScreen({ navigation, route }: ActiveRideScreen
           <View style={styles.driverActions}>
             <TouchableOpacity
               activeOpacity={0.88}
-              onPress={() => Alert.alert('Call driver', 'Calling is a placeholder in this demo.')}
+              onPress={() => Alert.alert(t('alerts.driverCallTitle'), t('alerts.driverCallText'))}
               style={styles.actionButton}
             >
-              <Ionicons color={passengerPalette.text} name="call-outline" size={18} />
-              <Text style={styles.actionButtonText}>Call</Text>
+              <Ionicons color={palette.text} name="call-outline" size={18} />
+              <Text style={styles.actionButtonText}>{t('activeRide.call')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.88}
-              onPress={() => Alert.alert('Message driver', 'Messaging is a placeholder in this demo.')}
+              onPress={() => Alert.alert(t('alerts.driverMessageTitle'), t('alerts.driverMessageText'))}
               style={styles.actionButton}
             >
-              <Ionicons color={passengerPalette.text} name="chatbubble-ellipses-outline" size={18} />
-              <Text style={styles.actionButtonText}>Message</Text>
+              <Ionicons color={palette.text} name="chatbubble-ellipses-outline" size={18} />
+              <Text style={styles.actionButtonText}>{t('activeRide.message')}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
+        {shareRideEnabled ? (
+          <View style={styles.shareCard}>
+            <Ionicons color={palette.accent} name="share-social-outline" size={18} />
+            <View style={styles.shareCopy}>
+              <Text style={styles.shareTitle}>{t('activeRide.autoShareTitle')}</Text>
+              <Text style={styles.shareText}>{t('activeRide.autoShareText')}</Text>
+            </View>
+          </View>
+        ) : null}
+
         <RouteSummaryCard
-          badge="Step 4 of 4"
+          badge={t('common.stepOf', { current: 4, total: 4 })}
           destination={route.params.to}
           meta={[
-            { icon: 'car-outline', label: rideOption.label },
-            { icon: 'wallet-outline', label: route.params.paymentMethod },
-            { icon: 'cash-outline', label: `UAH ${route.params.price}` },
+            { icon: 'car-outline', label: t(`rideOptions.${route.params.rideType}.label`) },
+            { icon: 'wallet-outline', label: t(getPaymentMethodTranslationKey(route.params.paymentMethod)) },
+            { icon: 'cash-outline', label: t('common.priceUah', { amount: route.params.price }) },
           ]}
           pickup={route.params.from}
         />
 
         <View style={styles.noteCard}>
-          <Text style={styles.noteTitle}>Pickup code</Text>
+          <Text style={styles.noteTitle}>{t('activeRide.pickupCode')}</Text>
           <Text style={styles.noteValue}>2743</Text>
-          <Text style={styles.noteHint}>
-            Share this code with the driver only after the car arrives and the license plate matches.
-          </Text>
+          <Text style={styles.noteHint}>{t('activeRide.pickupCodeHint')}</Text>
         </View>
       </ScrollView>
     </BookingFlowLayout>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (palette: PassengerPalette, radius: typeof import('../../theme/passenger').passengerRadius) => StyleSheet.create({
   content: {
     gap: 18,
     paddingHorizontal: 20,
@@ -177,10 +282,10 @@ const styles = StyleSheet.create({
   },
   mapCard: {
     overflow: 'hidden',
-    borderRadius: passengerRadius.xl,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: passengerPalette.border,
-    backgroundColor: passengerPalette.surface,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
   },
   map: {
     height: 230,
@@ -189,7 +294,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: passengerPalette.accent,
+    backgroundColor: palette.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -197,7 +302,7 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: passengerPalette.accent,
+    backgroundColor: palette.accent,
     borderWidth: 3,
     borderColor: '#FFFFFF',
   },
@@ -205,7 +310,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: passengerPalette.danger,
+    backgroundColor: palette.danger,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -213,27 +318,49 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 14,
     top: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: palette.surface,
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
   arrivalEyebrow: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
     marginBottom: 4,
   },
   arrivalValue: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 20,
     fontWeight: '800',
   },
+  statusCard: {
+    flexDirection: 'row',
+    gap: 10,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: palette.border,
+    padding: 16,
+  },
+  statusCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  statusTitle: {
+    color: palette.text,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  statusText: {
+    color: palette.mutedText,
+    fontSize: 13,
+    lineHeight: 18,
+  },
   driverCard: {
-    backgroundColor: passengerPalette.surface,
-    borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.lg,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
     gap: 16,
     padding: 18,
@@ -246,7 +373,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: passengerPalette.accent,
+    backgroundColor: palette.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -260,12 +387,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   driverName: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 19,
     fontWeight: '800',
   },
   driverMeta: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 14,
   },
   ratingRow: {
@@ -275,7 +402,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   ratingText: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -290,36 +417,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     borderRadius: 16,
-    backgroundColor: passengerPalette.surfaceMuted,
+    backgroundColor: palette.surfaceMuted,
     paddingVertical: 14,
   },
   actionButtonText: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 14,
     fontWeight: '700',
   },
+  shareCard: {
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: 16,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  shareCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  shareTitle: {
+    color: palette.text,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  shareText: {
+    color: palette.mutedText,
+    fontSize: 13,
+    lineHeight: 18,
+  },
   noteCard: {
-    backgroundColor: passengerPalette.surface,
-    borderColor: passengerPalette.border,
-    borderRadius: passengerRadius.lg,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
     padding: 18,
     gap: 8,
   },
   noteTitle: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
   },
   noteValue: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 32,
     fontWeight: '800',
     letterSpacing: 3,
   },
   noteHint: {
-    color: passengerPalette.mutedText,
+    color: palette.mutedText,
     fontSize: 13,
     lineHeight: 18,
   },
@@ -331,14 +481,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: passengerRadius.lg,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: passengerPalette.border,
-    backgroundColor: passengerPalette.surface,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
     paddingVertical: 18,
   },
   ghostButtonText: {
-    color: passengerPalette.text,
+    color: palette.text,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -346,8 +496,8 @@ const styles = StyleSheet.create({
     flex: 1.2,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: passengerRadius.lg,
-    backgroundColor: passengerPalette.primaryDeep,
+    borderRadius: radius.lg,
+    backgroundColor: palette.primaryDeep,
     paddingVertical: 18,
   },
   primaryButtonText: {
