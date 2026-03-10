@@ -1,5 +1,6 @@
 import { API_URL } from '../../config/api';
 import { User } from '../../hooks/UserContext';
+import { requestJson } from './http';
 
 export interface PassengerRegistrationPayload {
   fullName: string;
@@ -14,6 +15,22 @@ export interface AuthRegisterResponse {
   user: any;
 }
 
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+const normalizeUser = (user: any): User => {
+  return {
+    ...user,
+    id: String(user.id),
+    email: user.email,
+    fullName: (user.fullName || user.full_name) as string,
+    role: user.role,
+    phoneNumber: (user.phoneNumber || user.phone_number) as string | undefined,
+  };
+};
+
 export const registerPassenger = async (
   payload: PassengerRegistrationPayload
 ): Promise<{ token: string; user: User }> => {
@@ -25,7 +42,7 @@ export const registerPassenger = async (
     role: 'passenger',
   };
 
-  const response = await fetch(`${API_URL}/api/auth/register`, {
+  const result = await requestJson<AuthRegisterResponse>(`${API_URL}/api/auth/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -33,23 +50,20 @@ export const registerPassenger = async (
     body: JSON.stringify(body),
   });
 
-  const result: AuthRegisterResponse = await response.json();
-
-  if (!response.ok) {
-    const message = (result as any)?.message || 'Registration failed';
-    throw new Error(message);
-  }
-
-  // Normalize backend snake_case to camelCase for consistency
-  const normalizedUser: User = {
-    id: String(result.user.id),
-    email: result.user.email,
-    fullName: (result.user.fullName || result.user.full_name) as string,
-    role: result.user.role,
-    phoneNumber: (result.user.phoneNumber || result.user.phone_number) as string | undefined,
-  };
-
-  return { token: result.token, user: normalizedUser };
+  return { token: result.token, user: normalizeUser(result.user) };
 };
 
+export const loginUser = async (
+  payload: LoginPayload
+): Promise<{ token: string; user: User }> => {
+  const result = await requestJson<AuthRegisterResponse>(`${API_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return { token: result.token, user: normalizeUser(result.user) };
+};
 

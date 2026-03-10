@@ -10,10 +10,16 @@ import { getEmailError, getPasswordError } from '../../utils/validation';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { API_URL } from '../../config/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../../hooks/UserContext';
+import { loginUser } from '../../services/api/auth';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
+
+const TEST_ACCOUNT = {
+  email: 'passenger1773143499@test.dev',
+  password: 'Test123!',
+};
 
 const Login: FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
@@ -104,26 +110,30 @@ const Login: FC = () => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        alert(result.message || 'Помилка входу');
-        return;
-      }
-      // Зберегти токен, якщо потрібно: await AsyncStorage.setItem('authToken', result.token);
-      setUser(result.user);
-      if (result.user.role === 'driver') {
+      const { token, user } = await loginUser(formData);
+      await AsyncStorage.setItem('authToken', token);
+      setUser(user);
+
+      if (user.role === 'driver') {
         navigation.reset({ index: 0, routes: [{ name: 'DriverHome' }] });
       } else {
         navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
       }
     } catch (error) {
-      alert('Помилка мережі або сервера');
+      alert(error instanceof Error ? error.message : 'Помилка мережі або сервера');
     }
+  };
+
+  const fillTestAccount = () => {
+    setFormData(TEST_ACCOUNT);
+    setTouched({
+      email: false,
+      password: false,
+    });
+    setErrors({
+      email: '',
+      password: '',
+    });
   };
 
   return (
@@ -186,6 +196,42 @@ const Login: FC = () => {
                     icon="lock"
                     placeholder="••••••••"
                   />
+                </Animatable.View>
+
+                <Animatable.View
+                  animation="fadeInUp"
+                  duration={800}
+                  delay={520}
+                  style={styles.testButtonContainer}
+                >
+                  <Button
+                    mode="outlined"
+                    onPress={fillTestAccount}
+                    style={styles.testButton}
+                    contentStyle={styles.testButtonContent}
+                    labelStyle={styles.testButtonLabel}
+                    icon="flask-outline"
+                  >
+                    Заповнити тестовий акаунт
+                  </Button>
+                </Animatable.View>
+
+                <Animatable.View
+                  animation="fadeInUp"
+                  duration={800}
+                  delay={560}
+                  style={styles.driverTestButtonContainer}
+                >
+                  <Button
+                    mode="outlined"
+                    onPress={() => navigation.navigate('DriverHome')}
+                    style={styles.driverTestButton}
+                    contentStyle={styles.testButtonContent}
+                    labelStyle={styles.driverTestButtonLabel}
+                    icon="steering"
+                  >
+                    Відкрити тестовий екран водія
+                  </Button>
                 </Animatable.View>
 
                 <Animatable.View 
@@ -294,6 +340,35 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginTop: 15,
+  },
+  testButtonContainer: {
+    marginTop: 4,
+  },
+  driverTestButtonContainer: {
+    marginTop: -6,
+  },
+  testButton: {
+    borderRadius: 14,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  testButtonContent: {
+    height: 52,
+  },
+  testButtonLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  driverTestButton: {
+    borderRadius: 14,
+    borderColor: 'rgba(255, 59, 48, 0.45)',
+    backgroundColor: 'rgba(255, 59, 48, 0.08)',
+  },
+  driverTestButtonLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   loginButton: {
     height: 56,

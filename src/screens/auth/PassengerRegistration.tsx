@@ -317,7 +317,7 @@ const PassengerRegistration: FC = () => {
                   icon="flask-outline"
                   contentStyle={styles.fillButtonContent}
                 >
-                  Р—Р°РїРѕРІРЅРёС‚Рё С‚РµСЃС‚РѕРІРёРјРё РґР°РЅРёРјРё
+                  Заповнити тестовими даними
                 </Button>
               </Animatable.View>
 
