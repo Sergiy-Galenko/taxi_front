@@ -9,6 +9,14 @@ const ENV_API_URL = (globalThis as { process?: { env?: Record<string, string | u
 
 const normalizeApiUrl = (url: string): string => url.replace(/\/+$/, '');
 
+const tryParseUrl = (value: string): URL | null => {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+};
+
 const extractHost = (hostUri?: string | null): string | null => {
   if (!hostUri) {
     return null;
@@ -41,6 +49,26 @@ const getBundleHost = (): string | null => {
   return null;
 };
 
+const getResolvedEnvApiUrl = (): string | null => {
+  if (!ENV_API_URL) {
+    return null;
+  }
+
+  const parsedEnvUrl = tryParseUrl(ENV_API_URL);
+  const bundleHost = getBundleHost();
+
+  if (!parsedEnvUrl || !bundleHost || !isLikelyLocalDevHost(parsedEnvUrl.hostname)) {
+    return normalizeApiUrl(ENV_API_URL);
+  }
+
+  if (parsedEnvUrl.hostname === bundleHost) {
+    return normalizeApiUrl(parsedEnvUrl.toString());
+  }
+
+  parsedEnvUrl.hostname = bundleHost;
+  return normalizeApiUrl(parsedEnvUrl.toString());
+};
+
 const getDefaultApiUrl = (): string => {
   const bundleHost = getBundleHost();
 
@@ -55,4 +83,4 @@ const getDefaultApiUrl = (): string => {
   return 'http://localhost:3001';
 };
 
-export const API_URL = normalizeApiUrl(ENV_API_URL || getDefaultApiUrl());
+export const API_URL = getResolvedEnvApiUrl() || getDefaultApiUrl();
