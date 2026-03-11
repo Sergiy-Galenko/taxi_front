@@ -1,4 +1,3 @@
-import { Region } from 'react-native-maps';
 import { passengerPalette } from '../theme/passenger';
 import {
   Coordinates,
@@ -14,12 +13,6 @@ import {
 export const DEFAULT_CITY_CENTER: Coordinates = {
   latitude: 50.4501,
   longitude: 30.5234,
-};
-
-export const DEFAULT_REGION: Region = {
-  ...DEFAULT_CITY_CENTER,
-  latitudeDelta: 0.06,
-  longitudeDelta: 0.04,
 };
 
 export const RIDE_OPTIONS: RideOption[] = [
@@ -284,6 +277,23 @@ const distanceBetweenKm = (from: Coordinates, to: Coordinates): number => {
   return Math.sqrt(latDelta * latDelta + lngDelta * lngDelta);
 };
 
+export const calculateTripSummaryFromMetrics = (
+  distanceKm: number,
+  durationMin: number,
+  rideKey: RideOptionKey
+): TripSummary => {
+  const rideOption = getRideOption(rideKey);
+  const normalizedDistanceKm = Math.max(1.0, Number(distanceKm.toFixed(1)));
+  const normalizedDurationMin = Math.max(1, Math.round(durationMin));
+
+  return {
+    distanceKm: normalizedDistanceKm,
+    durationMin: normalizedDurationMin,
+    pickupEtaMin: Math.max(rideOption.etaMin, Math.round(normalizedDistanceKm * 0.55)),
+    price: Math.round(rideOption.baseFare + normalizedDistanceKm * rideOption.perKm),
+  };
+};
+
 export const calculateTripSummary = (
   pickup: Coordinates | null,
   destination: Coordinates | null,
@@ -303,10 +313,5 @@ export const calculateTripSummary = (
   const distanceKm = Math.max(1.6, distanceBetweenKm(pickup, destination));
   const durationMin = Math.max(8, Math.round(distanceKm * 3.1));
 
-  return {
-    distanceKm: Number(distanceKm.toFixed(1)),
-    durationMin,
-    pickupEtaMin: Math.max(rideOption.etaMin, Math.round(distanceKm * 0.55)),
-    price: Math.round(rideOption.baseFare + distanceKm * rideOption.perKm),
-  };
+  return calculateTripSummaryFromMetrics(distanceKm, durationMin, rideKey);
 };

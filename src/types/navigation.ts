@@ -6,6 +6,8 @@ type BookingRouteParams = {
   to: string;
   pickupCoords?: Coordinates | null;
   destinationCoords?: Coordinates | null;
+  routeDistanceKm?: number;
+  routeDurationMin?: number;
   rideType?: RideOptionKey;
 };
 

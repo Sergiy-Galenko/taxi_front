@@ -1,13 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, Polyline } from 'react-native-maps';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { MAPBOX_RUNTIME_STYLE_URL } from '../../config/mapbox';
+import MapboxRouteMap, { type MapboxCameraRef } from '../../components/maps/MapboxRouteMap';
 import BookingFlowLayout from '../../components/passenger/BookingFlowLayout';
 import RouteSummaryCard from '../../components/passenger/RouteSummaryCard';
-import { DEFAULT_CITY_CENTER, DEFAULT_REGION } from '../../data/passenger';
+import { DEFAULT_CITY_CENTER } from '../../data/passenger';
 import { useI18n } from '../../hooks/useI18n';
 import { getPaymentMethodTranslationKey, useNotifications } from '../../hooks/useNotifications';
+import { fetchMapboxRoute } from '../../services/mapbox/directions';
+import { getBoundsFromCoordinates } from '../../services/mapbox/geometry';
 import { useSettings } from '../../hooks/useSettings';
 import { PassengerPalette } from '../../theme/passenger';
 import { usePassengerTheme } from '../../hooks/usePassengerTheme';
@@ -16,9 +19,17 @@ import { Coordinates } from '../../types/passenger';
 
 type ActiveRideScreenProps = NativeStackScreenProps<RootStackParamList, 'ActiveRide'>;
 
-type RideStage = 'driver_delayed' | 'driver_arriving' | 'driver_arrived' | 'trip_started' | 'trip_completed';
+type RideStage =
+  | 'driver_delayed'
+  | 'driver_arriving'
+  | 'driver_arrived'
+  | 'trip_started'
+  | 'trip_completed';
 
-const buildDriverCoords = (pickup: Coordinates | null | undefined, destination: Coordinates | null | undefined): Coordinates => {
+const buildDriverCoords = (
+  pickup: Coordinates | null | undefined,
+  destination: Coordinates | null | undefined
+): Coordinates => {
   if (pickup && destination) {
     return {
       latitude: pickup.latitude + (destination.latitude - pickup.latitude) * 0.18,
@@ -39,35 +50,73 @@ const buildDriverCoords = (pickup: Coordinates | null | undefined, destination: 
   };
 };
 
-const buildRegion = (pickup: Coordinates | null | undefined, destination: Coordinates | null | undefined) => {
-  if (!pickup || !destination) {
-    return DEFAULT_REGION;
-  }
-
-  return {
-    latitude: (pickup.latitude + destination.latitude) / 2,
-    longitude: (pickup.longitude + destination.longitude) / 2,
-    latitudeDelta: Math.max(Math.abs(pickup.latitude - destination.latitude) * 1.8, 0.05),
-    longitudeDelta: Math.max(Math.abs(pickup.longitude - destination.longitude) * 1.8, 0.04),
-  };
-};
-
 export default function ActiveRideScreen({ navigation, route }: ActiveRideScreenProps) {
-  const { t } = useI18n();
+  const cameraRef = useRef<MapboxCameraRef | null>(null);
+  const { t, language } = useI18n();
   const { notifyRideEvent } = useNotifications();
   const { shareRideEnabled } = useSettings();
-  const { palette, radius } = usePassengerTheme();
+  const { isDark, palette, radius } = usePassengerTheme();
   const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
+  const mapStyleUrl = isDark ? MAPBOX_RUNTIME_STYLE_URL.dark : MAPBOX_RUNTIME_STYLE_URL.light;
   const [rideStage, setRideStage] = useState<RideStage>('driver_delayed');
+  const [routeGeometry, setRouteGeometry] = useState<Coordinates[]>([]);
+
   const driverCoords = useMemo(
     () => buildDriverCoords(route.params.pickupCoords ?? null, route.params.destinationCoords ?? null),
     [route.params.destinationCoords, route.params.pickupCoords]
   );
-  const region = useMemo(
-    () => buildRegion(route.params.pickupCoords ?? null, route.params.destinationCoords ?? null),
-    [route.params.destinationCoords, route.params.pickupCoords]
-  );
-  const routeLine = [driverCoords, route.params.pickupCoords ?? DEFAULT_CITY_CENTER, route.params.destinationCoords ?? DEFAULT_CITY_CENTER];
+
+  const fallbackRouteLine = useMemo(() => {
+    return [
+      driverCoords,
+      route.params.pickupCoords ?? DEFAULT_CITY_CENTER,
+      route.params.destinationCoords ?? DEFAULT_CITY_CENTER,
+    ];
+  }, [driverCoords, route.params.destinationCoords, route.params.pickupCoords]);
+
+  const routeLine = routeGeometry.length > 1 ? routeGeometry : fallbackRouteLine;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const waypoints = [
+      driverCoords,
+      route.params.pickupCoords ?? null,
+      route.params.destinationCoords ?? null,
+    ].filter((coordinate): coordinate is Coordinates => Boolean(coordinate));
+
+    if (waypoints.length < 2) {
+      setRouteGeometry([]);
+      return () => controller.abort();
+    }
+
+    fetchMapboxRoute({
+      coordinates: waypoints,
+      language,
+      signal: controller.signal,
+    })
+      .then((routeData) => {
+        setRouteGeometry(routeData?.geometry || []);
+      })
+      .catch((error: unknown) => {
+        if ((error as { name?: string })?.name === 'AbortError') {
+          return;
+        }
+
+        setRouteGeometry([]);
+      });
+
+    return () => controller.abort();
+  }, [driverCoords, language, route.params.destinationCoords, route.params.pickupCoords]);
+
+  useEffect(() => {
+    const bounds = getBoundsFromCoordinates(routeLine);
+
+    if (!bounds) {
+      return;
+    }
+
+    cameraRef.current?.fitBounds(bounds.ne, bounds.sw, 28, 600);
+  }, [routeLine]);
 
   useEffect(() => {
     const timers = [
@@ -100,7 +149,15 @@ export default function ActiveRideScreen({ navigation, route }: ActiveRideScreen
     return () => {
       timers.forEach(clearTimeout);
     };
-  }, [notifyRideEvent, route.params.driverEtaMin, route.params.driverName, route.params.paymentMethod, route.params.price, route.params.to, t]);
+  }, [
+    notifyRideEvent,
+    route.params.driverEtaMin,
+    route.params.driverName,
+    route.params.paymentMethod,
+    route.params.price,
+    route.params.to,
+    t,
+  ]);
 
   const statusContent = useMemo(() => {
     switch (rideStage) {
@@ -141,9 +198,71 @@ export default function ActiveRideScreen({ navigation, route }: ActiveRideScreen
           icon: 'flag-outline' as const,
         };
     }
-  }, [palette.accentSoft, palette.backgroundAccent, palette.surfaceMuted, palette.warningSurface, rideStage, route.params.driverEtaMin, route.params.driverName, route.params.to, t]);
+  }, [
+    palette.accentSoft,
+    palette.backgroundAccent,
+    palette.surfaceMuted,
+    palette.warningSurface,
+    rideStage,
+    route.params.driverEtaMin,
+    route.params.driverName,
+    route.params.to,
+    t,
+  ]);
 
-  const arrivalValue = rideStage === 'driver_delayed' ? route.params.driverEtaMin + 2 : rideStage === 'driver_arrived' ? 0 : Math.max(1, route.params.driverEtaMin - 1);
+  const arrivalValue =
+    rideStage === 'driver_delayed'
+      ? route.params.driverEtaMin + 2
+      : rideStage === 'driver_arrived'
+        ? 0
+        : Math.max(1, route.params.driverEtaMin - 1);
+
+  const mapMarkers = useMemo(() => {
+    const markers: Array<{
+      coords: Coordinates;
+      element: React.ReactElement;
+      id: string;
+    }> = [
+      {
+        coords: driverCoords,
+        element: (
+          <View style={styles.driverMarker}>
+            <Ionicons color="#FFFFFF" name="car-sport" size={14} />
+          </View>
+        ),
+        id: 'driver',
+      },
+    ];
+
+    if (route.params.pickupCoords) {
+      markers.push({
+        coords: route.params.pickupCoords,
+        element: <View style={styles.pickupMarker} />,
+        id: 'pickup',
+      });
+    }
+
+    if (route.params.destinationCoords) {
+      markers.push({
+        coords: route.params.destinationCoords,
+        element: (
+          <View style={styles.destinationMarker}>
+            <Ionicons color="#FFFFFF" name="flag" size={12} />
+          </View>
+        ),
+        id: 'destination',
+      });
+    }
+
+    return markers;
+  }, [
+    driverCoords,
+    route.params.destinationCoords,
+    route.params.pickupCoords,
+    styles.destinationMarker,
+    styles.driverMarker,
+    styles.pickupMarker,
+  ]);
 
   return (
     <BookingFlowLayout
@@ -170,26 +289,16 @@ export default function ActiveRideScreen({ navigation, route }: ActiveRideScreen
     >
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.mapCard}>
-          <MapView initialRegion={region} region={region} scrollEnabled={false} style={styles.map}>
-            <Marker coordinate={driverCoords}>
-              <View style={styles.driverMarker}>
-                <Ionicons color="#FFFFFF" name="car-sport" size={14} />
-              </View>
-            </Marker>
-            {route.params.pickupCoords ? (
-              <Marker coordinate={route.params.pickupCoords}>
-                <View style={styles.pickupMarker} />
-              </Marker>
-            ) : null}
-            {route.params.destinationCoords ? (
-              <Marker coordinate={route.params.destinationCoords}>
-                <View style={styles.destinationMarker}>
-                  <Ionicons color="#FFFFFF" name="flag" size={12} />
-                </View>
-              </Marker>
-            ) : null}
-            <Polyline coordinates={routeLine} strokeColor={palette.primaryDeep} strokeWidth={4} />
-          </MapView>
+          <MapboxRouteMap
+            cameraRef={cameraRef}
+            language={language}
+            mapStyleUrl={mapStyleUrl}
+            markers={mapMarkers}
+            routeCoordinates={routeLine}
+            routeLineColor={palette.primaryDeep}
+            scrollEnabled={false}
+            style={styles.map}
+          />
 
           <View style={styles.arrivalCard}>
             <Text style={styles.arrivalEyebrow}>{t('activeRide.arrivingSoon')}</Text>
@@ -199,7 +308,7 @@ export default function ActiveRideScreen({ navigation, route }: ActiveRideScreen
           </View>
         </View>
 
-        <View style={[styles.statusCard, { backgroundColor: statusContent.accentColor }]}> 
+        <View style={[styles.statusCard, { backgroundColor: statusContent.accentColor }]}>
           <Ionicons color={palette.text} name={statusContent.icon} size={18} />
           <View style={styles.statusCopy}>
             <Text style={styles.statusTitle}>{statusContent.title}</Text>
@@ -214,7 +323,9 @@ export default function ActiveRideScreen({ navigation, route }: ActiveRideScreen
             </View>
             <View style={styles.driverCopy}>
               <Text style={styles.driverName}>{route.params.driverName}</Text>
-              <Text style={styles.driverMeta}>{route.params.driverCar} • {route.params.driverPlate}</Text>
+              <Text style={styles.driverMeta}>
+                {route.params.driverCar} • {route.params.driverPlate}
+              </Text>
               <View style={styles.ratingRow}>
                 <Ionicons color={palette.primaryDeep} name="star" size={14} />
                 <Text style={styles.ratingText}>{route.params.driverRating}</Text>
@@ -273,236 +384,240 @@ export default function ActiveRideScreen({ navigation, route }: ActiveRideScreen
   );
 }
 
-const createStyles = (palette: PassengerPalette, radius: typeof import('../../theme/passenger').passengerRadius) => StyleSheet.create({
-  content: {
-    gap: 18,
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 24,
-  },
-  mapCard: {
-    overflow: 'hidden',
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surface,
-  },
-  map: {
-    height: 230,
-  },
-  driverMarker: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: palette.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pickupMarker: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: palette.accent,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-  },
-  destinationMarker: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: palette.danger,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  arrivalCard: {
-    position: 'absolute',
-    right: 14,
-    top: 14,
-    backgroundColor: palette.surface,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  arrivalEyebrow: {
-    color: palette.mutedText,
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  arrivalValue: {
-    color: palette.text,
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  statusCard: {
-    flexDirection: 'row',
-    gap: 10,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: palette.border,
-    padding: 16,
-  },
-  statusCopy: {
-    flex: 1,
-    gap: 3,
-  },
-  statusTitle: {
-    color: palette.text,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  statusText: {
-    color: palette.mutedText,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  driverCard: {
-    backgroundColor: palette.surface,
-    borderColor: palette.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: 16,
-    padding: 18,
-  },
-  driverIdentity: {
-    flexDirection: 'row',
-    gap: 14,
-  },
-  driverAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: palette.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  driverAvatarText: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '800',
-  },
-  driverCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  driverName: {
-    color: palette.text,
-    fontSize: 19,
-    fontWeight: '800',
-  },
-  driverMeta: {
-    color: palette.mutedText,
-    fontSize: 14,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-  },
-  ratingText: {
-    color: palette.text,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  driverActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  actionButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-    borderRadius: 16,
-    backgroundColor: palette.surfaceMuted,
-    paddingVertical: 14,
-  },
-  actionButtonText: {
-    color: palette.text,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  shareCard: {
-    backgroundColor: palette.surface,
-    borderColor: palette.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: 16,
-    flexDirection: 'row',
-    gap: 10,
-  },
-  shareCopy: {
-    flex: 1,
-    gap: 3,
-  },
-  shareTitle: {
-    color: palette.text,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  shareText: {
-    color: palette.mutedText,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  noteCard: {
-    backgroundColor: palette.surface,
-    borderColor: palette.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: 18,
-    gap: 8,
-  },
-  noteTitle: {
-    color: palette.mutedText,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  noteValue: {
-    color: palette.text,
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: 3,
-  },
-  noteHint: {
-    color: palette.mutedText,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  footerActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  ghostButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surface,
-    paddingVertical: 18,
-  },
-  ghostButtonText: {
-    color: palette.text,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  primaryButton: {
-    flex: 1.2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.lg,
-    backgroundColor: palette.primaryDeep,
-    paddingVertical: 18,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-});
+const createStyles = (
+  palette: PassengerPalette,
+  radius: typeof import('../../theme/passenger').passengerRadius
+) =>
+  StyleSheet.create({
+    content: {
+      gap: 18,
+      paddingHorizontal: 20,
+      paddingTop: 18,
+      paddingBottom: 24,
+    },
+    mapCard: {
+      overflow: 'hidden',
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.surface,
+    },
+    map: {
+      height: 230,
+    },
+    driverMarker: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: palette.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pickupMarker: {
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+      backgroundColor: palette.accent,
+      borderWidth: 3,
+      borderColor: '#FFFFFF',
+    },
+    destinationMarker: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: palette.danger,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    arrivalCard: {
+      position: 'absolute',
+      right: 14,
+      top: 14,
+      backgroundColor: palette.surface,
+      borderRadius: 18,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    arrivalEyebrow: {
+      color: palette.mutedText,
+      fontSize: 11,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      marginBottom: 4,
+    },
+    arrivalValue: {
+      color: palette.text,
+      fontSize: 20,
+      fontWeight: '800',
+    },
+    statusCard: {
+      flexDirection: 'row',
+      gap: 10,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: palette.border,
+      padding: 16,
+    },
+    statusCopy: {
+      flex: 1,
+      gap: 3,
+    },
+    statusTitle: {
+      color: palette.text,
+      fontSize: 15,
+      fontWeight: '800',
+    },
+    statusText: {
+      color: palette.mutedText,
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    driverCard: {
+      backgroundColor: palette.surface,
+      borderColor: palette.border,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      gap: 16,
+      padding: 18,
+    },
+    driverIdentity: {
+      flexDirection: 'row',
+      gap: 14,
+    },
+    driverAvatar: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: palette.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    driverAvatarText: {
+      color: '#FFFFFF',
+      fontSize: 24,
+      fontWeight: '800',
+    },
+    driverCopy: {
+      flex: 1,
+      gap: 4,
+    },
+    driverName: {
+      color: palette.text,
+      fontSize: 19,
+      fontWeight: '800',
+    },
+    driverMeta: {
+      color: palette.mutedText,
+      fontSize: 14,
+    },
+    ratingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 4,
+    },
+    ratingText: {
+      color: palette.text,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    driverActions: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    actionButton: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: 8,
+      borderRadius: 16,
+      backgroundColor: palette.surfaceMuted,
+      paddingVertical: 14,
+    },
+    actionButtonText: {
+      color: palette.text,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    shareCard: {
+      backgroundColor: palette.surface,
+      borderColor: palette.border,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      padding: 16,
+      flexDirection: 'row',
+      gap: 10,
+    },
+    shareCopy: {
+      flex: 1,
+      gap: 3,
+    },
+    shareTitle: {
+      color: palette.text,
+      fontSize: 15,
+      fontWeight: '800',
+    },
+    shareText: {
+      color: palette.mutedText,
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    noteCard: {
+      backgroundColor: palette.surface,
+      borderColor: palette.border,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      padding: 18,
+      gap: 8,
+    },
+    noteTitle: {
+      color: palette.mutedText,
+      fontSize: 12,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+    },
+    noteValue: {
+      color: palette.text,
+      fontSize: 32,
+      fontWeight: '800',
+      letterSpacing: 3,
+    },
+    noteHint: {
+      color: palette.mutedText,
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    footerActions: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    ghostButton: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.surface,
+      paddingVertical: 18,
+    },
+    ghostButtonText: {
+      color: palette.text,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    primaryButton: {
+      flex: 1.2,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: radius.lg,
+      backgroundColor: palette.primaryDeep,
+      paddingVertical: 18,
+    },
+    primaryButtonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '800',
+    },
+  });

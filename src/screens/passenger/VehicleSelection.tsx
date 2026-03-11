@@ -7,6 +7,7 @@ import RouteSummaryCard from '../../components/passenger/RouteSummaryCard';
 import VehicleOptionCard from '../../components/passenger/VehicleOptionCard';
 import {
   calculateTripSummary,
+  calculateTripSummaryFromMetrics,
   PAYMENT_METHODS,
   RIDE_OPTIONS,
 } from '../../data/passenger';
@@ -28,8 +29,22 @@ export default function VehicleSelectionScreen({ navigation, route }: VehicleSel
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodKey>(defaultPaymentMethod);
 
   const summary = useMemo(() => {
+    if (route.params.routeDistanceKm != null && route.params.routeDurationMin != null) {
+      return calculateTripSummaryFromMetrics(
+        route.params.routeDistanceKm,
+        route.params.routeDurationMin,
+        selectedRide
+      );
+    }
+
     return calculateTripSummary(route.params.pickupCoords ?? null, route.params.destinationCoords ?? null, selectedRide);
-  }, [route.params.destinationCoords, route.params.pickupCoords, selectedRide]);
+  }, [
+    route.params.destinationCoords,
+    route.params.pickupCoords,
+    route.params.routeDistanceKm,
+    route.params.routeDurationMin,
+    selectedRide,
+  ]);
 
   const handleConfirmRide = async () => {
     await setDefaultPaymentMethod(paymentMethod);
@@ -86,11 +101,19 @@ export default function VehicleSelectionScreen({ navigation, route }: VehicleSel
               onPress={() => setSelectedRide(option.key)}
               option={option}
               selected={selectedRide === option.key}
-              summary={calculateTripSummary(
-                route.params.pickupCoords ?? null,
-                route.params.destinationCoords ?? null,
-                option.key
-              )}
+              summary={
+                route.params.routeDistanceKm != null && route.params.routeDurationMin != null
+                  ? calculateTripSummaryFromMetrics(
+                      route.params.routeDistanceKm,
+                      route.params.routeDurationMin,
+                      option.key
+                    )
+                  : calculateTripSummary(
+                      route.params.pickupCoords ?? null,
+                      route.params.destinationCoords ?? null,
+                      option.key
+                    )
+              }
             />
           ))}
         </View>

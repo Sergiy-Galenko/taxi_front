@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -23,6 +23,7 @@
       "bundleIdentifier": "com.taxiapp",
       "infoPlist": {
         "NSCameraUsageDescription": "Цей додаток використовує камеру для верифікації водія та його автомобіля",
+        "NSLocationWhenInUseUsageDescription": "Додаток використовує вашу геолокацію для відображення карти, побудови маршруту та вибору точки подачі.",
         "NSPhotoLibraryUsageDescription": "Цей додаток використовує доступ до галереї для вибору фотографій"
       }
     },
@@ -34,6 +35,8 @@
       "edgeToEdgeEnabled": true,
       "package": "com.taxiapp",
       "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
         "CAMERA",
         "POST_NOTIFICATIONS",
         "READ_EXTERNAL_STORAGE",
@@ -44,6 +47,13 @@
       "favicon": "./assets/icon.png"
     },
     "plugins": [
+      "@rnmapbox/maps",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Додаток використовує вашу геолокацію для відображення карти, побудови маршруту та вибору точки подачі."
+        }
+      ],
       [
         "expo-image-picker",
         {

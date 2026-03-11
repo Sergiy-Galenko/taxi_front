@@ -7,7 +7,10 @@ import { I18nProvider } from './src/hooks/useI18n';
 import { NotificationsProvider } from './src/hooks/useNotifications';
 import { SettingsProvider } from './src/hooks/useSettings';
 import AppNavigator from './src/navigation/AppNavigator';
+import { configureMapbox } from './src/services/mapbox/runtime';
 import { UserProvider } from './src/hooks/UserContext';
+
+configureMapbox();
 
 const Main = () => {
   const { theme } = useTheme();
