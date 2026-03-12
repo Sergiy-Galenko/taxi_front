@@ -20,6 +20,8 @@ export interface DestinationSuggestion {
   subtitle: string;
   category: 'favorite' | 'recent' | 'hub' | 'history' | 'live';
   coords?: Coordinates;
+  fullAddress?: string;
+  placeId?: string;
 }
 
 export interface RideOption {

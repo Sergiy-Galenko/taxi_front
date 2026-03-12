@@ -2,15 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { MAPBOX_RUNTIME_STYLE_URL } from '../../config/mapbox';
-import MapboxRouteMap, { type MapboxCameraRef } from '../../components/maps/MapboxRouteMap';
+import GoogleRouteMap, { type RouteMapCameraRef } from '../../components/maps/GoogleRouteMap';
 import BookingFlowLayout from '../../components/passenger/BookingFlowLayout';
 import RouteSummaryCard from '../../components/passenger/RouteSummaryCard';
 import { DEFAULT_CITY_CENTER } from '../../data/passenger';
 import { useI18n } from '../../hooks/useI18n';
 import { getPaymentMethodTranslationKey, useNotifications } from '../../hooks/useNotifications';
-import { fetchMapboxRoute } from '../../services/mapbox/directions';
-import { getBoundsFromCoordinates } from '../../services/mapbox/geometry';
+import { fetchGoogleRoute } from '../../services/googleMaps/directions';
+import { getBoundsFromCoordinates } from '../../services/maps/geometry';
 import { useSettings } from '../../hooks/useSettings';
 import { PassengerPalette } from '../../theme/passenger';
 import { usePassengerTheme } from '../../hooks/usePassengerTheme';
@@ -51,13 +50,12 @@ const buildDriverCoords = (
 };
 
 export default function ActiveRideScreen({ navigation, route }: ActiveRideScreenProps) {
-  const cameraRef = useRef<MapboxCameraRef | null>(null);
+  const cameraRef = useRef<RouteMapCameraRef | null>(null);
   const { t, language } = useI18n();
   const { notifyRideEvent } = useNotifications();
   const { shareRideEnabled } = useSettings();
-  const { isDark, palette, radius } = usePassengerTheme();
+  const { palette, radius } = usePassengerTheme();
   const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
-  const mapStyleUrl = isDark ? MAPBOX_RUNTIME_STYLE_URL.dark : MAPBOX_RUNTIME_STYLE_URL.light;
   const [rideStage, setRideStage] = useState<RideStage>('driver_delayed');
   const [routeGeometry, setRouteGeometry] = useState<Coordinates[]>([]);
 
@@ -89,7 +87,7 @@ export default function ActiveRideScreen({ navigation, route }: ActiveRideScreen
       return () => controller.abort();
     }
 
-    fetchMapboxRoute({
+    fetchGoogleRoute({
       coordinates: waypoints,
       language,
       signal: controller.signal,
@@ -289,10 +287,9 @@ export default function ActiveRideScreen({ navigation, route }: ActiveRideScreen
     >
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.mapCard}>
-          <MapboxRouteMap
+          <GoogleRouteMap
             cameraRef={cameraRef}
             language={language}
-            mapStyleUrl={mapStyleUrl}
             markers={mapMarkers}
             routeCoordinates={routeLine}
             routeLineColor={palette.primaryDeep}

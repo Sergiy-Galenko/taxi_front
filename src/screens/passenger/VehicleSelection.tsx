@@ -8,6 +8,7 @@ import VehicleOptionCard from '../../components/passenger/VehicleOptionCard';
 import {
   calculateTripSummary,
   calculateTripSummaryFromMetrics,
+  getRideOption,
   PAYMENT_METHODS,
   RIDE_OPTIONS,
 } from '../../data/passenger';
@@ -27,6 +28,7 @@ export default function VehicleSelectionScreen({ navigation, route }: VehicleSel
   const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
   const [selectedRide, setSelectedRide] = useState<RideOptionKey>(route.params.rideType ?? 'comfort');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodKey>(defaultPaymentMethod);
+  const selectedRideOption = useMemo(() => getRideOption(selectedRide), [selectedRide]);
 
   const summary = useMemo(() => {
     if (route.params.routeDistanceKm != null && route.params.routeDurationMin != null) {
@@ -88,6 +90,35 @@ export default function VehicleSelectionScreen({ navigation, route }: VehicleSel
           onPressEdit={() => navigation.goBack()}
           pickup={route.params.from}
         />
+
+        <View style={styles.heroCard}>
+          <View style={styles.heroHeader}>
+            <View style={styles.heroCopy}>
+              <Text style={styles.heroEyebrow}>{t('vehicleSelection.title')}</Text>
+              <Text style={styles.heroTitle}>{t(`rideOptions.${selectedRide}.label`)}</Text>
+              <Text style={styles.heroHint}>{t(`rideOptions.${selectedRide}.description`)}</Text>
+            </View>
+            <View style={styles.heroPriceWrap}>
+              <Text style={styles.heroPriceLabel}>{t('vehicleSelection.fare')}</Text>
+              <Text style={styles.heroPriceValue}>{t('common.priceUah', { amount: summary.price })}</Text>
+            </View>
+          </View>
+
+          <View style={styles.heroMetrics}>
+            <View style={styles.heroMetric}>
+              <Text style={styles.heroMetricLabel}>{t('vehicleSelection.arrival')}</Text>
+              <Text style={styles.heroMetricValue}>{t('common.minutesShort', { count: summary.pickupEtaMin })}</Text>
+            </View>
+            <View style={styles.heroMetric}>
+              <Text style={styles.heroMetricLabel}>{t('vehicleSelection.trip')}</Text>
+              <Text style={styles.heroMetricValue}>{t('common.minutesShort', { count: summary.durationMin })}</Text>
+            </View>
+            <View style={styles.heroMetric}>
+              <Text style={styles.heroMetricLabel}>{t('vehicleSelection.capacity')}</Text>
+              <Text style={styles.heroMetricValue}>{selectedRideOption.capacity}</Text>
+            </View>
+          </View>
+        </View>
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('vehicleSelection.availableCars')}</Text>
@@ -202,6 +233,85 @@ const createStyles = (palette: PassengerPalette, radius: typeof import('../../th
   },
   vehicleList: {
     gap: 12,
+  },
+  heroCard: {
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    gap: 14,
+    padding: 18,
+    shadowColor: palette.shadow,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    elevation: 4,
+  },
+  heroHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 16,
+    justifyContent: 'space-between',
+  },
+  heroCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  heroEyebrow: {
+    color: palette.primaryDeep,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  heroTitle: {
+    color: palette.text,
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+  },
+  heroHint: {
+    color: palette.mutedText,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  heroPriceWrap: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  heroPriceLabel: {
+    color: palette.mutedText,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  heroPriceValue: {
+    color: palette.text,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  heroMetrics: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  heroMetric: {
+    backgroundColor: palette.surfaceMuted,
+    borderRadius: radius.md,
+    flex: 1,
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  heroMetricLabel: {
+    color: palette.mutedText,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  heroMetricValue: {
+    color: palette.text,
+    fontSize: 13,
+    fontWeight: '800',
   },
   paymentCard: {
     backgroundColor: palette.surface,

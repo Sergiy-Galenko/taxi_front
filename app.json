@@ -47,7 +47,6 @@
       "favicon": "./assets/icon.png"
     },
     "plugins": [
-      "@rnmapbox/maps",
       [
         "expo-location",
         {
