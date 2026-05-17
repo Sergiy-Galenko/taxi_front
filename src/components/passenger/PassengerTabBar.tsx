@@ -51,7 +51,7 @@ export default function PassengerTabBar({ activeRoute }: PassengerTabBarProps) {
               style={[styles.tab, active && styles.activeTab]}
             >
               <Ionicons
-                color={active ? palette.text : palette.mutedText}
+                color={active ? palette.text : palette.backgroundSecondary}
                 name={tab.icon}
                 size={20}
               />
@@ -70,17 +70,17 @@ const createStyles = (
 ) => StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 0,
+    left: 20,
+    right: 20,
+    bottom: 10,
   },
   container: {
-    backgroundColor: palette.tabBar,
-    borderRadius: radius.lg,
+    backgroundColor: palette.surfaceStrong,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: palette.borderStrong,
     flexDirection: 'row',
-    padding: 8,
+    padding: 7,
     shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 1,
@@ -89,20 +89,24 @@ const createStyles = (
   },
   tab: {
     alignItems: 'center',
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     flex: 1,
-    gap: 4,
-    paddingVertical: 10,
+    gap: 5,
+    minHeight: 58,
+    justifyContent: 'center',
+    paddingVertical: 8,
   },
   activeTab: {
-    backgroundColor: palette.primarySoft,
+    backgroundColor: palette.primary,
   },
   label: {
-    color: palette.mutedText,
+    color: palette.backgroundSecondary,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
+    opacity: 0.72,
   },
   activeLabel: {
     color: palette.text,
+    opacity: 1,
   },
 });

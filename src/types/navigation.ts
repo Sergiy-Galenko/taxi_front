@@ -18,9 +18,11 @@ type ConfirmedRideParams = BookingRouteParams & {
   pickupEtaMin: number;
   durationMin: number;
   distanceKm: number;
+  driverComment?: string;
 };
 
 export type RootStackParamList = {
+  Splash: undefined;
   Login: undefined;
   RoleSelection: undefined;
   PassengerRegistration: undefined;
@@ -73,6 +75,7 @@ export type RootStackParamList = {
     | undefined;
   Main: undefined;
   VehicleSelection: BookingRouteParams;
+  OrderConfirm: ConfirmedRideParams;
   DriverSearch: ConfirmedRideParams;
   ActiveRide: ConfirmedRideParams & {
     driverName: string;
@@ -80,6 +83,12 @@ export type RootStackParamList = {
     driverPlate: string;
     driverRating: string;
     driverEtaMin: number;
+  };
+  RideComplete: ConfirmedRideParams & {
+    driverName: string;
+    driverCar: string;
+    driverPlate: string;
+    driverRating: string;
   };
   TripHistory: undefined;
   Preorder:

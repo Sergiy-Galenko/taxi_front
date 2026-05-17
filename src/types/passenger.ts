@@ -1,5 +1,18 @@
-export type RideOptionKey = 'economy' | 'comfort' | 'xl';
+export type RideOptionKey = 'economy' | 'comfort' | 'business' | 'minivan' | 'delivery';
 export type PaymentMethodKey = 'visa' | 'apple_pay' | 'cash';
+export type RideLifecycleState =
+  | 'loading'
+  | 'idle'
+  | 'route_ready'
+  | 'searching_driver'
+  | 'driver_found'
+  | 'active'
+  | 'completed'
+  | 'cancelled'
+  | 'driver_not_found'
+  | 'no_internet'
+  | 'location_denied'
+  | 'error';
 
 export interface Coordinates {
   latitude: number;
@@ -29,11 +42,13 @@ export interface RideOption {
   label: string;
   description: string;
   capacity: string;
+  shortDescription: string;
   baseFare: number;
   perKm: number;
   etaMin: number;
   icon: string;
   accentColor: string;
+  recommended?: boolean;
 }
 
 export interface TripSummary {

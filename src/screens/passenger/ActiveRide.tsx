@@ -277,10 +277,25 @@ export default function ActiveRideScreen({ navigation, route }: ActiveRideScreen
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.92}
-            onPress={() => navigation.navigate('Home')}
+            onPress={() => {
+              if (rideStage === 'trip_completed') {
+                navigation.replace('RideComplete', {
+                  ...route.params,
+                  driverCar: route.params.driverCar,
+                  driverName: route.params.driverName,
+                  driverPlate: route.params.driverPlate,
+                  driverRating: route.params.driverRating,
+                });
+                return;
+              }
+
+              Alert.alert(t('activeRide.shareTrip'), t('activeRide.shareHint'));
+            }}
             style={styles.primaryButton}
           >
-            <Text style={styles.primaryButtonText}>{t('common.done')}</Text>
+            <Text style={styles.primaryButtonText}>
+              {rideStage === 'trip_completed' ? t('rideComplete.open') : t('activeRide.shareTrip')}
+            </Text>
           </TouchableOpacity>
         </View>
       }
@@ -578,7 +593,6 @@ const createStyles = (
       color: palette.text,
       fontSize: 32,
       fontWeight: '800',
-      letterSpacing: 3,
     },
     noteHint: {
       color: palette.mutedText,

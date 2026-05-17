@@ -1,435 +1,298 @@
-import React, { FC, useState } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
-import { Button, Text } from 'react-native-paper';
-import * as Animatable from 'react-native-animatable';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../types/navigation';
-import { CustomInput } from '../../components/CustomInput';
-import { getEmailError, getPasswordError } from '../../utils/validation';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialIcons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
+import React, { FC, useMemo, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Button from '../../components/Button';
+import Input from '../../components/Input';
+import { usePassengerTheme } from '../../hooks/usePassengerTheme';
 import { useUser } from '../../hooks/UserContext';
-import { loginUser } from '../../services/api/auth';
+import {
+  PassengerPalette,
+  passengerSpacing,
+} from '../../theme/passenger';
+import { RootStackParamList } from '../../types/navigation';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
-const TEST_ACCOUNT = {
-  email: 'passenger1773143499@test.dev',
-  password: 'Test123!',
-};
+const sanitizePhone = (value: string) => value.replace(/[^\d+]/g, '');
+const normalizePhoneForUser = (value: string) => value.replace(/[^\d]/g, '');
 
 const Login: FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
-  const [touched, setTouched] = useState({
-    email: false,
-    password: false,
-  });
-  const [errors, setErrors] = useState({
-    email: '',
-    password: '',
-  });
-
-  const buttonScale = React.useRef(new Animated.Value(1)).current;
-  const formYPosition = React.useRef(new Animated.Value(50)).current;
-  const logoScale = React.useRef(new Animated.Value(1)).current;
-
   const { setUser } = useUser();
+  const { palette, radius } = usePassengerTheme();
+  const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
+  const [step, setStep] = useState<'phone' | 'sms'>('phone');
+  const [phone, setPhone] = useState('+380 ');
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  React.useEffect(() => {
-    Animated.timing(formYPosition, {
-      toValue: 0,
-      duration: 800,
-      useNativeDriver: true,
-      delay: 300,
-    }).start();
+  const phoneDigits = normalizePhoneForUser(phone);
+  const maskedPhone = phone.trim();
 
-    // Пульсація логотипу
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(logoScale, {
-          toValue: 1.05,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(logoScale, {
-          toValue: 1,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, []);
-
-  const animateButton = (scale: number) => {
-    Animated.spring(buttonScale, {
-      toValue: scale,
-      useNativeDriver: true,
-      tension: 50,
-      friction: 7,
-    }).start();
-  };
-
-  const handleBlur = (field: keyof typeof touched) => {
-    setTouched({ ...touched, [field]: true });
-    validateField(field);
-  };
-
-  const validateField = (field: keyof typeof formData) => {
-    let error = '';
-    switch (field) {
-      case 'email':
-        const emailError = getEmailError(formData.email);
-        error = emailError || '';
-        break;
-      case 'password':
-        const passwordError = getPasswordError(formData.password);
-        error = passwordError || '';
-        break;
-    }
-    setErrors({ ...errors, [field]: error });
-  };
-
-  const handleLogin = async () => {
-    // Нова перевірка помилок
-    const newErrors = {
-      email: getEmailError(formData.email) || '',
-      password: getPasswordError(formData.password) || '',
-    };
-    setErrors(newErrors);
-
-    const hasErrors = Object.values(newErrors).some((error) => error !== '');
-    if (hasErrors) {
+  const handleRequestCode = () => {
+    if (phoneDigits.length < 10) {
+      setError('Введіть коректний номер телефону.');
       return;
     }
 
-    try {
-      const { token, user } = await loginUser(formData);
-      await AsyncStorage.setItem('authToken', token);
-      setUser(user);
+    setError('');
+    setStep('sms');
+  };
 
-      if (user.role === 'driver') {
-        navigation.reset({ index: 0, routes: [{ name: 'DriverHome' }] });
-      } else {
-        navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-      }
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Помилка мережі або сервера');
+  const handleVerifyCode = async () => {
+    if (code.trim().length < 4) {
+      setError('SMS-код має містити щонайменше 4 цифри.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      await AsyncStorage.setItem('authToken', `sms-${phoneDigits}`);
+      setUser({
+        id: phoneDigits,
+        email: '',
+        fullName: 'Пасажир',
+        phoneNumber: maskedPhone,
+        rating: 4.9,
+        role: 'passenger',
+      });
+      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+    } catch {
+      setError('Не вдалося увійти. Перевірте інтернет і спробуйте ще раз.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const fillTestAccount = () => {
-    setFormData(TEST_ACCOUNT);
-    setTouched({
-      email: false,
-      password: false,
-    });
-    setErrors({
-      email: '',
-      password: '',
-    });
-  };
-
   return (
-    <LinearGradient
-        colors={['#1a1a1a', '#000']}
-        style={styles.container}
-        start={{x: 0, y: 0}}
-        end={{x: 1, y: 1}}
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.screen}
       >
-        {/* Декоративні елементи */}
-        <View style={styles.decorativeCircle} />
-        <View style={[styles.decorativeCircle, styles.circleTopRight]} />
-        
-        <View style={styles.logoContainer}>
-          <Animated.View style={{ transform: [{ scale: logoScale }] }}>
-            <MaterialIcons name="local-taxi" size={80} color="#FF3B30" />
-          </Animated.View>
-          <Text style={styles.appName}>TAXI APP</Text>
-        </View>
-
-        <Animated.View 
-          style={[
-            styles.formContainer,
-            { transform: [{ translateY: formYPosition }] }
-          ]}
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <BlurView intensity={30} tint="dark" pointerEvents="box-none" style={styles.blurContainer}>
-            <View style={styles.formContent}>
-              <Animatable.View 
-                animation="fadeIn" 
-                duration={1000}
-                style={styles.formHeader}
-              >
-                <Text style={styles.title}>Ласкаво просимо!</Text>
-                <Text style={styles.subtitle}>Увійдіть у свій акаунт</Text>
-              </Animatable.View>
-
-              <View style={styles.form}>
-                <Animatable.View animation="fadeInRight" duration={600} delay={200}>
-                  <CustomInput
-                    label="Електронна пошта"
-                    value={formData.email}
-                    onChangeText={(text) => setFormData({ ...formData, email: text })}
-                    onBlur={() => handleBlur('email')}
-                    error={touched.email ? errors.email : ''}
-                    icon="email"
-                    keyboardType="email-address"
-                    placeholder="your@email.com"
-                  />
-                </Animatable.View>
-
-                <Animatable.View animation="fadeInRight" duration={600} delay={400}>
-                  <CustomInput
-                    label="Пароль"
-                    value={formData.password}
-                    onChangeText={(text) => setFormData({ ...formData, password: text })}
-                    onBlur={() => handleBlur('password')}
-                    error={touched.password ? errors.password : ''}
-                    secureTextEntry
-                    icon="lock"
-                    placeholder="••••••••"
-                  />
-                </Animatable.View>
-
-                <Animatable.View
-                  animation="fadeInUp"
-                  duration={800}
-                  delay={520}
-                  style={styles.testButtonContainer}
-                >
-                  <Button
-                    mode="outlined"
-                    onPress={fillTestAccount}
-                    style={styles.testButton}
-                    contentStyle={styles.testButtonContent}
-                    labelStyle={styles.testButtonLabel}
-                    icon="flask-outline"
-                  >
-                    Заповнити тестовий акаунт
-                  </Button>
-                </Animatable.View>
-
-                <Animatable.View
-                  animation="fadeInUp"
-                  duration={800}
-                  delay={560}
-                  style={styles.driverTestButtonContainer}
-                >
-                  <Button
-                    mode="outlined"
-                    onPress={() => navigation.navigate('DriverHome')}
-                    style={styles.driverTestButton}
-                    contentStyle={styles.testButtonContent}
-                    labelStyle={styles.driverTestButtonLabel}
-                    icon="steering"
-                  >
-                    Відкрити тестовий екран водія
-                  </Button>
-                </Animatable.View>
-
-                <Animatable.View 
-                  animation="fadeInUp" 
-                  duration={800} 
-                  delay={600}
-                  style={styles.buttonContainer}
-                >
-                  <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
-                    <Button
-                      mode="contained"
-                      onPress={handleLogin}
-                      style={styles.loginButton}
-                      contentStyle={styles.buttonContent}
-                      labelStyle={styles.buttonLabel}
-                      onPressIn={() => animateButton(0.95)}
-                      onPressOut={() => animateButton(1)}
-                      icon="login"
-                    >
-                      Увійти
-                    </Button>
-                  </Animated.View>
-                </Animatable.View>
-              </View>
-
-              <Animatable.View 
-                animation="fadeIn" 
-                duration={1000}
-                delay={800}
-                style={styles.footer}
-              >
-                <Text style={styles.footerText}>Немає акаунту?</Text>
-                
-                <View style={styles.registrationButtons}>
-                  <Button
-                    mode="contained"
-                    onPress={() => navigation.navigate('RoleSelection')}
-                    style={styles.registrationButton}
-                    contentStyle={styles.regButtonContent}
-                    labelStyle={styles.regButtonLabel}
-                    icon="account-plus"
-                  >
-                    Зареєструватися
-                  </Button>
-                </View>
-              </Animatable.View>
+          <View style={styles.brandRow}>
+            <View style={styles.logo}>
+              <Ionicons color={palette.backgroundSecondary} name="navigate" size={28} />
             </View>
-          </BlurView>
-        </Animated.View>
-      </LinearGradient>
+            <View>
+              <Text style={styles.brand}>SwiftTaxi</Text>
+              <Text style={styles.brandHint}>Швидке замовлення таксі</Text>
+            </View>
+          </View>
+
+          <View style={styles.hero}>
+            <Text style={styles.title}>
+              {step === 'phone' ? 'Увійдіть за номером телефону' : 'Введіть SMS-код'}
+            </Text>
+            <Text style={styles.subtitle}>
+              {step === 'phone'
+                ? 'Потрібен лише номер. Маршрут і оплата будуть доступні одразу після входу.'
+                : `Ми надіслали код на ${maskedPhone}. Для демо підійде будь-який код від 4 цифр.`}
+            </Text>
+          </View>
+
+          <View style={styles.form}>
+            {step === 'phone' ? (
+              <Input
+                autoFocus
+                error={error}
+                icon="call-outline"
+                keyboardType="phone-pad"
+                label="Номер телефону"
+                onChangeText={(value) => {
+                  setPhone(sanitizePhone(value));
+                  setError('');
+                }}
+                placeholder="+380 00 000 00 00"
+                textContentType="telephoneNumber"
+                value={phone}
+              />
+            ) : (
+              <Input
+                autoFocus
+                error={error}
+                icon="keypad-outline"
+                keyboardType="number-pad"
+                label="SMS-код"
+                maxLength={6}
+                onChangeText={(value) => {
+                  setCode(value.replace(/[^\d]/g, ''));
+                  setError('');
+                }}
+                placeholder="0000"
+                value={code}
+              />
+            )}
+
+            <Button
+              loading={loading}
+              onPress={step === 'phone' ? handleRequestCode : handleVerifyCode}
+              rightIcon={step === 'phone' ? 'arrow-forward' : 'checkmark'}
+              subtitle={step === 'phone' ? '1 крок до замовлення' : 'Без пароля'}
+              title={step === 'phone' ? 'Отримати SMS-код' : 'Увійти'}
+            />
+
+            {step === 'sms' ? (
+              <TouchableOpacity activeOpacity={0.86} onPress={() => setStep('phone')} style={styles.textButton}>
+                <Text style={styles.textButtonLabel}>Змінити номер</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          <View style={styles.secondaryActions}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              onPress={() => navigation.navigate('RoleSelection')}
+              style={styles.secondaryAction}
+            >
+              <Ionicons color={palette.text} name="person-add-outline" size={18} />
+              <Text style={styles.secondaryActionText}>Зареєструватися</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              onPress={() => navigation.navigate('DriverHome')}
+              style={styles.secondaryAction}
+            >
+              <Ionicons color={palette.text} name="car-sport-outline" size={18} />
+              <Text style={styles.secondaryActionText}>Тестовий водій</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.stateCard}>
+            <Ionicons color={palette.success} name="shield-checkmark-outline" size={18} />
+            <Text style={styles.stateText}>
+              Телефон використовується для підтвердження поїздки, контакту з водієм і підтримки.
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 30,
-  },
-  appName: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#FFF',
-    letterSpacing: 2,
-    marginTop: 10,
-    textShadowColor: 'rgba(255, 59, 48, 0.4)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
-  },
-  formContainer: {
-    flex: 1,
-    marginTop: 20,
-  },
-  blurContainer: {
-    borderRadius: 24,
-    overflow: 'hidden',
-    padding: 1,
-  },
-  formContent: {
-    backgroundColor: 'rgba(30, 30, 30, 0.7)',
-    borderRadius: 24,
-    padding: 25,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 59, 48, 0.2)',
-  },
-  formHeader: {
-    alignItems: 'center',
-    marginBottom: 25,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#FFF',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.7)',
-  },
-  form: {
-    gap: 20,
-  },
-  buttonContainer: {
-    marginTop: 15,
-  },
-  testButtonContainer: {
-    marginTop: 4,
-  },
-  driverTestButtonContainer: {
-    marginTop: -6,
-  },
-  testButton: {
-    borderRadius: 14,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  testButtonContent: {
-    height: 52,
-  },
-  testButtonLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  driverTestButton: {
-    borderRadius: 14,
-    borderColor: 'rgba(255, 59, 48, 0.45)',
-    backgroundColor: 'rgba(255, 59, 48, 0.08)',
-  },
-  driverTestButtonLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  loginButton: {
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: '#FF3B30',
-    shadowColor: '#FF3B30',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  buttonContent: {
-    height: 56,
-  },
-  buttonLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  footer: {
-    marginTop: 25,
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.7)',
-    marginBottom: 15,
-  },
-  registrationButtons: {
-    width: '100%',
-  },
-  registrationButton: {
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: '#FF3B30',
-    shadowColor: '#FF3B30',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  regButtonContent: {
-    height: 56,
-  },
-  regButtonLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  decorativeCircle: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: 'rgba(255, 59, 48, 0.08)',
-    top: -150,
-    left: -100,
-  },
-  circleTopRight: {
-    top: -100,
-    left: 'auto',
-    right: -150,
-  },
-});
+const createStyles = (
+  palette: PassengerPalette,
+  radius: typeof import('../../theme/passenger').passengerRadius
+) =>
+  StyleSheet.create({
+    brand: {
+      color: palette.text,
+      fontSize: 22,
+      fontWeight: '900',
+    },
+    brandHint: {
+      color: palette.mutedText,
+      fontSize: 13,
+      fontWeight: '700',
+      marginTop: 2,
+    },
+    brandRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: passengerSpacing.md,
+    },
+    content: {
+      flexGrow: 1,
+      gap: passengerSpacing.xxl,
+      justifyContent: 'center',
+      padding: passengerSpacing.xl,
+    },
+    form: {
+      gap: passengerSpacing.lg,
+    },
+    hero: {
+      gap: passengerSpacing.md,
+    },
+    logo: {
+      alignItems: 'center',
+      backgroundColor: palette.surfaceStrong,
+      borderRadius: radius.lg,
+      height: 58,
+      justifyContent: 'center',
+      width: 58,
+    },
+    safeArea: {
+      backgroundColor: palette.backgroundSecondary,
+      flex: 1,
+    },
+    screen: {
+      flex: 1,
+    },
+    secondaryAction: {
+      alignItems: 'center',
+      backgroundColor: palette.surfaceMuted,
+      borderRadius: radius.lg,
+      flex: 1,
+      flexDirection: 'row',
+      gap: passengerSpacing.sm,
+      justifyContent: 'center',
+      minHeight: 50,
+      paddingHorizontal: passengerSpacing.md,
+    },
+    secondaryActionText: {
+      color: palette.text,
+      fontSize: 13,
+      fontWeight: '800',
+    },
+    secondaryActions: {
+      flexDirection: 'row',
+      gap: passengerSpacing.md,
+    },
+    stateCard: {
+      alignItems: 'flex-start',
+      backgroundColor: palette.successSoft,
+      borderRadius: radius.lg,
+      flexDirection: 'row',
+      gap: passengerSpacing.sm,
+      padding: passengerSpacing.lg,
+    },
+    stateText: {
+      color: palette.text,
+      flex: 1,
+      fontSize: 13,
+      fontWeight: '700',
+      lineHeight: 19,
+    },
+    subtitle: {
+      color: palette.mutedText,
+      fontSize: 16,
+      lineHeight: 23,
+    },
+    textButton: {
+      alignItems: 'center',
+      paddingVertical: passengerSpacing.sm,
+    },
+    textButtonLabel: {
+      color: palette.text,
+      fontSize: 14,
+      fontWeight: '900',
+    },
+    title: {
+      color: palette.text,
+      fontSize: 32,
+      fontWeight: '900',
+      lineHeight: 38,
+    },
+  });
 
-export default Login; 
+export default Login;

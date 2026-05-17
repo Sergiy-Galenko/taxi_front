@@ -20,7 +20,7 @@ const paymentLabelToKey = (paymentLabel: string) => {
     return 'apple_pay' as const;
   }
 
-  if (paymentLabel.toLowerCase().includes('cash')) {
+  if (paymentLabel.toLowerCase().includes('cash') || paymentLabel.toLowerCase().includes('готів')) {
     return 'cash' as const;
   }
 

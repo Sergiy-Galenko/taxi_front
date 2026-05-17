@@ -1,6 +1,5 @@
 import React, { ReactNode, useMemo } from 'react';
 import { StyleProp, StatusBar, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import PassengerTabBar from './PassengerTabBar';
 import { usePassengerTheme } from '../../hooks/usePassengerTheme';
@@ -33,15 +32,9 @@ export default function PassengerScreenLayout({
   const styles = useMemo(() => createStyles(palette), [palette]);
 
   return (
-    <LinearGradient
-      colors={[palette.background, palette.backgroundSecondary, palette.background]}
-      style={styles.background}
-    >
+    <View style={styles.background}>
       <StatusBar barStyle={palette.statusBar} backgroundColor={palette.background} />
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-        <View pointerEvents="none" style={[styles.blob, styles.blobPrimary]} />
-        <View pointerEvents="none" style={[styles.blob, styles.blobSecondary]} />
-
         {showHeader ? (
           <View style={styles.header}>
             <View style={styles.headerText}>
@@ -55,36 +48,17 @@ export default function PassengerScreenLayout({
         <View style={[styles.content, contentStyle]}>{children}</View>
         <PassengerTabBar activeRoute={activeRoute} />
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const createStyles = (palette: PassengerPalette) => StyleSheet.create({
   background: {
+    backgroundColor: palette.background,
     flex: 1,
   },
   safeArea: {
     flex: 1,
-  },
-  blob: {
-    position: 'absolute',
-    borderRadius: 999,
-  },
-  blobPrimary: {
-    backgroundColor: palette.backgroundAccent,
-    height: 220,
-    opacity: 0.45,
-    right: -70,
-    top: -20,
-    width: 220,
-  },
-  blobSecondary: {
-    backgroundColor: palette.primarySoft,
-    bottom: 160,
-    height: 180,
-    left: -90,
-    opacity: 0.5,
-    width: 180,
   },
   header: {
     alignItems: 'flex-start',
@@ -99,9 +73,8 @@ const createStyles = (palette: PassengerPalette) => StyleSheet.create({
   },
   title: {
     color: palette.text,
-    fontSize: 30,
-    fontWeight: '800',
-    letterSpacing: -0.7,
+    fontSize: 28,
+    fontWeight: '900',
   },
   subtitle: {
     color: palette.mutedText,

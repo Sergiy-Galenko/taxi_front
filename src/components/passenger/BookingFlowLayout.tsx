@@ -8,7 +8,6 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -39,15 +38,9 @@ export default function BookingFlowLayout({
   const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
 
   return (
-    <LinearGradient
-      colors={[palette.background, palette.backgroundSecondary, palette.background]}
-      style={styles.background}
-    >
+    <View style={styles.background}>
       <StatusBar barStyle={palette.statusBar} backgroundColor={palette.background} />
       <SafeAreaView style={styles.safeArea}>
-        <View pointerEvents="none" style={[styles.blob, styles.blobPrimary]} />
-        <View pointerEvents="none" style={[styles.blob, styles.blobSecondary]} />
-
         <View style={styles.header}>
           <TouchableOpacity
             activeOpacity={0.9}
@@ -68,7 +61,7 @@ export default function BookingFlowLayout({
         <View style={[styles.content, contentStyle]}>{children}</View>
         {footer ? <View style={styles.footer}>{footer}</View> : null}
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -77,33 +70,14 @@ const createStyles = (
   radius: typeof import('../../theme/passenger').passengerRadius
 ) => StyleSheet.create({
   background: {
+    backgroundColor: palette.background,
     flex: 1,
   },
   safeArea: {
     flex: 1,
   },
-  blob: {
-    position: 'absolute',
-    borderRadius: 999,
-  },
-  blobPrimary: {
-    backgroundColor: palette.backgroundAccent,
-    width: 220,
-    height: 220,
-    right: -80,
-    top: -30,
-    opacity: 0.45,
-  },
-  blobSecondary: {
-    backgroundColor: palette.primarySoft,
-    width: 180,
-    height: 180,
-    left: -70,
-    bottom: 160,
-    opacity: 0.4,
-  },
   header: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     flexDirection: 'row',
     gap: 14,
     paddingHorizontal: 20,
@@ -126,9 +100,8 @@ const createStyles = (
   },
   title: {
     color: palette.text,
-    fontSize: 26,
-    fontWeight: '800',
-    letterSpacing: -0.6,
+    fontSize: 24,
+    fontWeight: '900',
   },
   subtitle: {
     color: palette.mutedText,

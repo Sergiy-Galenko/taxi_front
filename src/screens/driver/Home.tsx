@@ -344,7 +344,6 @@ const styles = StyleSheet.create({
     color: '#FF9B7C',
     fontSize: 13,
     textTransform: 'uppercase',
-    letterSpacing: 1.2,
   },
   driverName: {
     color: '#FFF6F2',

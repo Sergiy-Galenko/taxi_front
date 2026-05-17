@@ -273,7 +273,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
 
           <View style={styles.profileCopy}>
             <Text style={styles.profileName}>{user?.fullName || t('settings.guestRider')}</Text>
-            <Text style={styles.profileMeta}>{user?.email || t('settings.addEmail')}</Text>
+            <Text style={styles.profileMeta}>{user?.phoneNumber || user?.email || t('settings.addEmail')}</Text>
             <View style={styles.profileBadge}>
               <Ionicons color={palette.primaryDeep} name="star" size={14} />
               <Text style={styles.profileBadgeText}>

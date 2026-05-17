@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { Platform, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type EdgePadding } from 'react-native-maps';
+import React, { memo, useEffect, useMemo, useRef } from 'react';
+import { Image, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { hasGoogleMapsApiKey } from '../../config/googleMaps';
 import { DEFAULT_CITY_CENTER } from '../../data/passenger';
 import { getRegionFromCoordinates } from '../../services/maps/geometry';
@@ -43,34 +42,31 @@ interface GoogleRouteMapProps {
   style: StyleProp<ViewStyle>;
 }
 
-const paddingValueToEdgePadding = (paddingConfig?: number | number[]): EdgePadding => {
-  if (Array.isArray(paddingConfig)) {
-    const [top = 0, right = top, bottom = top, left = right] = paddingConfig;
-    return { bottom, left, right, top };
-  }
+const TILE_ZOOM = 13;
+const TILE_GRID_SIZE = 3;
 
-  const uniform = paddingConfig ?? 0;
-  return {
-    bottom: uniform,
-    left: uniform,
-    right: uniform,
-    top: uniform,
-  };
+const longitudeToTileX = (longitude: number, zoom: number) =>
+  ((longitude + 180) / 360) * 2 ** zoom;
+
+const latitudeToTileY = (latitude: number, zoom: number) => {
+  const latitudeRad = (latitude * Math.PI) / 180;
+  return (
+    ((1 - Math.log(Math.tan(latitudeRad) + 1 / Math.cos(latitudeRad)) / Math.PI) / 2) *
+    2 ** zoom
+  );
 };
 
-export default function GoogleRouteMap({
+const clampPercent = (value: number) => Math.max(6, Math.min(94, value));
+
+function GoogleRouteMap({
   cameraRef,
   language,
   markers,
   onMapPress,
-  onUserLocationUpdate,
   routeCoordinates = [],
-  routeLineColor = '#D18C00',
-  scrollEnabled = true,
-  showUserLocation = false,
   style,
 }: GoogleRouteMapProps) {
-  const mapRef = useRef<MapView | null>(null);
+  const mapRef = useRef<any>(null);
   const initialRegion = useMemo(() => {
     return getRegionFromCoordinates(
       [...routeCoordinates, ...markers.map((marker) => marker.coords)],
@@ -84,36 +80,8 @@ export default function GoogleRouteMap({
     }
 
     cameraRef.current = {
-      fitBounds: (ne, sw, paddingConfig = 0) => {
-        mapRef.current?.fitToCoordinates(
-          [
-            { latitude: sw[1], longitude: sw[0] },
-            { latitude: ne[1], longitude: ne[0] },
-          ],
-          {
-            animated: true,
-            edgePadding: paddingValueToEdgePadding(paddingConfig),
-          }
-        );
-      },
-      setCamera: ({ animationDuration = 600, centerCoordinate, zoomLevel }) => {
-        const center = centerCoordinate
-          ? {
-              latitude: centerCoordinate[1],
-              longitude: centerCoordinate[0],
-            }
-          : undefined;
-
-        mapRef.current?.animateCamera(
-          {
-            center,
-            zoom: zoomLevel,
-          },
-          {
-            duration: animationDuration,
-          }
-        );
-      },
+      fitBounds: () => undefined,
+      setCamera: () => undefined,
     };
 
     return () => {
@@ -121,87 +89,166 @@ export default function GoogleRouteMap({
     };
   }, [cameraRef]);
 
-  if (!hasGoogleMapsApiKey()) {
-    const title =
-      language === 'uk' ? 'Google Maps недоступна' : 'Google Maps unavailable';
-    const description =
-      language === 'uk'
-        ? 'Додайте EXPO_PUBLIC_GOOGLE_MAPS_API_KEY та перебудуйте застосунок, щоб увімкнути карти, підказки адрес і маршрути.'
-        : 'Add EXPO_PUBLIC_GOOGLE_MAPS_API_KEY and rebuild the app to enable maps, autocomplete, and routing.';
-
-    return (
-      <View style={[styles.unavailableCard, style]}>
-        <Text style={styles.unavailableTitle}>{title}</Text>
-        <Text style={styles.unavailableText}>{description}</Text>
-      </View>
-    );
-  }
+  const hasApiKey = hasGoogleMapsApiKey();
+  const attribution = hasApiKey
+    ? language === 'uk'
+      ? 'Демо-карта'
+      : 'Demo map'
+    : language === 'uk'
+      ? 'OpenStreetMap'
+      : 'OpenStreetMap';
 
   return (
-    <MapView
-      showsCompass={false}
-      showsIndoors={false}
-      showsMyLocationButton={false}
-      showsPointsOfInterests={false}
-      showsTraffic
-      toolbarEnabled={false}
-      provider={Platform.OS === 'android' || Platform.OS === 'ios' ? PROVIDER_GOOGLE : undefined}
-      onPress={() => onMapPress?.()}
-      onUserLocationChange={(event) => {
-        const coordinate = event.nativeEvent.coordinate;
+    <View ref={mapRef} onTouchEnd={onMapPress} style={style}>
+      <MapFallback
+        initialRegion={initialRegion}
+        markers={markers}
+        routeCoordinates={routeCoordinates}
+        attribution={attribution}
+      />
+    </View>
+  );
+}
 
-        if (!coordinate) {
-          return;
-        }
+export default memo(GoogleRouteMap);
 
-        onUserLocationUpdate?.({
-          latitude: coordinate.latitude,
-          longitude: coordinate.longitude,
-        });
-      }}
-      initialRegion={initialRegion}
-      pitchEnabled={false}
-      rotateEnabled={false}
-      scrollEnabled={scrollEnabled}
-      showsUserLocation={showUserLocation}
-      style={style}
-      zoomEnabled={scrollEnabled}
-      ref={(instance) => {
-        mapRef.current = instance;
-      }}
-    >
-      {routeCoordinates.length > 1 ? (
-        <Polyline
-          coordinates={routeCoordinates}
-          geodesic
-          lineCap="round"
-          lineJoin="round"
-          strokeColor={routeLineColor}
-          strokeWidth={5}
-        />
-      ) : null}
+interface MapFallbackProps {
+  attribution: string;
+  initialRegion: ReturnType<typeof getRegionFromCoordinates>;
+  markers: RouteMarker[];
+  routeCoordinates: Coordinates[];
+}
 
-      {markers.map((marker) => (
-        <Marker
-          key={marker.id}
-          anchor={marker.anchor}
-          coordinate={marker.coords}
-          tracksViewChanges={false}
-        >
-          {marker.element}
-        </Marker>
-      ))}
-    </MapView>
+function MapFallback({
+  attribution,
+  initialRegion,
+  markers,
+  routeCoordinates,
+}: MapFallbackProps) {
+  const tileData = useMemo(() => {
+    const centerTileX = longitudeToTileX(initialRegion.longitude, TILE_ZOOM);
+    const centerTileY = latitudeToTileY(initialRegion.latitude, TILE_ZOOM);
+    const baseX = Math.floor(centerTileX) - 1;
+    const baseY = Math.floor(centerTileY) - 1;
+
+    return Array.from({ length: TILE_GRID_SIZE * TILE_GRID_SIZE }, (_, index) => {
+      const col = index % TILE_GRID_SIZE;
+      const row = Math.floor(index / TILE_GRID_SIZE);
+      const x = baseX + col;
+      const y = baseY + row;
+
+      return {
+        id: `${x}-${y}`,
+        left: `${col * (100 / TILE_GRID_SIZE)}%`,
+        top: `${row * (100 / TILE_GRID_SIZE)}%`,
+        uri: `https://tile.openstreetmap.org/${TILE_ZOOM}/${x}/${y}.png`,
+      };
+    });
+  }, [initialRegion.latitude, initialRegion.longitude]);
+
+  const markerPositions = useMemo(() => {
+    const centerTileX = longitudeToTileX(initialRegion.longitude, TILE_ZOOM);
+    const centerTileY = latitudeToTileY(initialRegion.latitude, TILE_ZOOM);
+    const scale = 100 / TILE_GRID_SIZE;
+
+    return markers.map((marker) => {
+      const x = longitudeToTileX(marker.coords.longitude, TILE_ZOOM);
+      const y = latitudeToTileY(marker.coords.latitude, TILE_ZOOM);
+
+      return {
+        id: marker.id,
+        left: `${clampPercent(50 + (x - centerTileX) * scale)}%`,
+        top: `${clampPercent(50 + (y - centerTileY) * scale)}%`,
+      };
+    });
+  }, [initialRegion.latitude, initialRegion.longitude, markers]);
+
+  return (
+    <View style={styles.unavailableCard}>
+      <View style={styles.fallbackGrid}>
+        {tileData.map((tile) => (
+          <Image
+            key={tile.id}
+            resizeMode="cover"
+            source={{ uri: tile.uri }}
+            style={[styles.tile, { left: tile.left as any, top: tile.top as any }]}
+          />
+        ))}
+        <View pointerEvents="none" style={styles.tileOverlay} />
+        {routeCoordinates.length > 1 ? <View style={styles.fallbackRouteLine} /> : null}
+        {markerPositions.map((marker) => (
+          <View
+            key={marker.id}
+            style={[
+              styles.fallbackMarker,
+              marker.id === 'destination' && styles.fallbackDestinationMarker,
+              { left: marker.left as any, top: marker.top as any },
+            ]}
+          />
+        ))}
+        <Text style={styles.attribution}>© {attribution}</Text>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  attribution: {
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    borderRadius: 999,
+    bottom: 12,
+    color: '#64716C',
+    fontSize: 10,
+    fontWeight: '700',
+    left: 12,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    position: 'absolute',
+  },
+  fallbackDestinationMarker: {
+    backgroundColor: '#C94A4A',
+  },
+  fallbackGrid: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#E9EFE9',
+  },
+  fallbackMarker: {
+    backgroundColor: '#197A68',
+    borderColor: '#FFFFFF',
+    borderRadius: 13,
+    borderWidth: 3,
+    height: 26,
+    position: 'absolute',
+    width: 26,
+  },
+  fallbackRouteLine: {
+    backgroundColor: 'rgba(17, 24, 23, 0.78)',
+    borderRadius: 999,
+    height: 6,
+    left: '22%',
+    position: 'absolute',
+    right: '22%',
+    top: '52%',
+    transform: [{ rotate: '-14deg' }],
+  },
+  tile: {
+    height: '33.34%',
+    position: 'absolute',
+    width: '33.34%',
+  },
+  tileOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(233, 239, 233, 0.12)',
+  },
   unavailableCard: {
     alignItems: 'center',
-    backgroundColor: '#F4F1EA',
+    backgroundColor: '#E9EFE9',
+    flex: 1,
     justifyContent: 'center',
+    overflow: 'hidden',
     paddingHorizontal: 24,
     paddingVertical: 20,
+    width: '100%',
   },
   unavailableText: {
     color: '#4B5563',

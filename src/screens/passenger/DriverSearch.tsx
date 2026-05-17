@@ -28,11 +28,25 @@ const driverMatches = {
     rating: '4.98',
     etaMin: 3,
   },
-  xl: {
+  business: {
+    name: 'Andrii V.',
+    car: 'Mercedes E-Class',
+    plate: 'AA 7007 IM',
+    rating: '4.99',
+    etaMin: 6,
+  },
+  minivan: {
     name: 'Yaroslav M.',
     car: 'Volkswagen Caravelle',
     plate: 'AI 9033 MX',
     rating: '4.95',
+    etaMin: 5,
+  },
+  delivery: {
+    name: 'Iryna S.',
+    car: 'Renault Kangoo',
+    plate: 'KA 4412 CE',
+    rating: '4.94',
     etaMin: 5,
   },
 } as const;

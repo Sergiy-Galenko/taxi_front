@@ -2,9 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import PaymentMethod from '../../components/PaymentMethod';
+import TariffCard from '../../components/TariffCard';
 import BookingFlowLayout from '../../components/passenger/BookingFlowLayout';
 import RouteSummaryCard from '../../components/passenger/RouteSummaryCard';
-import VehicleOptionCard from '../../components/passenger/VehicleOptionCard';
 import {
   calculateTripSummary,
   calculateTripSummaryFromMetrics,
@@ -51,7 +52,7 @@ export default function VehicleSelectionScreen({ navigation, route }: VehicleSel
   const handleConfirmRide = async () => {
     await setDefaultPaymentMethod(paymentMethod);
 
-    navigation.navigate('DriverSearch', {
+    navigation.navigate('OrderConfirm', {
       ...route.params,
       rideType: selectedRide,
       paymentMethod,
@@ -72,7 +73,7 @@ export default function VehicleSelectionScreen({ navigation, route }: VehicleSel
             <Text style={styles.primaryEyebrow}>
               {t('vehicleSelection.confirmEyebrow', { ride: t(`rideOptions.${selectedRide}.label`) })}
             </Text>
-            <Text style={styles.primaryTitle}>{t('vehicleSelection.confirmTitle', { price: summary.price })}</Text>
+              <Text style={styles.primaryTitle}>{t('orderConfirm.title')} · {t('common.priceUah', { amount: summary.price })}</Text>
           </View>
           <Ionicons color="#FFFFFF" name="arrow-forward" size={18} />
         </TouchableOpacity>
@@ -127,7 +128,7 @@ export default function VehicleSelectionScreen({ navigation, route }: VehicleSel
 
         <View style={styles.vehicleList}>
           {RIDE_OPTIONS.map((option) => (
-            <VehicleOptionCard
+            <TariffCard
               key={option.key}
               onPress={() => setSelectedRide(option.key)}
               option={option}
@@ -160,14 +161,12 @@ export default function VehicleSelectionScreen({ navigation, route }: VehicleSel
               const active = option === paymentMethod;
 
               return (
-                <TouchableOpacity
+                <PaymentMethod
                   key={option}
-                  activeOpacity={0.88}
+                  method={option}
                   onPress={() => setPaymentMethod(option)}
-                  style={[styles.paymentChip, active && styles.paymentChipActive]}
-                >
-                  <Text style={[styles.paymentChipText, active && styles.paymentChipTextActive]}>{t(`payments.${option}`)}</Text>
-                </TouchableOpacity>
+                  selected={active}
+                />
               );
             })}
           </View>
@@ -261,14 +260,12 @@ const createStyles = (palette: PassengerPalette, radius: typeof import('../../th
     color: palette.primaryDeep,
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
   heroTitle: {
     color: palette.text,
     fontSize: 24,
     fontWeight: '800',
-    letterSpacing: -0.6,
   },
   heroHint: {
     color: palette.mutedText,

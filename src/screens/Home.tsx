@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -6,7 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -14,6 +13,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AddressSearch from '../components/AddressSearch';
+import BottomSheet from '../components/BottomSheet';
+import Button from '../components/Button';
+import MapControls from '../components/MapControls';
 import GoogleRouteMap, { type RouteMapCameraRef } from '../components/maps/GoogleRouteMap';
 import PassengerScreenLayout from '../components/passenger/PassengerScreenLayout';
 import {
@@ -25,6 +28,7 @@ import {
   calculateTripSummaryFromMetrics,
   DEFAULT_CITY_CENTER,
   findLocationSuggestion,
+  LOCATION_SUGGESTIONS,
   searchDestinationSuggestions,
 } from '../data/passenger';
 import { useI18n } from '../hooks/useI18n';
@@ -37,8 +41,8 @@ import {
   searchGooglePlaceSuggestions,
 } from '../services/googleMaps/places';
 import { getBoundsFromCoordinates } from '../services/maps/geometry';
-import { PassengerPalette } from '../theme/passenger';
 import { usePassengerTheme } from '../hooks/usePassengerTheme';
+import { PassengerPalette, passengerSpacing } from '../theme/passenger';
 import { RootStackParamList } from '../types/navigation';
 import { Coordinates, DestinationSuggestion, RideOptionKey } from '../types/passenger';
 
@@ -65,6 +69,11 @@ const areCoordinatesEqual = (
 
   return left.latitude === right.latitude && left.longitude === right.longitude;
 };
+
+const buildSuggestionLabel = (suggestion: DestinationSuggestion) =>
+  suggestion.fullAddress ||
+  [suggestion.title, suggestion.subtitle].filter(Boolean).join(', ') ||
+  suggestion.title;
 
 export default function HomeScreen({ navigation, route }: HomeScreenProps) {
   const cameraRef = useRef<RouteMapCameraRef | null>(null);
@@ -126,13 +135,13 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
       routeDistanceKm != null && routeDurationMin != null
         ? calculateTripSummaryFromMetrics(routeDistanceKm, routeDurationMin, 'economy')
         : calculateTripSummary(pickupCoords, destinationCoords, 'economy');
-    const xl =
+    const premium =
       routeDistanceKm != null && routeDurationMin != null
-        ? calculateTripSummaryFromMetrics(routeDistanceKm, routeDurationMin, 'xl')
-        : calculateTripSummary(pickupCoords, destinationCoords, 'xl');
+        ? calculateTripSummaryFromMetrics(routeDistanceKm, routeDurationMin, 'business')
+        : calculateTripSummary(pickupCoords, destinationCoords, 'business');
 
     return {
-      max: xl.price,
+      max: premium.price,
       min: economy.price,
     };
   }, [destinationCoords, pickupCoords, routeDistanceKm, routeDurationMin]);
@@ -175,52 +184,135 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
       .slice(0, 6);
   }, [activeQuery, focusedField, localPlaceSuggestions, remotePlaceSuggestions]);
 
-  const moveCameraToCoordinate = (coords: Coordinates) => {
+  const moveCameraToCoordinate = useCallback((coords: Coordinates) => {
     cameraRef.current?.setCamera({
       animationDuration: 600,
       centerCoordinate: [coords.longitude, coords.latitude],
       zoomLevel: DEFAULT_HOME_ZOOM,
     });
-  };
+  }, []);
 
-  const applyCurrentLocation = async (
-    coords: Coordinates,
-    options?: {
-      centerMap?: boolean;
-      forcePickup?: boolean;
-    }
-  ) => {
-    const shouldReplacePickup =
-      options?.forcePickup ||
-      normalizeInputValue(pickupValueRef.current) === normalizeInputValue(detectingPickupLabel) ||
-      normalizeInputValue(pickupValueRef.current) === normalizeInputValue(currentLocationLabel) ||
-      normalizeInputValue(pickupValueRef.current) === normalizeInputValue(cityCenterLabel);
+  const applyCurrentLocation = useCallback(
+    async (
+      coords: Coordinates,
+      options?: {
+        centerMap?: boolean;
+        forcePickup?: boolean;
+      }
+    ) => {
+      const shouldReplacePickup =
+        options?.forcePickup ||
+        normalizeInputValue(pickupValueRef.current) === normalizeInputValue(detectingPickupLabel) ||
+        normalizeInputValue(pickupValueRef.current) === normalizeInputValue(currentLocationLabel) ||
+        normalizeInputValue(pickupValueRef.current) === normalizeInputValue(cityCenterLabel);
 
-    setCurrentCoords(coords);
+      setCurrentCoords(coords);
 
-    if (options?.centerMap) {
-      moveCameraToCoordinate(coords);
-    }
+      if (options?.centerMap) {
+        moveCameraToCoordinate(coords);
+      }
 
-    if (!shouldReplacePickup) {
-      return;
-    }
+      if (!shouldReplacePickup) {
+        return;
+      }
 
-    setPickupCoords(coords);
+      setPickupCoords(coords);
 
-    try {
-      const place = await reverseGeocodeGoogleAddress(coords, language);
-      const nextPickupLabel = place?.fullAddress || place?.title || currentLocationLabel;
+      try {
+        const place = await reverseGeocodeGoogleAddress(coords, language);
+        const nextPickupLabel = place?.fullAddress || place?.title || currentLocationLabel;
 
-      pickupValueRef.current = nextPickupLabel;
-      setPickup(nextPickupLabel);
-      setAreaLabel(place?.subtitle || cityCenterLabel);
-    } catch {
-      pickupValueRef.current = currentLocationLabel;
-      setPickup(currentLocationLabel);
-      setAreaLabel(cityCenterLabel);
-    }
-  };
+        pickupValueRef.current = nextPickupLabel;
+        setPickup(nextPickupLabel);
+        setAreaLabel(place?.subtitle || cityCenterLabel);
+      } catch {
+        pickupValueRef.current = currentLocationLabel;
+        setPickup(currentLocationLabel);
+        setAreaLabel(cityCenterLabel);
+      }
+    },
+    [
+      cityCenterLabel,
+      currentLocationLabel,
+      detectingPickupLabel,
+      language,
+      moveCameraToCoordinate,
+    ]
+  );
+
+  const resolveAddress = useCallback(
+    async (label: string, isPickup: boolean): Promise<Coordinates | null> => {
+      const normalizedLabel = label.trim();
+
+      const applyCoordinates = (coords: Coordinates): Coordinates => {
+        const currentFieldValue = isPickup ? pickupValueRef.current : destinationValueRef.current;
+
+        if (normalizeInputValue(currentFieldValue) !== normalizeInputValue(normalizedLabel)) {
+          return coords;
+        }
+
+        if (isPickup) {
+          setPickupCoords(coords);
+        } else {
+          setDestinationCoords(coords);
+        }
+
+        return coords;
+      };
+
+      const clearCoordinates = () => {
+        const currentFieldValue = isPickup ? pickupValueRef.current : destinationValueRef.current;
+
+        if (normalizeInputValue(currentFieldValue) !== normalizeInputValue(normalizedLabel)) {
+          return;
+        }
+
+        if (isPickup) {
+          setPickupCoords(null);
+        } else {
+          setDestinationCoords(null);
+        }
+      };
+
+      if (!normalizedLabel) {
+        clearCoordinates();
+        return null;
+      }
+
+      const matchedSuggestion = findLocationSuggestion(normalizedLabel);
+
+      if (matchedSuggestion) {
+        return applyCoordinates(matchedSuggestion.coords);
+      }
+
+      if (
+        isPickup &&
+        currentCoords &&
+        normalizeInputValue(normalizedLabel) === normalizeInputValue(currentLocationLabel)
+      ) {
+        return applyCoordinates(currentCoords);
+      }
+
+      if (normalizeInputValue(normalizedLabel) === normalizeInputValue(cityCenterLabel)) {
+        return applyCoordinates(DEFAULT_CITY_CENTER);
+      }
+
+      try {
+        const place = await forwardGeocodeGoogleAddress(normalizedLabel, language);
+
+        if (place?.coords) {
+          return applyCoordinates(place.coords);
+        }
+      } catch {
+        clearCoordinates();
+        return null;
+      }
+
+      clearCoordinates();
+      return null;
+    },
+    [cityCenterLabel, currentCoords, currentLocationLabel, language]
+  );
 
   useEffect(() => {
     pickupValueRef.current = pickup;
@@ -296,7 +388,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
     return () => {
       active = false;
     };
-  }, [cityCenterLabel, currentLocationLabel, detectingPickupLabel, language, locationOffShortLabel]);
+  }, [applyCurrentLocation, cityCenterLabel, locationOffShortLabel]);
 
   useEffect(() => {
     if (!routeParams) {
@@ -318,7 +410,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
       setDestination(routeParams.to);
       void resolveAddress(routeParams.to, false);
     }
-  }, [routeParams]);
+  }, [resolveAddress, routeParams]);
 
   useEffect(() => {
     const coordinatesToFit =
@@ -333,7 +425,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
       return;
     }
 
-    cameraRef.current?.fitBounds(bounds.ne, bounds.sw, [160, 44, 280, 44], 650);
+    cameraRef.current?.fitBounds(bounds.ne, bounds.sw, [160, 44, 300, 44], 650);
   }, [destinationCoords, pickupCoords, routeLine]);
 
   useEffect(() => {
@@ -346,7 +438,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
     }, 550);
 
     return () => clearTimeout(timer);
-  }, [focusedField, pickup]);
+  }, [focusedField, pickup, resolveAddress]);
 
   useEffect(() => {
     if (!destination) {
@@ -363,7 +455,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
     }, 550);
 
     return () => clearTimeout(timer);
-  }, [destination, focusedField]);
+  }, [destination, focusedField, resolveAddress]);
 
   useEffect(() => {
     if (!focusedField || activeQuery.trim().length < 2 || !hasGoogleMapsApiKey()) {
@@ -439,92 +531,21 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
     return () => controller.abort();
   }, [destinationCoords, language, pickupCoords]);
 
-  const resolveAddress = async (
-    label: string,
-    isPickup: boolean
-  ): Promise<Coordinates | null> => {
-    const normalizedLabel = label.trim();
+  const handleUserLocationUpdate = useCallback(
+    (coords: Coordinates) => {
+      setCurrentCoords(coords);
 
-    const applyCoordinates = (coords: Coordinates): Coordinates => {
-      const currentFieldValue = isPickup ? pickupValueRef.current : destinationValueRef.current;
-
-      if (normalizeInputValue(currentFieldValue) !== normalizeInputValue(normalizedLabel)) {
-        return coords;
-      }
-
-      if (isPickup) {
-        setPickupCoords(coords);
-      } else {
-        setDestinationCoords(coords);
-      }
-
-      return coords;
-    };
-
-    const clearCoordinates = () => {
-      const currentFieldValue = isPickup ? pickupValueRef.current : destinationValueRef.current;
-
-      if (normalizeInputValue(currentFieldValue) !== normalizeInputValue(normalizedLabel)) {
+      if (initialLocationResolvedRef.current) {
         return;
       }
 
-      if (isPickup) {
-        setPickupCoords(null);
-      } else {
-        setDestinationCoords(null);
-      }
-    };
+      initialLocationResolvedRef.current = true;
+      void applyCurrentLocation(coords, { centerMap: true, forcePickup: true });
+    },
+    [applyCurrentLocation]
+  );
 
-    if (!normalizedLabel) {
-      clearCoordinates();
-      return null;
-    }
-
-    const matchedSuggestion = findLocationSuggestion(normalizedLabel);
-
-    if (matchedSuggestion) {
-      return applyCoordinates(matchedSuggestion.coords);
-    }
-
-    if (
-      isPickup &&
-      currentCoords &&
-      normalizeInputValue(normalizedLabel) === normalizeInputValue(currentLocationLabel)
-    ) {
-      return applyCoordinates(currentCoords);
-    }
-
-    if (normalizeInputValue(normalizedLabel) === normalizeInputValue(cityCenterLabel)) {
-      return applyCoordinates(DEFAULT_CITY_CENTER);
-    }
-
-    try {
-      const place = await forwardGeocodeGoogleAddress(normalizedLabel, language);
-
-      if (place?.coords) {
-        return applyCoordinates(place.coords);
-      }
-    } catch {
-      clearCoordinates();
-      return null;
-    }
-
-    clearCoordinates();
-    return null;
-  };
-
-  const handleUserLocationUpdate = (coords: Coordinates) => {
-    setCurrentCoords(coords);
-
-    if (initialLocationResolvedRef.current) {
-      return;
-    }
-
-    initialLocationResolvedRef.current = true;
-    void applyCurrentLocation(coords, { centerMap: true, forcePickup: true });
-  };
-
-  const handleUseCurrentLocation = () => {
+  const handleUseCurrentLocation = useCallback(() => {
     if (!currentCoords) {
       return;
     }
@@ -533,9 +554,9 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
     setFocusedField(null);
     setRemotePlaceSuggestions([]);
     void applyCurrentLocation(currentCoords, { centerMap: true, forcePickup: true });
-  };
+  }, [applyCurrentLocation, currentCoords]);
 
-  const handleSwapLocations = () => {
+  const handleSwapLocations = useCallback(() => {
     if (!destination) {
       return;
     }
@@ -548,85 +569,88 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
     setDestinationCoords(pickupCoords);
     setFocusedField(null);
     setRemotePlaceSuggestions([]);
-  };
+  }, [destination, destinationCoords, pickup, pickupCoords]);
 
-  const applySuggestionToField = (
-    field: 'pickup' | 'destination',
-    value: string,
-    coords: Coordinates | null,
-    subtitle?: string
-  ) => {
-    if (field === 'pickup') {
-      pickupValueRef.current = value;
-      setPickup(value);
-      setPickupCoords(coords);
-      if (subtitle) {
-        setAreaLabel(subtitle);
+  const applySuggestionToField = useCallback(
+    (
+      field: 'pickup' | 'destination',
+      value: string,
+      coords: Coordinates | null,
+      subtitle?: string
+    ) => {
+      if (field === 'pickup') {
+        pickupValueRef.current = value;
+        setPickup(value);
+        setPickupCoords(coords);
+        if (subtitle) {
+          setAreaLabel(subtitle);
+        }
+        return;
       }
-      return;
-    }
 
-    destinationValueRef.current = value;
-    setDestination(value);
-    setDestinationCoords(coords);
-  };
+      destinationValueRef.current = value;
+      setDestination(value);
+      setDestinationCoords(coords);
+    },
+    []
+  );
 
-  const handlePlaceSuggestionSelect = async (suggestion: DestinationSuggestion) => {
-    const targetField = focusedField ?? 'destination';
-    const fallbackLabel =
-      suggestion.fullAddress ||
-      [suggestion.title, suggestion.subtitle].filter(Boolean).join(', ') ||
-      suggestion.title;
+  const handlePlaceSuggestionSelect = useCallback(
+    async (suggestion: DestinationSuggestion) => {
+      const targetField = focusedField ?? 'destination';
+      const fallbackLabel = buildSuggestionLabel(suggestion);
 
+      setFocusedField(null);
+      setRemotePlaceSuggestions([]);
+      Keyboard.dismiss();
+
+      if (suggestion.placeId) {
+        setIsResolvingSuggestion(true);
+
+        try {
+          const place = await fetchGooglePlaceDetails(
+            suggestion.placeId,
+            language,
+            autocompleteSessionTokenRef.current
+          );
+          const label = place?.fullAddress || fallbackLabel;
+
+          applySuggestionToField(targetField, label, place?.coords || suggestion.coords || null, place?.subtitle || suggestion.subtitle);
+        } catch {
+          applySuggestionToField(targetField, fallbackLabel, suggestion.coords || null, suggestion.subtitle);
+        } finally {
+          setIsResolvingSuggestion(false);
+        }
+      } else if (suggestion.coords) {
+        applySuggestionToField(targetField, fallbackLabel, suggestion.coords, suggestion.subtitle);
+      } else {
+        setIsResolvingSuggestion(true);
+
+        try {
+          const place = await forwardGeocodeGoogleAddress(fallbackLabel, language);
+          applySuggestionToField(
+            targetField,
+            place?.fullAddress || fallbackLabel,
+            place?.coords || null,
+            place?.subtitle || suggestion.subtitle
+          );
+        } finally {
+          setIsResolvingSuggestion(false);
+        }
+      }
+
+      autocompleteSessionTokenRef.current = createGooglePlacesSessionToken();
+    },
+    [applySuggestionToField, focusedField, language]
+  );
+
+  const handleDismissInputs = useCallback(() => {
+    Keyboard.dismiss();
     setFocusedField(null);
     setRemotePlaceSuggestions([]);
-    Keyboard.dismiss();
+  }, []);
 
-    if (suggestion.placeId) {
-      setIsResolvingSuggestion(true);
-
-      try {
-        const place = await fetchGooglePlaceDetails(
-          suggestion.placeId,
-          language,
-          autocompleteSessionTokenRef.current
-        );
-        const label = place?.fullAddress || fallbackLabel;
-
-        applySuggestionToField(targetField, label, place?.coords || suggestion.coords || null, place?.subtitle || suggestion.subtitle);
-      } catch {
-        applySuggestionToField(targetField, fallbackLabel, suggestion.coords || null, suggestion.subtitle);
-      } finally {
-        setIsResolvingSuggestion(false);
-      }
-    } else if (suggestion.coords) {
-      applySuggestionToField(targetField, fallbackLabel, suggestion.coords, suggestion.subtitle);
-    } else {
-      setIsResolvingSuggestion(true);
-
-      try {
-        const place = await forwardGeocodeGoogleAddress(fallbackLabel, language);
-        applySuggestionToField(
-          targetField,
-          place?.fullAddress || fallbackLabel,
-          place?.coords || null,
-          place?.subtitle || suggestion.subtitle
-        );
-      } finally {
-        setIsResolvingSuggestion(false);
-      }
-    }
-
-    autocompleteSessionTokenRef.current = createGooglePlacesSessionToken();
-  };
-
-  const handleDismissInputs = () => {
-    Keyboard.dismiss();
-    setFocusedField(null);
-    setRemotePlaceSuggestions([]);
-  };
-
-  const handleOrderTaxi = async () => {
+  const handleOrderTaxi = useCallback(async () => {
     if (isSubmittingRoute) {
       return;
     }
@@ -683,11 +707,25 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
     } finally {
       setIsSubmittingRoute(false);
     }
-  };
+  }, [
+    destination,
+    destinationCoords,
+    isSubmittingRoute,
+    language,
+    navigation,
+    pickup,
+    pickupCoords,
+    resolveAddress,
+    routeDistanceKm,
+    routeDurationMin,
+    selectedRide,
+  ]);
 
   const canOrderTaxi = Boolean(destination.trim()) && Boolean(pickup.trim()) && !isSubmittingRoute;
   const bottomInset = Math.max(insets.bottom, 10);
-  const tabBarOffset = bottomInset + 84;
+  const tabBarOffset = bottomInset + 104;
+  const primaryActionTitle = canOrderTaxi ? t('home.ctaChooseTariff') : t('home.ctaAddDestination');
+  const primaryActionSubtitle = canOrderTaxi ? t('home.orderTaxiEyebrowReady') : t('home.ctaAddDestinationHint');
 
   const mapMarkers = useMemo(() => {
     const markers: Array<{
@@ -723,6 +761,8 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
     return markers;
   }, [destinationCoords, pickupCoords, styles.destinationPin, styles.pickupPin, styles.pickupPinInner]);
 
+  const quickPlaces = useMemo(() => LOCATION_SUGGESTIONS.slice(0, 4), []);
+
   return (
     <PassengerScreenLayout activeRoute="Home" showHeader={false} contentStyle={styles.screen}>
       <KeyboardAvoidingView
@@ -736,282 +776,162 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
           onMapPress={handleDismissInputs}
           onUserLocationUpdate={permissionDenied ? undefined : handleUserLocationUpdate}
           routeCoordinates={routeLine}
-          routeLineColor={palette.primaryDeep}
+          routeLineColor={palette.surfaceStrong}
           showUserLocation={!permissionDenied}
           style={styles.map}
         />
 
-        <View style={[styles.topOverlay, { top: insets.top + 8 }]}>
-          <View style={styles.heroCard}>
-            <Text style={styles.heroBadge}>{t('home.heroBadge')}</Text>
-            <Text style={styles.heroTitle}>{t('home.heroTitle')}</Text>
-            <Text style={styles.heroCaption}>{areaLabel}</Text>
+        <View style={[styles.topBar, { top: insets.top + 10 }]}>
+          <View style={styles.brandPill}>
+            <View style={styles.brandIcon}>
+              <Ionicons color={palette.backgroundSecondary} name="navigate" size={18} />
+            </View>
+            <View style={styles.brandCopy}>
+              <Text style={styles.brandTitle}>SwiftTaxi</Text>
+              <Text style={styles.brandMeta} numberOfLines={1}>{areaLabel}</Text>
+            </View>
           </View>
-
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={handleUseCurrentLocation}
-            style={styles.locateButton}
-          >
-            <Ionicons color={palette.text} name="locate-outline" size={20} />
-          </TouchableOpacity>
+          <MapControls
+            onLocate={handleUseCurrentLocation}
+            onSafety={() => navigation.navigate('Settings')}
+            style={styles.mapControls}
+          />
         </View>
 
-        <View style={[styles.composerWrap, { bottom: tabBarOffset }]}>
-          <View style={[styles.composerCard, focusedField && styles.composerCardExpanded]}>
-            <View style={styles.composerHeader}>
-              <View style={styles.composerCopy}>
-                <Text style={styles.composerEyebrow}>{t('home.flowBadge')}</Text>
-                <Text style={styles.composerTitle}>{t('home.headline')}</Text>
-                <Text style={styles.composerSubtitle}>{t('home.subheadline')}</Text>
-              </View>
+        <BottomSheet
+          bottomOffset={tabBarOffset}
+          footer={
+            <Button
+              disabled={!canOrderTaxi}
+              loading={isSubmittingRoute}
+              onPress={handleOrderTaxi}
+              rightIcon="arrow-forward"
+              subtitle={primaryActionSubtitle}
+              title={primaryActionTitle}
+            />
+          }
+          style={focusedField ? styles.sheetExpanded : styles.sheet}
+        >
+          <View style={styles.sheetHeader}>
+            <View>
+              <Text style={styles.sheetTitle}>
+                {destination.trim() ? t('home.tripPreview') : t('home.destinationPlaceholder')}
+              </Text>
+              <Text style={styles.sheetSubtitle}>
+                {tripPreview
+                  ? t('common.minutesShort', { count: tripPreview.durationMin })
+                  : t('home.pickupFastNearby')}
+              </Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              onPress={() => navigation.navigate('Preorder', { pickup, destination, rideType: selectedRide })}
+              style={styles.scheduleButton}
+            >
+              <Ionicons color={palette.text} name="calendar-outline" size={19} />
+            </TouchableOpacity>
+          </View>
 
-              <TouchableOpacity
-                activeOpacity={0.88}
-                onPress={() => navigation.navigate('Preorder')}
-                style={styles.scheduleButton}
+          <AddressSearch
+            destination={destination}
+            destinationPlaceholder={t('home.destinationPlaceholder')}
+            focusedField={focusedField}
+            loadingSuggestion={isResolvingSuggestion}
+            onDestinationChange={(value) => {
+              destinationValueRef.current = value;
+              setDestination(value);
+              setFocusedField('destination');
+
+              if (normalizeInputValue(value) !== normalizeInputValue(destination)) {
+                setDestinationCoords(null);
+              }
+            }}
+            onDestinationFocus={() => setFocusedField('destination')}
+            onPickupChange={(value) => {
+              pickupValueRef.current = value;
+              setPickup(value);
+              setFocusedField('pickup');
+
+              if (normalizeInputValue(value) !== normalizeInputValue(pickup)) {
+                setPickupCoords(null);
+              }
+            }}
+            onPickupFocus={() => setFocusedField('pickup')}
+            onSelectSuggestion={(suggestion) => void handlePlaceSuggestionSelect(suggestion)}
+            onSwap={handleSwapLocations}
+            onUseCurrentLocation={handleUseCurrentLocation}
+            pickup={pickup}
+            pickupPlaceholder={t('home.pickupPlaceholder')}
+            suggestions={placeSuggestions}
+          />
+
+          {!focusedField ? (
+            <>
+              <ScrollView
+                contentContainerStyle={styles.quickPlaces}
+                horizontal
+                keyboardShouldPersistTaps="handled"
+                showsHorizontalScrollIndicator={false}
               >
-                <Ionicons color={palette.text} name="calendar-outline" size={18} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.routePanel}>
-              <View style={styles.timelineColumn}>
-                <View style={[styles.routeMarker, styles.pickupMarker]} />
-                <View style={styles.timelineLine} />
-                <View style={[styles.routeMarker, styles.destinationMarker]} />
-              </View>
-
-              <View style={styles.routeFields}>
-                <View
-                  style={[
-                    styles.routeField,
-                    focusedField === 'pickup' && styles.routeFieldActive,
-                  ]}
-                >
-                  <View style={styles.routeFieldCopy}>
-                    <Text style={styles.routeLabel}>{t('home.pickupLabel')}</Text>
-                    <TextInput
-                      onChangeText={(value) => {
-                        pickupValueRef.current = value;
-                        setPickup(value);
-                        setFocusedField('pickup');
-
-                        if (normalizeInputValue(value) !== normalizeInputValue(pickup)) {
-                          setPickupCoords(null);
-                        }
-                      }}
-                      onFocus={() => setFocusedField('pickup')}
-                      placeholder={t('home.pickupPlaceholder')}
-                      placeholderTextColor={palette.mutedText}
-                      style={styles.routeInput}
-                      value={pickup}
-                    />
-                  </View>
-
+                {quickPlaces.map((suggestion) => (
                   <TouchableOpacity
-                    activeOpacity={0.88}
-                    onPress={handleUseCurrentLocation}
-                    style={styles.inlineActionButton}
+                    key={suggestion.id}
+                    activeOpacity={0.86}
+                    onPress={() => {
+                      applySuggestionToField('destination', buildSuggestionLabel(suggestion), suggestion.coords, suggestion.subtitle);
+                    }}
+                    style={styles.quickPlace}
                   >
-                    <Ionicons color={palette.info} name="locate-outline" size={18} />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.innerDivider} />
-
-                <View
-                  style={[
-                    styles.routeField,
-                    focusedField === 'destination' && styles.routeFieldActive,
-                  ]}
-                >
-                  <View style={styles.routeFieldCopy}>
-                    <Text style={styles.routeLabel}>{t('home.destinationLabel')}</Text>
-                    <TextInput
-                      onChangeText={(value) => {
-                        destinationValueRef.current = value;
-                        setDestination(value);
-                        setFocusedField('destination');
-
-                        if (normalizeInputValue(value) !== normalizeInputValue(destination)) {
-                          setDestinationCoords(null);
-                        }
-                      }}
-                      onFocus={() => setFocusedField('destination')}
-                      placeholder={t('home.destinationPlaceholder')}
-                      placeholderTextColor={palette.mutedText}
-                      style={styles.routeInput}
-                      value={destination}
+                    <Ionicons
+                      color={palette.text}
+                      name={suggestion.category === 'favorite' ? 'heart-outline' : 'time-outline'}
+                      size={17}
                     />
-                  </View>
-
-                  <TouchableOpacity
-                    activeOpacity={0.88}
-                    onPress={handleSwapLocations}
-                    style={styles.inlineActionButton}
-                  >
-                    <Ionicons color={palette.text} name="swap-vertical-outline" size={18} />
+                    <Text numberOfLines={1} style={styles.quickPlaceText}>{suggestion.title}</Text>
                   </TouchableOpacity>
-                </View>
-              </View>
-            </View>
+                ))}
+              </ScrollView>
 
-            {focusedField ? (
-              <View style={styles.suggestionsSection}>
-                <View style={styles.suggestionHeader}>
-                  <Text style={styles.suggestionTitle}>
-                    {focusedField === 'pickup'
-                      ? t('home.suggestionsForPickup')
-                      : t('home.suggestionsForDestination')}
-                  </Text>
-                  <Text style={styles.suggestionMeta}>
-                    {isResolvingSuggestion
-                      ? t('common.loading')
-                      : t('common.matchesCount', { count: placeSuggestions.length })}
-                  </Text>
-                </View>
-
-                {placeSuggestions.length ? (
-                  <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                    {placeSuggestions.map((suggestion) => (
-                      <TouchableOpacity
-                        key={suggestion.id}
-                        activeOpacity={0.88}
-                        onPress={() => void handlePlaceSuggestionSelect(suggestion)}
-                        style={styles.suggestionRow}
-                      >
-                        <View style={styles.suggestionIcon}>
-                          <Ionicons
-                            color={palette.text}
-                            name={
-                              suggestion.category === 'favorite'
-                                ? 'heart-outline'
-                                : suggestion.category === 'hub'
-                                  ? 'business-outline'
-                                  : suggestion.category === 'history'
-                                    ? 'reload-outline'
-                                    : suggestion.category === 'live'
-                                      ? 'location-outline'
-                                      : 'time-outline'
-                            }
-                            size={18}
-                          />
-                        </View>
-                        <View style={styles.suggestionCopy}>
-                          <Text style={styles.suggestionLabel}>{suggestion.title}</Text>
-                          <Text style={styles.suggestionSubtitle}>{suggestion.subtitle}</Text>
-                        </View>
-                        <Text style={styles.suggestionCategory}>
-                          {t(`placeCategories.${suggestion.category}`)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                ) : (
-                  <View style={styles.emptySuggestionsCard}>
-                    <Ionicons color={palette.mutedText} name="search-outline" size={18} />
-                    <View style={styles.emptySuggestionsCopy}>
-                      <Text style={styles.emptySuggestionsTitle}>
-                        {t('home.noQuickMatchTitle')}
-                      </Text>
-                      <Text style={styles.emptySuggestionsText}>
-                        {t('home.noQuickMatchText')}
-                      </Text>
-                    </View>
+              {tripPreview && priceRange ? (
+                <View style={styles.routeReadyCard}>
+                  <View style={styles.routeReadyIcon}>
+                    <Ionicons color={palette.backgroundSecondary} name="navigate" size={17} />
                   </View>
-                )}
-              </View>
-            ) : (
-              <>
-                <View style={styles.metricsRow}>
-                  {tripPreview && priceRange ? (
-                    <>
-                      <View style={styles.metricChip}>
-                        <Text style={styles.metricLabel}>{t('home.pickupStat')}</Text>
-                        <Text style={styles.metricValue}>
-                          {t('common.minutesShort', { count: tripPreview.pickupEtaMin })}
-                        </Text>
-                      </View>
-                      <View style={styles.metricChip}>
-                        <Text style={styles.metricLabel}>{t('home.rideTime')}</Text>
-                        <Text style={styles.metricValue}>
-                          {t('common.minutesShort', { count: tripPreview.durationMin })}
-                        </Text>
-                      </View>
-                      <View style={styles.metricChip}>
-                        <Text style={styles.metricLabel}>{t('home.estimatedFare')}</Text>
-                        <Text style={styles.metricValue}>
-                          {t('common.priceUah', { amount: `${priceRange.min}-${priceRange.max}` })}
-                        </Text>
-                      </View>
-                    </>
-                  ) : (
-                    <>
-                      <View style={styles.metricChip}>
-                        <Text style={styles.metricLabel}>{t('home.pickupStat')}</Text>
-                        <Text style={styles.metricValue}>{t('home.pickupFastNearby')}</Text>
-                      </View>
-                      <View style={styles.metricChip}>
-                        <Text style={styles.metricLabel}>{t('home.vehicleStepLabel')}</Text>
-                        <Text style={styles.metricValue}>{t('home.vehicleStep')}</Text>
-                      </View>
-                    </>
-                  )}
-                </View>
-
-                {priceAlertsEnabled && tripPreview ? (
-                  <View style={styles.infoRow}>
-                    <Ionicons color={palette.primaryDeep} name="pricetag-outline" size={16} />
-                    <View style={styles.infoCopy}>
-                      <Text style={styles.infoTitle}>{t('home.priceAlertTitle')}</Text>
-                      <Text style={styles.infoText}>{t('home.priceAlertText')}</Text>
-                    </View>
-                  </View>
-                ) : null}
-
-                {permissionDenied ? (
-                  <View style={styles.noticeRow}>
-                    <Ionicons color={palette.danger} name="alert-circle-outline" size={16} />
-                    <Text style={styles.noticeText}>{t('home.locationAccessOff')}</Text>
-                  </View>
-                ) : null}
-
-                {routeParams?.rideType ? (
-                  <Text style={styles.selectionHint}>
-                    {t('home.preselectedRideHint', {
-                      ride: t(`rideOptions.${selectedRide}.label`),
-                    })}
-                  </Text>
-                ) : null}
-
-                <TouchableOpacity
-                  activeOpacity={0.92}
-                  disabled={!canOrderTaxi}
-                  onPress={handleOrderTaxi}
-                  style={[
-                    styles.primaryButton,
-                    !canOrderTaxi && styles.primaryButtonDisabled,
-                  ]}
-                >
-                  <View>
-                    <Text style={styles.primaryEyebrow}>
-                      {destinationCoords || destination.trim()
-                        ? t('home.orderTaxiEyebrowReady')
-                        : t('home.orderTaxiEyebrowWaiting')}
-                    </Text>
-                    <Text style={styles.primaryTitle}>
-                      {isSubmittingRoute ? t('common.loading') : t('home.orderTaxi')}
+                  <View style={styles.routeReadyCopy}>
+                    <Text style={styles.routeReadyTitle}>{t('home.routeReadyTitle')}</Text>
+                    <Text style={styles.routeReadyText}>
+                      {t('common.minutesShort', { count: tripPreview.durationMin })} · {t('common.kilometersShort', { count: routeDistanceKm ?? tripPreview.distanceKm })} · {t('common.priceUah', { amount: `${priceRange.min}-${priceRange.max}` })}
                     </Text>
                   </View>
-                  <View style={styles.primaryIconWrap}>
-                    <Ionicons color="#FFFFFF" name="arrow-forward" size={18} />
+                </View>
+              ) : (
+                <View style={styles.routeReadyCard}>
+                  <View style={styles.routeReadyIconMuted}>
+                    <Ionicons color={palette.text} name="flash-outline" size={17} />
                   </View>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
+                  <View style={styles.routeReadyCopy}>
+                    <Text style={styles.routeReadyTitle}>{t('home.pickupFastNearby')}</Text>
+                    <Text style={styles.routeReadyText}>{t('home.ctaAddDestinationHint')}</Text>
+                  </View>
+                </View>
+              )}
+
+              {permissionDenied ? (
+                <View style={styles.noticeRow}>
+                  <Ionicons color={palette.danger} name="alert-circle-outline" size={16} />
+                  <Text style={styles.noticeText}>{t('home.locationAccessOff')}</Text>
+                </View>
+              ) : null}
+
+              {priceAlertsEnabled && tripPreview ? (
+                <View style={styles.noticeRow}>
+                  <Ionicons color={palette.primaryDeep} name="pricetag-outline" size={16} />
+                  <Text style={styles.noticeText}>{t('home.priceAlertText')}</Text>
+                </View>
+              ) : null}
+            </>
+          ) : null}
+        </BottomSheet>
       </KeyboardAvoidingView>
     </PassengerScreenLayout>
   );
@@ -1022,376 +942,108 @@ const createStyles = (
   radius: typeof import('../theme/passenger').passengerRadius
 ) =>
   StyleSheet.create({
-    screen: {
+    brandCopy: {
       flex: 1,
+      gap: 2,
     },
-    map: {
-      flex: 1,
-    },
-    topOverlay: {
-      flexDirection: 'row',
-      gap: 12,
-      justifyContent: 'space-between',
-      left: 16,
-      position: 'absolute',
-      right: 16,
-    },
-    heroCard: {
-      backgroundColor: palette.mapOverlay,
-      borderRadius: radius.lg,
-      gap: 4,
-      maxWidth: 280,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-    },
-    heroBadge: {
-      color: '#FCD34D',
-      fontSize: 11,
-      fontWeight: '800',
-      letterSpacing: 0.8,
-      textTransform: 'uppercase',
-    },
-    heroTitle: {
-      color: '#FFFFFF',
-      fontSize: 20,
-      fontWeight: '800',
-      letterSpacing: -0.5,
-    },
-    heroCaption: {
-      color: 'rgba(255, 255, 255, 0.78)',
-      fontSize: 13,
-      lineHeight: 18,
-    },
-    locateButton: {
+    brandIcon: {
       alignItems: 'center',
-      backgroundColor: palette.surface,
+      backgroundColor: palette.surfaceStrong,
       borderRadius: radius.md,
-      height: 48,
+      height: 38,
       justifyContent: 'center',
-      shadowColor: palette.shadow,
-      shadowOffset: { height: 10, width: 0 },
-      shadowOpacity: 1,
-      shadowRadius: 24,
-      width: 48,
+      width: 38,
     },
-    composerWrap: {
-      left: 16,
-      position: 'absolute',
-      right: 16,
+    brandMeta: {
+      color: palette.mutedText,
+      fontSize: 12,
+      fontWeight: '700',
+      maxWidth: 150,
     },
-    composerCard: {
+    brandPill: {
+      alignItems: 'center',
       backgroundColor: palette.tabBar,
       borderColor: palette.border,
       borderRadius: radius.xl,
       borderWidth: 1,
-      gap: 16,
-      padding: 18,
-      shadowColor: palette.shadow,
-      shadowOffset: { height: 16, width: 0 },
-      shadowOpacity: 1,
-      shadowRadius: 24,
-    },
-    composerCardExpanded: {
-      maxHeight: 420,
-    },
-    composerHeader: {
-      alignItems: 'flex-start',
       flexDirection: 'row',
-      gap: 14,
-      justifyContent: 'space-between',
+      gap: passengerSpacing.sm,
+      maxWidth: 228,
+      padding: passengerSpacing.sm,
     },
-    composerCopy: {
-      flex: 1,
-      gap: 4,
-    },
-    composerEyebrow: {
-      color: palette.primaryDeep,
-      fontSize: 12,
-      fontWeight: '800',
-      letterSpacing: 0.4,
-      textTransform: 'uppercase',
-    },
-    composerTitle: {
+    brandTitle: {
       color: palette.text,
-      fontSize: 24,
-      fontWeight: '800',
-      letterSpacing: -0.7,
+      fontSize: 15,
+      fontWeight: '900',
     },
-    composerSubtitle: {
-      color: palette.mutedText,
-      fontSize: 13,
-      lineHeight: 18,
-    },
-    scheduleButton: {
+    destinationPin: {
       alignItems: 'center',
-      backgroundColor: palette.surface,
-      borderColor: palette.border,
-      borderRadius: 18,
-      borderWidth: 1,
-      height: 42,
-      justifyContent: 'center',
-      width: 42,
-    },
-    routePanel: {
-      flexDirection: 'row',
-      gap: 12,
-    },
-    timelineColumn: {
-      alignItems: 'center',
-      paddingTop: 14,
-    },
-    routeMarker: {
-      borderRadius: 6,
-      height: 12,
-      width: 12,
-    },
-    pickupMarker: {
-      backgroundColor: palette.accent,
-    },
-    destinationMarker: {
       backgroundColor: palette.danger,
-    },
-    timelineLine: {
-      backgroundColor: palette.border,
-      flex: 1,
-      marginVertical: 6,
-      minHeight: 44,
-      width: 2,
-    },
-    routeFields: {
-      backgroundColor: palette.surface,
-      borderColor: palette.border,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      flex: 1,
-      overflow: 'hidden',
-    },
-    routeField: {
-      alignItems: 'center',
-      flexDirection: 'row',
-      gap: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-    },
-    routeFieldActive: {
-      backgroundColor: palette.surfaceMuted,
-    },
-    routeFieldCopy: {
-      flex: 1,
-      gap: 3,
-    },
-    routeLabel: {
-      color: palette.mutedText,
-      fontSize: 12,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-    },
-    routeInput: {
-      color: palette.text,
-      fontSize: 17,
-      fontWeight: '700',
-      paddingVertical: 0,
-    },
-    inlineActionButton: {
-      alignItems: 'center',
-      backgroundColor: palette.surfaceMuted,
-      borderRadius: 14,
-      height: 38,
+      borderColor: '#FFFFFF',
+      borderRadius: 16,
+      borderWidth: 3,
+      height: 32,
       justifyContent: 'center',
-      width: 38,
+      width: 32,
     },
-    innerDivider: {
-      backgroundColor: palette.border,
-      height: 1,
-      marginHorizontal: 14,
+    map: {
+      ...StyleSheet.absoluteFillObject,
     },
-    suggestionsSection: {
-      gap: 8,
-      minHeight: 180,
+    mapControls: {
+      alignItems: 'flex-end',
     },
-    suggestionHeader: {
-      alignItems: 'center',
-      flexDirection: 'row',
-      gap: 12,
-      justifyContent: 'space-between',
-    },
-    suggestionTitle: {
-      color: palette.text,
-      fontSize: 15,
-      fontWeight: '800',
-    },
-    suggestionMeta: {
-      color: palette.mutedText,
-      fontSize: 12,
-      fontWeight: '700',
-    },
-    suggestionRow: {
-      alignItems: 'center',
-      flexDirection: 'row',
-      gap: 12,
-      paddingVertical: 11,
-    },
-    suggestionIcon: {
-      alignItems: 'center',
+    metric: {
       backgroundColor: palette.surfaceMuted,
-      borderRadius: 14,
-      height: 38,
-      justifyContent: 'center',
-      width: 38,
-    },
-    suggestionCopy: {
-      flex: 1,
-      gap: 3,
-    },
-    suggestionLabel: {
-      color: palette.text,
-      fontSize: 15,
-      fontWeight: '700',
-    },
-    suggestionSubtitle: {
-      color: palette.mutedText,
-      fontSize: 12,
-      lineHeight: 17,
-    },
-    suggestionCategory: {
-      color: palette.mutedText,
-      fontSize: 11,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-    },
-    emptySuggestionsCard: {
-      alignItems: 'flex-start',
-      backgroundColor: palette.surface,
-      borderColor: palette.border,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      flexDirection: 'row',
-      gap: 12,
-      padding: 16,
-    },
-    emptySuggestionsCopy: {
+      borderRadius: radius.md,
       flex: 1,
       gap: 4,
-    },
-    emptySuggestionsTitle: {
-      color: palette.text,
-      fontSize: 14,
-      fontWeight: '800',
-    },
-    emptySuggestionsText: {
-      color: palette.mutedText,
-      fontSize: 12,
-      lineHeight: 18,
-    },
-    metricsRow: {
-      flexDirection: 'row',
-      gap: 10,
-    },
-    metricChip: {
-      backgroundColor: palette.surface,
-      borderRadius: 18,
-      flex: 1,
-      gap: 5,
-      paddingHorizontal: 12,
-      paddingVertical: 12,
+      padding: passengerSpacing.md,
     },
     metricLabel: {
       color: palette.mutedText,
       fontSize: 11,
-      fontWeight: '700',
-      textTransform: 'uppercase',
+      fontWeight: '900',
+    },
+    metricsRow: {
+      flexDirection: 'row',
+      gap: passengerSpacing.sm,
     },
     metricValue: {
       color: palette.text,
       fontSize: 13,
-      fontWeight: '800',
+      fontWeight: '900',
     },
-    infoRow: {
-      alignItems: 'flex-start',
-      backgroundColor: palette.warningSurface,
-      borderColor: palette.warningBorder,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      flexDirection: 'row',
-      gap: 10,
-      padding: 14,
-    },
-    infoCopy: {
+    metricWide: {
+      backgroundColor: palette.surfaceMuted,
+      borderRadius: radius.md,
       flex: 1,
-      gap: 2,
-    },
-    infoTitle: {
-      color: palette.text,
-      fontSize: 13,
-      fontWeight: '800',
-    },
-    infoText: {
-      color: palette.mutedText,
-      fontSize: 12,
-      lineHeight: 17,
+      gap: 4,
+      padding: passengerSpacing.md,
     },
     noticeRow: {
-      alignItems: 'center',
+      alignItems: 'flex-start',
+      backgroundColor: palette.surfaceMuted,
+      borderRadius: radius.lg,
       flexDirection: 'row',
-      gap: 8,
+      gap: passengerSpacing.sm,
+      padding: passengerSpacing.md,
     },
     noticeText: {
       color: palette.mutedText,
       flex: 1,
       fontSize: 12,
+      fontWeight: '700',
       lineHeight: 17,
-    },
-    selectionHint: {
-      color: palette.mutedText,
-      fontSize: 12,
-      lineHeight: 18,
-    },
-    primaryButton: {
-      alignItems: 'center',
-      backgroundColor: palette.primaryDeep,
-      borderRadius: radius.lg,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingHorizontal: 18,
-      paddingVertical: 16,
-    },
-    primaryButtonDisabled: {
-      backgroundColor: palette.border,
-    },
-    primaryEyebrow: {
-      color: '#FCE7B5',
-      fontSize: 11,
-      fontWeight: '800',
-      letterSpacing: 0.6,
-      marginBottom: 4,
-      textTransform: 'uppercase',
-    },
-    primaryTitle: {
-      color: '#FFFFFF',
-      fontSize: 18,
-      fontWeight: '800',
-    },
-    primaryIconWrap: {
-      alignItems: 'center',
-      backgroundColor: 'rgba(255, 255, 255, 0.18)',
-      borderRadius: 16,
-      height: 38,
-      justifyContent: 'center',
-      width: 38,
     },
     pickupPin: {
       alignItems: 'center',
       backgroundColor: '#FFFFFF',
       borderColor: palette.accent,
-      borderRadius: 14,
+      borderRadius: 17,
       borderWidth: 3,
-      height: 28,
+      height: 34,
       justifyContent: 'center',
-      shadowColor: palette.shadow,
-      shadowOffset: { height: 6, width: 0 },
-      shadowOpacity: 1,
-      shadowRadius: 14,
-      width: 28,
+      width: 34,
     },
     pickupPinInner: {
       backgroundColor: palette.accent,
@@ -1399,16 +1051,107 @@ const createStyles = (
       height: 12,
       width: 12,
     },
-    destinationPin: {
+    quickPlace: {
       alignItems: 'center',
-      backgroundColor: palette.danger,
-      borderRadius: 14,
-      height: 28,
+      backgroundColor: palette.surfaceMuted,
+      borderColor: palette.border,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: passengerSpacing.xs,
+      paddingHorizontal: passengerSpacing.md,
+      paddingVertical: passengerSpacing.sm,
+    },
+    quickPlaces: {
+      flexDirection: 'row',
+      gap: passengerSpacing.sm,
+      paddingRight: passengerSpacing.xl,
+    },
+    quickPlaceText: {
+      color: palette.text,
+      flexShrink: 1,
+      fontSize: 13,
+      fontWeight: '800',
+    },
+    scheduleButton: {
+      alignItems: 'center',
+      backgroundColor: palette.surfaceMuted,
+      borderRadius: radius.md,
+      height: 44,
       justifyContent: 'center',
-      shadowColor: palette.shadow,
-      shadowOffset: { height: 6, width: 0 },
-      shadowOpacity: 1,
-      shadowRadius: 14,
-      width: 28,
+      width: 44,
+    },
+    screen: {
+      flex: 1,
+    },
+    sheet: {
+      maxHeight: 448,
+    },
+    sheetExpanded: {
+      maxHeight: 640,
+    },
+    sheetHeader: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: passengerSpacing.md,
+    },
+    sheetSubtitle: {
+      color: palette.mutedText,
+      fontSize: 13,
+      fontWeight: '800',
+      marginTop: 3,
+    },
+    sheetTitle: {
+      color: palette.text,
+      fontSize: 24,
+      fontWeight: '900',
+    },
+    topBar: {
+      alignItems: 'flex-start',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      left: passengerSpacing.lg,
+      position: 'absolute',
+      right: passengerSpacing.lg,
+    },
+    routeReadyCard: {
+      alignItems: 'center',
+      backgroundColor: palette.surfaceMuted,
+      borderRadius: radius.lg,
+      flexDirection: 'row',
+      gap: passengerSpacing.md,
+      padding: passengerSpacing.md,
+    },
+    routeReadyCopy: {
+      flex: 1,
+      gap: 3,
+    },
+    routeReadyIcon: {
+      alignItems: 'center',
+      backgroundColor: palette.surfaceStrong,
+      borderRadius: radius.md,
+      height: 38,
+      justifyContent: 'center',
+      width: 38,
+    },
+    routeReadyIconMuted: {
+      alignItems: 'center',
+      backgroundColor: palette.primarySoft,
+      borderRadius: radius.md,
+      height: 38,
+      justifyContent: 'center',
+      width: 38,
+    },
+    routeReadyText: {
+      color: palette.mutedText,
+      fontSize: 12,
+      fontWeight: '700',
+      lineHeight: 17,
+    },
+    routeReadyTitle: {
+      color: palette.text,
+      fontSize: 14,
+      fontWeight: '900',
     },
   });
