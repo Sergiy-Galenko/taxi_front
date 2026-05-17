@@ -2,6 +2,8 @@ import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Animated } from 'react-native';
 import { TextInput, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { usePassengerTheme } from '../hooks/usePassengerTheme';
+import { PassengerPalette } from '../theme/passenger';
 
 type MaterialCommunityIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -30,6 +32,9 @@ export const CustomInput: React.FC<CustomInputProps> = ({
   autoCapitalize = 'none',
   placeholder,
 }) => {
+  const { palette } = usePassengerTheme();
+  const styles = React.useMemo(() => createStyles(palette), [palette]);
+
   const [isFocused, setIsFocused] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(!secureTextEntry);
   
@@ -75,7 +80,7 @@ export const CustomInput: React.FC<CustomInputProps> = ({
 
   const borderColor = borderColorAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#2C2C2E', '#FF3B30'],
+    outputRange: [palette.border, palette.accent],
   });
 
   return (
@@ -85,8 +90,8 @@ export const CustomInput: React.FC<CustomInputProps> = ({
           styles.inputContainer,
           {
             transform: [{ scale: scaleAnim }],
-            borderColor: error ? '#FF3B30' : borderColor,
-            backgroundColor: isFocused ? '#2C2C2E' : '#1C1C1E',
+            borderColor: error ? palette.danger : borderColor,
+            backgroundColor: isFocused ? palette.surfaceMuted : palette.surface,
           },
         ]}
       >
@@ -95,7 +100,7 @@ export const CustomInput: React.FC<CustomInputProps> = ({
             <MaterialCommunityIcons
               name={icon}
               size={24}
-              color={error ? '#FF3B30' : isFocused ? '#FF3B30' : '#8E8E93'}
+              color={error ? palette.danger : isFocused ? palette.accent : palette.mutedText}
               style={styles.icon}
             />
           </Animated.View>
@@ -115,22 +120,22 @@ export const CustomInput: React.FC<CustomInputProps> = ({
             onBlur?.();
           }}
           secureTextEntry={secureTextEntry && !showPassword}
-          style={[styles.input, { color: '#FFFFFF' }]}
+          style={[styles.input, { color: palette.text }]}
           underlineColor="transparent"
           activeUnderlineColor="transparent"
-          textColor="#FFFFFF"
-          placeholderTextColor="#8E8E93"
+          textColor={palette.text}
+          placeholderTextColor={palette.subtleText}
           placeholder={placeholder}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           theme={{
             colors: {
-              primary: '#FF3B30',
+              primary: palette.accent,
               background: 'transparent',
-              text: '#FFFFFF',
-              placeholder: '#8E8E93',
-              onSurface: '#FFFFFF',
-              onSurfaceVariant: '#FFFFFF',
+              text: palette.text,
+              placeholder: palette.subtleText,
+              onSurface: palette.text,
+              onSurfaceVariant: palette.mutedText,
             },
           }}
         />
@@ -138,7 +143,7 @@ export const CustomInput: React.FC<CustomInputProps> = ({
           <Animated.View style={{ opacity: isFocused ? 1 : 0.7 }}>
             <IconButton
               icon={showPassword ? 'eye-off' : 'eye'}
-              iconColor={isFocused ? '#FF3B30' : '#8E8E93'}
+              iconColor={isFocused ? palette.accent : palette.mutedText}
               size={24}
               onPress={() => setShowPassword(!showPassword)}
               style={styles.eyeIcon}
@@ -157,10 +162,10 @@ export const CustomInput: React.FC<CustomInputProps> = ({
             <MaterialCommunityIcons
               name="alert-circle"
               size={16}
-              color="#FF3B30"
+              color={palette.danger}
               style={styles.errorIcon}
             />
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={[styles.errorText, { color: palette.danger }]}>{error}</Text>
           </>
         )}
       </Animated.View>
@@ -168,45 +173,45 @@ export const CustomInput: React.FC<CustomInputProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 16,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1C1C1E',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#2C2C2E',
-    paddingHorizontal: 12,
-    height: 56,
-  },
-  icon: {
-    marginRight: 8,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    fontSize: 16,
-    height: 56,
-    paddingVertical: 0,
-    textAlignVertical: 'center',
-  },
-  eyeIcon: {
-    margin: 0,
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    marginLeft: 4,
-  },
-  errorIcon: {
-    marginRight: 4,
-  },
-  errorText: {
-    color: '#FF3B30',
-    fontSize: 14,
-  },
-}); 
+const createStyles = (palette: PassengerPalette) =>
+  StyleSheet.create({
+    container: {
+      marginBottom: 16,
+    },
+    inputContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: palette.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: palette.border,
+      paddingHorizontal: 12,
+      height: 56,
+    },
+    icon: {
+      marginRight: 8,
+    },
+    input: {
+      flex: 1,
+      backgroundColor: 'transparent',
+      fontSize: 16,
+      height: 56,
+      paddingVertical: 0,
+      textAlignVertical: 'center',
+    },
+    eyeIcon: {
+      margin: 0,
+    },
+    errorContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 4,
+      marginLeft: 4,
+    },
+    errorIcon: {
+      marginRight: 4,
+    },
+    errorText: {
+      fontSize: 14,
+    },
+  });

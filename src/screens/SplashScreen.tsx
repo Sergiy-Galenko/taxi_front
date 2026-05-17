@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -36,8 +37,17 @@ export default function SplashScreen({ navigation }: SplashScreenProps) {
       }),
     ]).start();
 
-    const timer = setTimeout(() => {
-      navigation.replace('Login');
+    const timer = setTimeout(async () => {
+      try {
+        const token = await AsyncStorage.getItem('authToken');
+        if (token) {
+          navigation.replace('Main');
+        } else {
+          navigation.replace('Login');
+        }
+      } catch {
+        navigation.replace('Login');
+      }
     }, 1350);
 
     return () => clearTimeout(timer);

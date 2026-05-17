@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,13 +17,13 @@ interface PassengerTabBarProps {
 
 const tabs: Array<{
   route: PassengerRoute;
-  label: string;
   icon: keyof typeof Ionicons.glyphMap;
+  translationKey: string;
 }> = [
-  { route: 'Home', label: 'Book', icon: 'car-outline' },
-  { route: 'Preorder', label: 'Schedule', icon: 'calendar-outline' },
-  { route: 'TripHistory', label: 'Trips', icon: 'time-outline' },
-  { route: 'Settings', label: 'Profile', icon: 'person-outline' },
+  { route: 'Home', icon: 'car-outline', translationKey: 'tabs.book' },
+  { route: 'Preorder', icon: 'calendar-outline', translationKey: 'tabs.schedule' },
+  { route: 'TripHistory', icon: 'time-outline', translationKey: 'tabs.trips' },
+  { route: 'Settings', icon: 'person-outline', translationKey: 'tabs.profile' },
 ];
 
 export default function PassengerTabBar({ activeRoute }: PassengerTabBarProps) {
@@ -32,34 +32,47 @@ export default function PassengerTabBar({ activeRoute }: PassengerTabBarProps) {
   const { t } = useI18n();
   const { palette, radius } = usePassengerTheme();
   const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
+  const [open, setOpen] = useState(false);
 
   return (
-    <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      <View style={styles.container}>
-        {tabs.map((tab) => {
-          const active = tab.route === activeRoute;
+    <View pointerEvents="box-none" style={[styles.wrapper, { top: Math.max(insets.top, 10) + 10 }]}>
+      {open ? <Pressable onPress={() => setOpen(false)} style={styles.dismissLayer} /> : null}
 
-          return (
-            <TouchableOpacity
-              key={tab.route}
-              activeOpacity={0.9}
-              onPress={() => {
-                if (!active) {
-                  navigation.navigate(tab.route);
-                }
-              }}
-              style={[styles.tab, active && styles.activeTab]}
-            >
-              <Ionicons
-                color={active ? palette.text : palette.backgroundSecondary}
-                name={tab.icon}
-                size={20}
-              />
-              <Text style={[styles.label, active && styles.activeLabel]}>{t(`tabs.${tab.route === 'Home' ? 'book' : tab.route === 'Preorder' ? 'schedule' : tab.route === 'TripHistory' ? 'trips' : 'profile'}`)}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      <TouchableOpacity
+        activeOpacity={0.88}
+        onPress={() => setOpen((value) => !value)}
+        style={styles.menuButton}
+      >
+        <Ionicons color={palette.backgroundSecondary} name={open ? 'close' : 'menu'} size={24} />
+      </TouchableOpacity>
+
+      {open ? (
+        <View style={styles.menuPanel}>
+          {tabs.map((tab) => {
+            const active = tab.route === activeRoute;
+
+            return (
+              <TouchableOpacity
+                key={tab.route}
+                activeOpacity={0.86}
+                onPress={() => {
+                  setOpen(false);
+                  if (!active) {
+                    navigation.navigate(tab.route);
+                  }
+                }}
+                style={[styles.menuItem, active && styles.menuItemActive]}
+              >
+                <View style={[styles.itemIcon, active && styles.itemIconActive]}>
+                  <Ionicons color={active ? palette.text : palette.backgroundSecondary} name={tab.icon} size={18} />
+                </View>
+                <Text style={[styles.itemLabel, active && styles.itemLabelActive]}>{t(tab.translationKey)}</Text>
+                {active ? <Ionicons color={palette.text} name="checkmark" size={18} /> : null}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -68,45 +81,80 @@ const createStyles = (
   palette: PassengerPalette,
   radius: typeof import('../../theme/passenger').passengerRadius
 ) => StyleSheet.create({
-  wrapper: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
-    bottom: 10,
+  dismissLayer: {
+    ...StyleSheet.absoluteFillObject,
+    bottom: -900,
+    left: -900,
+    right: -20,
+    top: -20,
   },
-  container: {
-    backgroundColor: palette.surfaceStrong,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: palette.borderStrong,
-    flexDirection: 'row',
-    padding: 7,
-    shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 1,
-    shadowRadius: 24,
-    elevation: 10,
-  },
-  tab: {
+  itemIcon: {
     alignItems: 'center',
-    borderRadius: radius.lg,
-    flex: 1,
-    gap: 5,
-    minHeight: 58,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: radius.md,
+    height: 36,
     justifyContent: 'center',
-    paddingVertical: 8,
+    width: 36,
   },
-  activeTab: {
+  itemIconActive: {
     backgroundColor: palette.primary,
   },
-  label: {
+  itemLabel: {
     color: palette.backgroundSecondary,
-    fontSize: 12,
+    flex: 1,
+    fontSize: 15,
     fontWeight: '800',
-    opacity: 0.72,
   },
-  activeLabel: {
+  itemLabelActive: {
     color: palette.text,
-    opacity: 1,
+  },
+  menuButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    backgroundColor: palette.surfaceStrong,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    height: 54,
+    justifyContent: 'center',
+    shadowColor: palette.shadow,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 22,
+    width: 54,
+    elevation: 12,
+  },
+  menuItem: {
+    alignItems: 'center',
+    borderRadius: radius.lg,
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 52,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  menuItemActive: {
+    backgroundColor: palette.primary,
+  },
+  menuPanel: {
+    alignSelf: 'flex-end',
+    backgroundColor: palette.surfaceStrong,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    gap: 4,
+    marginTop: 8,
+    padding: 8,
+    shadowColor: palette.shadow,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 1,
+    shadowRadius: 28,
+    width: 218,
+    elevation: 14,
+  },
+  wrapper: {
+    position: 'absolute',
+    right: 16,
+    zIndex: 50,
   },
 });

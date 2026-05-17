@@ -722,8 +722,6 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
   ]);
 
   const canOrderTaxi = Boolean(destination.trim()) && Boolean(pickup.trim()) && !isSubmittingRoute;
-  const bottomInset = Math.max(insets.bottom, 10);
-  const tabBarOffset = bottomInset + 104;
   const primaryActionTitle = canOrderTaxi ? t('home.ctaChooseTariff') : t('home.ctaAddDestination');
   const primaryActionSubtitle = canOrderTaxi ? t('home.orderTaxiEyebrowReady') : t('home.ctaAddDestinationHint');
 
@@ -791,15 +789,15 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
               <Text style={styles.brandMeta} numberOfLines={1}>{areaLabel}</Text>
             </View>
           </View>
-          <MapControls
-            onLocate={handleUseCurrentLocation}
-            onSafety={() => navigation.navigate('Settings')}
-            style={styles.mapControls}
-          />
         </View>
+        <MapControls
+          onLocate={handleUseCurrentLocation}
+          onSafety={() => navigation.navigate('Settings')}
+          style={[styles.mapControls, { top: insets.top + 76 }]}
+        />
 
         <BottomSheet
-          bottomOffset={tabBarOffset}
+          bottomOffset={0}
           footer={
             <Button
               disabled={!canOrderTaxi}
@@ -991,6 +989,8 @@ const createStyles = (
     },
     mapControls: {
       alignItems: 'flex-end',
+      position: 'absolute',
+      right: passengerSpacing.lg,
     },
     metric: {
       backgroundColor: palette.surfaceMuted,

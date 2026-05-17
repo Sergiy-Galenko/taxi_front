@@ -183,7 +183,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   const { mode, setThemeMode } = useTheme();
   const { palette, radius } = usePassengerTheme();
   const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
-  const { user } = useUser();
+  const { user, setUser } = useUser();
   const { t, language, setLanguage } = useI18n();
   const {
     defaultPaymentMethod,
@@ -202,6 +202,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
 
   const handleLogout = async () => {
     await signOut();
+    setUser(null);
     navigation.reset({
       index: 0,
       routes: [{ name: 'Login' }],

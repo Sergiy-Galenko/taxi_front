@@ -1,6 +1,7 @@
-import React, { memo, useEffect, useMemo, useRef } from 'react';
-import { Image, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { hasGoogleMapsApiKey } from '../../config/googleMaps';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+import { GOOGLE_MAPS_API_KEY, hasGoogleMapsApiKey } from '../../config/googleMaps';
 import { DEFAULT_CITY_CENTER } from '../../data/passenger';
 import { getRegionFromCoordinates } from '../../services/maps/geometry';
 import { Coordinates } from '../../types/passenger';
@@ -20,10 +21,7 @@ export interface RouteMapCameraRef {
 }
 
 interface RouteMarker {
-  anchor?: {
-    x: number;
-    y: number;
-  };
+  anchor?: { x: number; y: number };
   coords: Coordinates;
   element: React.ReactElement;
   id: string;
@@ -42,21 +40,154 @@ interface GoogleRouteMapProps {
   style: StyleProp<ViewStyle>;
 }
 
-const TILE_ZOOM = 13;
-const TILE_GRID_SIZE = 3;
+function buildMapHtml(opts: {
+  apiKey: string;
+  center: { lat: number; lng: number };
+  language: string;
+  markers: Array<{ id: string; lat: number; lng: number; color: string }>;
+  routeCoords: Array<{ lat: number; lng: number }>;
+  routeColor: string;
+  zoom: number;
+}): string {
+  const markersJSON = JSON.stringify(opts.markers);
+  const routeJSON = JSON.stringify(opts.routeCoords);
 
-const longitudeToTileX = (longitude: number, zoom: number) =>
-  ((longitude + 180) / 360) * 2 ** zoom;
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body,#map{width:100%;height:100%;overflow:hidden}
+.leaflet-control-attribution{font-size:9px!important;opacity:.7}
+.marker-pickup{width:28px;height:28px;border-radius:50%;background:#fff;border:3.5px solid #197A68;display:flex;align-items:center;justify-content:center}
+.marker-pickup-inner{width:10px;height:10px;border-radius:50%;background:#197A68}
+.marker-destination{width:28px;height:28px;border-radius:50%;background:#C94A4A;border:3px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:800}
+.marker-driver{width:30px;height:30px;border-radius:50%;background:#197A68;border:2px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px}
+.marker-default{width:22px;height:22px;border-radius:50%;background:#3B82F6;border:3px solid #fff}
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+<div id="map"></div>
+<script>
+(function(){
+  var map = L.map('map',{
+    center:[${opts.center.lat},${opts.center.lng}],
+    zoom:${opts.zoom},
+    zoomControl:false,
+    attributionControl:true
+  });
 
-const latitudeToTileY = (latitude: number, zoom: number) => {
-  const latitudeRad = (latitude * Math.PI) / 180;
-  return (
-    ((1 - Math.log(Math.tan(latitudeRad) + 1 / Math.cos(latitudeRad)) / Math.PI) / 2) *
-    2 ** zoom
-  );
-};
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19,
+    attribution:'© OpenStreetMap'
+  }).addTo(map);
 
-const clampPercent = (value: number) => Math.max(6, Math.min(94, value));
+  var markersData = ${markersJSON};
+  var routeCoords = ${routeJSON};
+  var routeColor = '${opts.routeColor}';
+  var apiKey = '${opts.apiKey}';
+  var markerLayers = [];
+  var routeLayer = null;
+
+  function getMarkerHtml(m){
+    if(m.id==='pickup') return '<div class="marker-pickup"><div class="marker-pickup-inner"></div></div>';
+    if(m.id==='destination') return '<div class="marker-destination">⚑</div>';
+    if(m.id==='driver') return '<div class="marker-driver">🚗</div>';
+    return '<div class="marker-default"></div>';
+  }
+
+  function renderMarkers(data){
+    markerLayers.forEach(function(l){map.removeLayer(l)});
+    markerLayers=[];
+    data.forEach(function(m){
+      var icon = L.divIcon({html:getMarkerHtml(m),className:'',iconSize:[28,28],iconAnchor:[14,14]});
+      var ml = L.marker([m.lat,m.lng],{icon:icon}).addTo(map);
+      markerLayers.push(ml);
+    });
+  }
+
+  function renderRoute(coords){
+    if(routeLayer){map.removeLayer(routeLayer);routeLayer=null}
+    if(!coords||coords.length<2) return;
+    var latlngs=coords.map(function(c){return[c.lat,c.lng]});
+    routeLayer=L.polyline(latlngs,{color:routeColor,weight:5,opacity:0.85,lineCap:'round',lineJoin:'round'}).addTo(map);
+  }
+
+  function fitAll(){
+    var bounds=[];
+    markerLayers.forEach(function(ml){bounds.push(ml.getLatLng())});
+    if(routeLayer){
+      routeLayer.getLatLngs().forEach(function(ll){bounds.push(ll)});
+    }
+    if(bounds.length>=2){
+      map.fitBounds(L.latLngBounds(bounds),{padding:[50,40],animate:true,duration:0.5});
+    }
+  }
+
+  function fetchDirections(origin,dest){
+    if(!apiKey) return;
+    var url='https://maps.googleapis.com/maps/api/directions/json?origin='+origin.lat+','+origin.lng+'&destination='+dest.lat+','+dest.lng+'&key='+apiKey+'&language=${opts.language}';
+    // Can't call Directions API from browser (CORS), use route coords from RN
+  }
+
+  renderMarkers(markersData);
+  renderRoute(routeCoords);
+  if(markersData.length>=2||routeCoords.length>=2){
+    setTimeout(fitAll,300);
+  }
+
+  // Listen for messages from React Native
+  document.addEventListener('message',function(e){handleMsg(e)});
+  window.addEventListener('message',function(e){handleMsg(e)});
+
+  function handleMsg(e){
+    try{
+      var msg=JSON.parse(e.data);
+      if(msg.type==='updateMarkers'){
+        renderMarkers(msg.markers);
+      }
+      if(msg.type==='updateRoute'){
+        routeColor=msg.color||routeColor;
+        renderRoute(msg.coords);
+      }
+      if(msg.type==='fitBounds'){
+        if(msg.ne&&msg.sw){
+          map.fitBounds([[msg.sw[0],msg.sw[1]],[msg.ne[0],msg.ne[1]]],{padding:[msg.padding||40,msg.padding||40],animate:true});
+        }else{
+          fitAll();
+        }
+      }
+      if(msg.type==='setCamera'){
+        if(msg.center) map.setView([msg.center[0],msg.center[1]],msg.zoom||14,{animate:true});
+      }
+      if(msg.type==='fullUpdate'){
+        if(msg.markers) renderMarkers(msg.markers);
+        if(msg.coords) {routeColor=msg.color||routeColor; renderRoute(msg.coords);}
+        setTimeout(fitAll,200);
+      }
+    }catch(err){}
+  }
+
+  map.on('click',function(e){
+    window.ReactNativeWebView.postMessage(JSON.stringify({type:'mapPress',lat:e.latlng.lat,lng:e.latlng.lng}));
+  });
+
+  map.on('moveend',function(){
+    var c=map.getCenter();
+    window.ReactNativeWebView.postMessage(JSON.stringify({type:'moveEnd',lat:c.lat,lng:c.lng,zoom:map.getZoom()}));
+  });
+
+  // Signal ready
+  window.ReactNativeWebView.postMessage(JSON.stringify({type:'ready'}));
+})();
+</script>
+</body>
+</html>`;
+}
 
 function GoogleRouteMap({
   cameraRef,
@@ -64,47 +195,129 @@ function GoogleRouteMap({
   markers,
   onMapPress,
   routeCoordinates = [],
+  routeLineColor = '#1A73E8',
+  scrollEnabled = true,
   style,
 }: GoogleRouteMapProps) {
-  const mapRef = useRef<any>(null);
+  const webViewRef = useRef<WebView | null>(null);
+  const [isReady, setIsReady] = useState(false);
+
   const initialRegion = useMemo(() => {
     return getRegionFromCoordinates(
-      [...routeCoordinates, ...markers.map((marker) => marker.coords)],
+      [...routeCoordinates, ...markers.map((m) => m.coords)],
       DEFAULT_CITY_CENTER
     );
   }, [markers, routeCoordinates]);
 
+  const markerData = useMemo(
+    () =>
+      markers.map((m) => ({
+        id: m.id,
+        lat: m.coords.latitude,
+        lng: m.coords.longitude,
+        color: m.id === 'pickup' ? '#197A68' : m.id === 'destination' ? '#C94A4A' : '#3B82F6',
+      })),
+    [markers]
+  );
+
+  const routeData = useMemo(
+    () => routeCoordinates.map((c) => ({ lat: c.latitude, lng: c.longitude })),
+    [routeCoordinates]
+  );
+
+  const htmlContent = useMemo(
+    () =>
+      buildMapHtml({
+        apiKey: hasGoogleMapsApiKey() ? GOOGLE_MAPS_API_KEY : '',
+        center: { lat: initialRegion.latitude, lng: initialRegion.longitude },
+        language,
+        markers: markerData,
+        routeCoords: routeData,
+        routeColor: routeLineColor,
+        zoom: 13,
+      }),
+    // Only build HTML once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  // Send updates to WebView when data changes
   useEffect(() => {
-    if (!cameraRef) {
-      return;
-    }
+    if (!isReady || !webViewRef.current) return;
+
+    webViewRef.current.postMessage(
+      JSON.stringify({
+        type: 'fullUpdate',
+        markers: markerData,
+        coords: routeData,
+        color: routeLineColor,
+      })
+    );
+  }, [isReady, markerData, routeData, routeLineColor]);
+
+  // Camera ref integration
+  useEffect(() => {
+    if (!cameraRef) return;
 
     cameraRef.current = {
-      fitBounds: () => undefined,
-      setCamera: () => undefined,
+      fitBounds: (ne, sw, paddingConfig) => {
+        if (!webViewRef.current || !isReady) return;
+        const padding = typeof paddingConfig === 'number' ? paddingConfig : 40;
+        webViewRef.current.postMessage(
+          JSON.stringify({ type: 'fitBounds', ne, sw, padding })
+        );
+      },
+      setCamera: (config) => {
+        if (!webViewRef.current || !isReady) return;
+        webViewRef.current.postMessage(
+          JSON.stringify({
+            type: 'setCamera',
+            center: config.centerCoordinate,
+            zoom: config.zoomLevel,
+          })
+        );
+      },
     };
 
     return () => {
       cameraRef.current = null;
     };
-  }, [cameraRef]);
+  }, [cameraRef, isReady]);
 
-  const hasApiKey = hasGoogleMapsApiKey();
-  const attribution = hasApiKey
-    ? language === 'uk'
-      ? 'Демо-карта'
-      : 'Demo map'
-    : language === 'uk'
-      ? 'OpenStreetMap'
-      : 'OpenStreetMap';
+  const handleMessage = useCallback(
+    (event: WebViewMessageEvent) => {
+      try {
+        const msg = JSON.parse(event.nativeEvent.data);
+        if (msg.type === 'ready') {
+          setIsReady(true);
+        }
+        if (msg.type === 'mapPress' && onMapPress) {
+          onMapPress();
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    },
+    [onMapPress]
+  );
 
   return (
-    <View ref={mapRef} onTouchEnd={onMapPress} style={style}>
-      <MapFallback
-        initialRegion={initialRegion}
-        markers={markers}
-        routeCoordinates={routeCoordinates}
-        attribution={attribution}
+    <View style={[styles.container, style]}>
+      <WebView
+        ref={webViewRef}
+        originWhitelist={['*']}
+        source={{ html: htmlContent }}
+        style={styles.webview}
+        scrollEnabled={scrollEnabled}
+        javaScriptEnabled
+        domStorageEnabled
+        onMessage={handleMessage}
+        showsHorizontalScrollIndicator={false}
+        showsVerticalScrollIndicator={false}
+        overScrollMode="never"
+        bounces={false}
+        setSupportMultipleWindows={false}
+        cacheEnabled
       />
     </View>
   );
@@ -112,155 +325,12 @@ function GoogleRouteMap({
 
 export default memo(GoogleRouteMap);
 
-interface MapFallbackProps {
-  attribution: string;
-  initialRegion: ReturnType<typeof getRegionFromCoordinates>;
-  markers: RouteMarker[];
-  routeCoordinates: Coordinates[];
-}
-
-function MapFallback({
-  attribution,
-  initialRegion,
-  markers,
-  routeCoordinates,
-}: MapFallbackProps) {
-  const tileData = useMemo(() => {
-    const centerTileX = longitudeToTileX(initialRegion.longitude, TILE_ZOOM);
-    const centerTileY = latitudeToTileY(initialRegion.latitude, TILE_ZOOM);
-    const baseX = Math.floor(centerTileX) - 1;
-    const baseY = Math.floor(centerTileY) - 1;
-
-    return Array.from({ length: TILE_GRID_SIZE * TILE_GRID_SIZE }, (_, index) => {
-      const col = index % TILE_GRID_SIZE;
-      const row = Math.floor(index / TILE_GRID_SIZE);
-      const x = baseX + col;
-      const y = baseY + row;
-
-      return {
-        id: `${x}-${y}`,
-        left: `${col * (100 / TILE_GRID_SIZE)}%`,
-        top: `${row * (100 / TILE_GRID_SIZE)}%`,
-        uri: `https://tile.openstreetmap.org/${TILE_ZOOM}/${x}/${y}.png`,
-      };
-    });
-  }, [initialRegion.latitude, initialRegion.longitude]);
-
-  const markerPositions = useMemo(() => {
-    const centerTileX = longitudeToTileX(initialRegion.longitude, TILE_ZOOM);
-    const centerTileY = latitudeToTileY(initialRegion.latitude, TILE_ZOOM);
-    const scale = 100 / TILE_GRID_SIZE;
-
-    return markers.map((marker) => {
-      const x = longitudeToTileX(marker.coords.longitude, TILE_ZOOM);
-      const y = latitudeToTileY(marker.coords.latitude, TILE_ZOOM);
-
-      return {
-        id: marker.id,
-        left: `${clampPercent(50 + (x - centerTileX) * scale)}%`,
-        top: `${clampPercent(50 + (y - centerTileY) * scale)}%`,
-      };
-    });
-  }, [initialRegion.latitude, initialRegion.longitude, markers]);
-
-  return (
-    <View style={styles.unavailableCard}>
-      <View style={styles.fallbackGrid}>
-        {tileData.map((tile) => (
-          <Image
-            key={tile.id}
-            resizeMode="cover"
-            source={{ uri: tile.uri }}
-            style={[styles.tile, { left: tile.left as any, top: tile.top as any }]}
-          />
-        ))}
-        <View pointerEvents="none" style={styles.tileOverlay} />
-        {routeCoordinates.length > 1 ? <View style={styles.fallbackRouteLine} /> : null}
-        {markerPositions.map((marker) => (
-          <View
-            key={marker.id}
-            style={[
-              styles.fallbackMarker,
-              marker.id === 'destination' && styles.fallbackDestinationMarker,
-              { left: marker.left as any, top: marker.top as any },
-            ]}
-          />
-        ))}
-        <Text style={styles.attribution}>© {attribution}</Text>
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  attribution: {
-    backgroundColor: 'rgba(255, 255, 255, 0.72)',
-    borderRadius: 999,
-    bottom: 12,
-    color: '#64716C',
-    fontSize: 10,
-    fontWeight: '700',
-    left: 12,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    position: 'absolute',
-  },
-  fallbackDestinationMarker: {
-    backgroundColor: '#C94A4A',
-  },
-  fallbackGrid: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#E9EFE9',
-  },
-  fallbackMarker: {
-    backgroundColor: '#197A68',
-    borderColor: '#FFFFFF',
-    borderRadius: 13,
-    borderWidth: 3,
-    height: 26,
-    position: 'absolute',
-    width: 26,
-  },
-  fallbackRouteLine: {
-    backgroundColor: 'rgba(17, 24, 23, 0.78)',
-    borderRadius: 999,
-    height: 6,
-    left: '22%',
-    position: 'absolute',
-    right: '22%',
-    top: '52%',
-    transform: [{ rotate: '-14deg' }],
-  },
-  tile: {
-    height: '33.34%',
-    position: 'absolute',
-    width: '33.34%',
-  },
-  tileOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(233, 239, 233, 0.12)',
-  },
-  unavailableCard: {
-    alignItems: 'center',
-    backgroundColor: '#E9EFE9',
-    flex: 1,
-    justifyContent: 'center',
+  container: {
     overflow: 'hidden',
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    width: '100%',
   },
-  unavailableText: {
-    color: '#4B5563',
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  unavailableTitle: {
-    color: '#111827',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 8,
-    textAlign: 'center',
+  webview: {
+    flex: 1,
+    backgroundColor: '#E9EFE9',
   },
 });

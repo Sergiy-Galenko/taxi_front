@@ -1,10 +1,15 @@
 import { StyleSheet } from 'react-native';
 
+/**
+ * Shared styles for auth screens using react-native-paper components
+ * (DriverRegistration). Kept for backward compatibility.
+ * Note: PassengerRegistration now uses passenger theme directly.
+ */
 export const authStyles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#1A1A1A',
   },
   header: {
     marginTop: 40,
@@ -13,19 +18,19 @@ export const authStyles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#FFFFFF',
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: '#A0A0A0',
     marginBottom: 20,
   },
   form: {
     gap: 15,
   },
   input: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#2C2C2E',
     borderRadius: 10,
     paddingHorizontal: 15,
     height: 50,
@@ -42,7 +47,7 @@ export const authStyles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 20,
     paddingVertical: 10,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#2C2C2E',
     borderRadius: 10,
     paddingHorizontal: 15,
   },
@@ -50,11 +55,11 @@ export const authStyles = StyleSheet.create({
     flex: 1,
     marginRight: 10,
     fontSize: 14,
-    color: '#333',
+    color: '#CCCCCC',
   },
   link: {
-    color: '#007AFF',
+    color: '#F4B400',
     textAlign: 'center',
     marginTop: 20,
   },
-}); 
+});
