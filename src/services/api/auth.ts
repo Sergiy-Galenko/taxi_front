@@ -1,5 +1,5 @@
-import { API_URL } from '../../config/api';
-import { User } from '../../hooks/UserContext';
+import { apiEndpoint } from '../../config/api';
+import { User, parseSession } from '../../core/auth/session';
 import { requestJson } from './http';
 
 export interface PassengerRegistrationPayload {
@@ -9,30 +9,10 @@ export interface PassengerRegistrationPayload {
   password: string;
 }
 
-export interface AuthRegisterResponse {
-  message: string;
-  token: string;
-  user: any;
-}
-
-export interface LoginPayload {
-  email: string;
-  password: string;
-}
-
-const normalizeUser = (user: any): User => {
-  return {
-    ...user,
-    id: String(user.id),
-    email: user.email,
-    fullName: (user.fullName || user.full_name) as string,
-    role: user.role,
-    phoneNumber: (user.phoneNumber || user.phone_number) as string | undefined,
-  };
-};
+export interface LoginPayload { email: string; password: string }
 
 export const registerPassenger = async (
-  payload: PassengerRegistrationPayload
+  payload: PassengerRegistrationPayload, signal?: AbortSignal
 ): Promise<{ token: string; user: User }> => {
   const body = {
     email: payload.email,
@@ -42,28 +22,32 @@ export const registerPassenger = async (
     role: 'passenger',
   };
 
-  const result = await requestJson<AuthRegisterResponse>(`${API_URL}/api/auth/register`, {
+  const result = await requestJson(apiEndpoint('/api/auth/register'), {
     method: 'POST',
+    signal,
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
   });
 
-  return { token: result.token, user: normalizeUser(result.user) };
+  const session = parseSession(result);
+  if (session.user.role !== 'passenger') throw new Error('Invalid passenger registration response');
+  return session;
 };
 
 export const loginUser = async (
-  payload: LoginPayload
+  payload: LoginPayload, signal?: AbortSignal
 ): Promise<{ token: string; user: User }> => {
-  const result = await requestJson<AuthRegisterResponse>(`${API_URL}/api/auth/login`, {
+  const result = await requestJson(apiEndpoint('/api/auth/login'), {
     method: 'POST',
+    signal,
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
   });
 
-  return { token: result.token, user: normalizeUser(result.user) };
+  return parseSession(result);
 };
 

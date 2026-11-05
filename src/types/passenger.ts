@@ -27,18 +27,15 @@ export interface RideOption {
   label: string;
   description: string;
   capacity: string;
-  baseFare: number;
-  perKm: number;
-  etaMin: number;
   icon: string;
   accentColor: string;
 }
 
 export interface TripSummary {
-  distanceKm: number;
-  durationMin: number;
-  pickupEtaMin: number;
-  price: number;
+  distanceKm: number | null;
+  durationMin: number | null;
+  pickupEtaMin: number | null;
+  price: number | null;
 }
 
 export interface TripHistoryEntry {

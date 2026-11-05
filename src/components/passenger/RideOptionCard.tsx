@@ -16,7 +16,6 @@ interface RideOptionCardProps {
 export default function RideOptionCard({
   option,
   selected,
-  summary,
   onPress,
 }: RideOptionCardProps) {
   const { t } = useI18n();
@@ -46,7 +45,7 @@ export default function RideOptionCard({
       <View style={styles.metricsRow}>
         <View>
           <Text style={styles.metricLabel}>{t('home.pickupStat')}</Text>
-          <Text style={styles.metricValue}>{t('common.minutesShort', { count: summary.pickupEtaMin })}</Text>
+          <Text style={styles.metricValue}>{t('integration.unknown')}</Text>
         </View>
         <View>
           <Text style={styles.metricLabel}>{t('vehicleSelection.capacity')}</Text>
@@ -54,7 +53,7 @@ export default function RideOptionCard({
         </View>
         <View>
           <Text style={styles.metricLabel}>{t('vehicleSelection.fare')}</Text>
-          <Text style={styles.metricValue}>{t('common.priceUah', { amount: summary.price })}</Text>
+          <Text style={styles.metricValue}>{t('integration.unknown')}</Text>
         </View>
       </View>
     </TouchableOpacity>

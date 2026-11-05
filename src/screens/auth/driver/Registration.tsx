@@ -1,6 +1,9 @@
+import { useI18n } from '../../../hooks/useI18n';
+import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
+import AuthScreenFrame from '../../../shared/components/AuthScreenFrame';
 import React from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
-import { Text, Button } from 'react-native-paper';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
+import { Button } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../../../types/navigation';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,9 +11,12 @@ import * as Animatable from 'react-native-animatable';
 import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-const { width, height } = Dimensions.get('window');
 
 export default function DriverRegistration() {
+  const { t } = useI18n();
+  const reducedMotion = useReducedMotion();
+  const { width, height } = useWindowDimensions();
+  const styles = React.useMemo(() => createStyles(width, height), [width, height]);
   const navigation = useNavigation<NavigationProp>();
 
   const handleStartRegistration = () => {
@@ -18,54 +24,51 @@ export default function DriverRegistration() {
   };
 
   return (
+    <AuthScreenFrame>
     <View style={styles.container}>
       <LinearGradient
         colors={['#1A1A1A', '#2D2D2D']}
         style={styles.background}
       />
-      
+
       {/* Decorative elements */}
       <View style={styles.decorativeCircle} />
       <View style={[styles.decorativeCircle, styles.circle2]} />
       <View style={[styles.decorativeCircle, styles.circle3]} />
 
-      <Animatable.View 
-        animation="fadeIn"
+      <Animatable.View
+        animation={reducedMotion ? undefined : 'fadeIn'}
         duration={1000}
         style={styles.content}
       >
-        <Animatable.View 
-          animation="zoomIn"
+        <Animatable.View
+          animation={reducedMotion ? undefined : 'zoomIn'}
           duration={800}
           style={styles.iconContainer}
         >
-          <MaterialCommunityIcons 
-            name="car" 
-            size={80} 
+          <MaterialCommunityIcons
+            name="car"
+            size={80}
             color="#FF3B30"
           />
         </Animatable.View>
 
-        <Animatable.Text 
-          animation="fadeInUp"
+        <Animatable.Text
+          animation={reducedMotion ? undefined : 'fadeInUp'}
           duration={800}
           delay={200}
           style={styles.title}
-        >
-          Реєстрація водія
-        </Animatable.Text>
+        >{t("Реєстрація водія")}</Animatable.Text>
 
-        <Animatable.Text 
-          animation="fadeInUp"
+        <Animatable.Text
+          animation={reducedMotion ? undefined : 'fadeInUp'}
           duration={800}
           delay={400}
           style={styles.subtitle}
-        >
-          Заповніть форму реєстрації, щоб стати водієм
-        </Animatable.Text>
+        >{t("Заповніть форму реєстрації, щоб стати водієм")}</Animatable.Text>
 
-        <Animatable.View 
-          animation="fadeInUp"
+        <Animatable.View
+          animation={reducedMotion ? undefined : 'fadeInUp'}
           duration={800}
           delay={600}
           style={styles.buttonContainer}
@@ -78,17 +81,17 @@ export default function DriverRegistration() {
               contentStyle={styles.buttonContent}
               labelStyle={styles.buttonLabel}
               icon="arrow-right"
-            >
-              Почати реєстрацію
-            </Button>
+            >{t("Почати реєстрацію")}</Button>
           </BlurView>
         </Animatable.View>
       </Animatable.View>
     </View>
+
+    </AuthScreenFrame>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (width: number, height: number) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1A1A1A',
@@ -138,7 +141,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   button: {
-    height: 56,
+    minHeight: 56,
     borderRadius: 16,
     backgroundColor: '#FF3B30',
     shadowColor: '#FF3B30',
@@ -148,7 +151,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   buttonContent: {
-    height: 56,
+    minHeight: 56,
   },
   buttonLabel: {
     fontSize: 18,
@@ -179,4 +182,4 @@ const styles = StyleSheet.create({
     bottom: -width * 0.1,
     right: -width * 0.1,
   },
-}); 
+});

@@ -1,98 +1,52 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppSettingsState, PaymentMethodKey } from '../types/settings';
-
+import { defaultSettings, parseSettings } from '../core/storage/preferences';
 const SETTINGS_STORAGE_KEY = 'app.settings';
-
-const defaultSettings: AppSettingsState = {
-  defaultPaymentMethod: 'visa',
-  notificationsEnabled: true,
-  rideUpdatesEnabled: true,
-  driverAlertsEnabled: true,
-  paymentUpdatesEnabled: true,
-  shareRideEnabled: false,
-  priceAlertsEnabled: true,
-};
-
 interface SettingsContextValue extends AppSettingsState {
   setDefaultPaymentMethod: (method: PaymentMethodKey) => Promise<void>;
   updateSetting: <K extends keyof AppSettingsState>(key: K, value: AppSettingsState[K]) => Promise<void>;
   settingsReady: boolean;
+  storageError: boolean;
 }
-
 const SettingsContext = createContext<SettingsContextValue | undefined>(undefined);
-
-export const SettingsProvider = ({ children }: { children: React.ReactNode }) => {
-  const [settings, setSettings] = useState<AppSettingsState>(defaultSettings);
+export function SettingsProvider({ children }: { children: React.ReactNode }) {
+  const [settings, setSettings] = useState(defaultSettings);
   const [settingsReady, setSettingsReady] = useState(false);
-
+  const [storageError, setStorageError] = useState(false);
+  const current = useRef(settings);
+  const revision = useRef(0);
+  const writes = useRef<Promise<void>>(Promise.resolve());
+  const mounted = useRef(true);
   useEffect(() => {
-    let mounted = true;
-
-    AsyncStorage.getItem(SETTINGS_STORAGE_KEY)
-      .then((storedSettings) => {
-        if (!mounted) {
-          return;
-        }
-
-        if (!storedSettings) {
-          setSettingsReady(true);
-          return;
-        }
-
-        try {
-          const parsed = JSON.parse(storedSettings) as Partial<AppSettingsState>;
-          setSettings({ ...defaultSettings, ...parsed });
-        } catch {
-          setSettings(defaultSettings);
-        } finally {
-          setSettingsReady(true);
-        }
-      })
-      .catch(() => setSettingsReady(true));
-
-    return () => {
-      mounted = false;
-    };
+    mounted.current = true;
+    const initialRevision = revision.current;
+    void AsyncStorage.getItem(SETTINGS_STORAGE_KEY).then((stored) => {
+      if (!mounted.current || revision.current !== initialRevision) return;
+      current.current = stored ? parseSettings(JSON.parse(stored)) : defaultSettings;
+      setSettings(current.current);
+    }).catch(() => { if (mounted.current) setStorageError(true); })
+      .finally(() => { if (mounted.current) setSettingsReady(true); });
+    return () => { mounted.current = false; };
   }, []);
-
-  const persistSettings = async (nextSettings: AppSettingsState) => {
-    setSettings(nextSettings);
-    await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(nextSettings));
-  };
-
-  const updateSetting = async <K extends keyof AppSettingsState>(key: K, value: AppSettingsState[K]) => {
-    const nextSettings = {
-      ...settings,
-      [key]: value,
+  const value = useMemo(() => {
+    const updateSetting = async <K extends keyof AppSettingsState>(key: K, next: AppSettingsState[K]) => {
+      ++revision.current;
+      current.current = { ...current.current, [key]: next };
+      setSettings(current.current);
+      const serialized = JSON.stringify(current.current);
+      const write = writes.current.then(() => AsyncStorage.setItem(SETTINGS_STORAGE_KEY, serialized));
+      writes.current = write.catch(() => undefined);
+      try { await write; if (mounted.current) setStorageError(false); }
+      catch { if (mounted.current) setStorageError(true); }
     };
-
-    await persistSettings(nextSettings);
-  };
-
-  const setDefaultPaymentMethod = async (method: PaymentMethodKey) => {
-    await updateSetting('defaultPaymentMethod', method);
-  };
-
-  const value = useMemo(
-    () => ({
-      ...settings,
-      setDefaultPaymentMethod,
-      updateSetting,
-      settingsReady,
-    }),
-    [settings, settingsReady]
-  );
-
+    return { ...settings, settingsReady, storageError, updateSetting,
+      setDefaultPaymentMethod: (method: PaymentMethodKey) => updateSetting('defaultPaymentMethod', method) };
+  }, [settings, settingsReady, storageError]);
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
-};
-
-export const useSettings = () => {
-  const context = useContext(SettingsContext);
-
-  if (!context) {
-    throw new Error('useSettings must be used within a SettingsProvider');
-  }
-
-  return context;
-};
+}
+export function useSettings() {
+  const value = useContext(SettingsContext);
+  if (!value) throw new Error('useSettings must be used within a SettingsProvider');
+  return value;
+}

@@ -46,7 +46,7 @@ export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       setLanguageState(getDeviceLanguage());
-    });
+    }).catch(() => { if (mounted) setLanguageState(getDeviceLanguage()); });
 
     return () => {
       mounted = false;
@@ -55,7 +55,8 @@ export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
 
   const setLanguage = async (nextLanguage: AppLanguage) => {
     setLanguageState(nextLanguage);
-    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, nextLanguage);
+    try { await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, nextLanguage); }
+    catch { /* Keep the selected language usable for this session. */ }
   };
 
   const t = useMemo(() => {

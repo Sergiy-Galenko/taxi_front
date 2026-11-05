@@ -9,15 +9,6 @@ type BookingRouteParams = {
   rideType?: RideOptionKey;
 };
 
-type ConfirmedRideParams = BookingRouteParams & {
-  rideType: RideOptionKey;
-  paymentMethod: PaymentMethodKey;
-  price: number;
-  pickupEtaMin: number;
-  durationMin: number;
-  distanceKm: number;
-};
-
 export type RootStackParamList = {
   Login: undefined;
   RoleSelection: undefined;
@@ -51,17 +42,7 @@ export type RootStackParamList = {
     yearsOfExperience: string;
     licenseNumber: string;
   };
-  DriverVerification: {
-    fullName: string;
-    email: string;
-    phone: string;
-    carModel: string;
-    carColor: string;
-    carNumber: string;
-    yearsOfExperience: string;
-    licenseNumber: string;
-    password: string;
-  };
+  DriverVerification: undefined;
   Home:
     | {
         from?: string;
@@ -69,16 +50,9 @@ export type RootStackParamList = {
         rideType?: RideOptionKey;
       }
     | undefined;
-  Main: undefined;
   VehicleSelection: BookingRouteParams;
-  DriverSearch: ConfirmedRideParams;
-  ActiveRide: ConfirmedRideParams & {
-    driverName: string;
-    driverCar: string;
-    driverPlate: string;
-    driverRating: string;
-    driverEtaMin: number;
-  };
+  DriverSearch: BookingRouteParams & { rideType: RideOptionKey; paymentMethod: PaymentMethodKey };
+  ActiveRide: { rideId: string };
   TripHistory: undefined;
   Preorder:
     | {
@@ -91,4 +65,4 @@ export type RootStackParamList = {
   DriverHome: undefined;
 };
 
-export type NavigationProp = NativeStackNavigationProp<RootStackParamList>; 
+export type NavigationProp = NativeStackNavigationProp<RootStackParamList>;

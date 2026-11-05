@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import BookingFlowLayout from '../../components/passenger/BookingFlowLayout';
+import IntegrationNotice from '../../shared/components/IntegrationNotice';
 import RouteSummaryCard from '../../components/passenger/RouteSummaryCard';
 import VehicleOptionCard from '../../components/passenger/VehicleOptionCard';
 import {
@@ -21,62 +22,30 @@ type VehicleSelectionScreenProps = NativeStackScreenProps<RootStackParamList, 'V
 
 export default function VehicleSelectionScreen({ navigation, route }: VehicleSelectionScreenProps) {
   const { t } = useI18n();
-  const { defaultPaymentMethod, setDefaultPaymentMethod, priceAlertsEnabled } = useSettings();
+  const { defaultPaymentMethod } = useSettings();
   const { palette, radius } = usePassengerTheme();
   const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
   const [selectedRide, setSelectedRide] = useState<RideOptionKey>(route.params.rideType ?? 'comfort');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodKey>(defaultPaymentMethod);
 
-  const summary = useMemo(() => {
-    return calculateTripSummary(route.params.pickupCoords ?? null, route.params.destinationCoords ?? null, selectedRide);
-  }, [route.params.destinationCoords, route.params.pickupCoords, selectedRide]);
-
-  const handleConfirmRide = async () => {
-    await setDefaultPaymentMethod(paymentMethod);
-
-    navigation.navigate('DriverSearch', {
-      ...route.params,
-      rideType: selectedRide,
-      paymentMethod,
-      price: summary.price,
-      pickupEtaMin: summary.pickupEtaMin,
-      durationMin: summary.durationMin,
-      distanceKm: summary.distanceKm,
-    });
-  };
-
   return (
     <BookingFlowLayout
       subtitle={t('vehicleSelection.subtitle')}
       title={t('vehicleSelection.title')}
-      footer={
-        <TouchableOpacity activeOpacity={0.92} onPress={handleConfirmRide} style={styles.primaryButton}>
-          <View>
-            <Text style={styles.primaryEyebrow}>
-              {t('vehicleSelection.confirmEyebrow', { ride: t(`rideOptions.${selectedRide}.label`) })}
-            </Text>
-            <Text style={styles.primaryTitle}>{t('vehicleSelection.confirmTitle', { price: summary.price })}</Text>
-          </View>
-          <Ionicons color="#FFFFFF" name="arrow-forward" size={18} />
-        </TouchableOpacity>
-      }
+      footer={<IntegrationNotice />}
+
     >
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <RouteSummaryCard
           badge={t('common.stepOf', { current: 2, total: 4 })}
           destination={route.params.to}
-          meta={[
-            { icon: 'time-outline', label: t('common.minutesShort', { count: summary.durationMin }) },
-            { icon: 'map-outline', label: t('common.kilometersShort', { count: summary.distanceKm || 0 }) },
-            { icon: 'car-outline', label: t('common.minutesShort', { count: summary.pickupEtaMin }) },
-          ]}
           onPressEdit={() => navigation.goBack()}
           pickup={route.params.from}
         />
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('vehicleSelection.availableCars')}</Text>
-          <Text style={styles.sectionMeta}>{t('vehicleSelection.optionsNearby', { count: RIDE_OPTIONS.length })}</Text>
+          <Text style={styles.sectionTitle}>{t('integration.vehicleTypes')}</Text>
+          <Text style={styles.sectionMeta}>{t('integration.availabilityUnknown')}</Text>
         </View>
 
         <View style={styles.vehicleList}>
@@ -118,16 +87,6 @@ export default function VehicleSelectionScreen({ navigation, route }: VehicleSel
             })}
           </View>
         </View>
-
-        {priceAlertsEnabled ? (
-          <View style={styles.infoCard}>
-            <Ionicons color={palette.primaryDeep} name="pricetag-outline" size={18} />
-            <View style={styles.infoCopy}>
-              <Text style={styles.infoTitle}>{t('home.priceAlertTitle')}</Text>
-              <Text style={styles.infoHint}>{t('home.priceAlertText')}</Text>
-            </View>
-          </View>
-        ) : null}
 
         <TouchableOpacity
           activeOpacity={0.88}

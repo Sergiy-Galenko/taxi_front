@@ -28,9 +28,6 @@ export const RIDE_OPTIONS: RideOption[] = [
     label: 'Economy',
     description: 'Best price for everyday rides',
     capacity: '1-4 seats',
-    baseFare: 72,
-    perKm: 9,
-    etaMin: 3,
     icon: 'car-sport-outline',
     accentColor: passengerPalette.primary,
   },
@@ -39,9 +36,6 @@ export const RIDE_OPTIONS: RideOption[] = [
     label: 'Comfort',
     description: 'More leg room and quieter pickup',
     capacity: '1-4 seats',
-    baseFare: 96,
-    perKm: 12,
-    etaMin: 4,
     icon: 'car-outline',
     accentColor: passengerPalette.accent,
   },
@@ -50,29 +44,12 @@ export const RIDE_OPTIONS: RideOption[] = [
     label: 'XL',
     description: 'More space for people and luggage',
     capacity: '1-6 seats',
-    baseFare: 128,
-    perKm: 15,
-    etaMin: 6,
     icon: 'people-outline',
     accentColor: passengerPalette.info,
   },
 ];
 
 export const LOCATION_SUGGESTIONS: LocationSuggestion[] = [
-  {
-    id: 'home',
-    title: 'Home',
-    subtitle: '12 Shevchenka St.',
-    coords: { latitude: 50.4386, longitude: 30.5148 },
-    category: 'favorite',
-  },
-  {
-    id: 'work',
-    title: 'Office',
-    subtitle: '67 Saksahanskoho St.',
-    coords: { latitude: 50.4359, longitude: 30.5124 },
-    category: 'favorite',
-  },
   {
     id: 'airport',
     title: 'Boryspil Airport',
@@ -92,59 +69,18 @@ export const LOCATION_SUGGESTIONS: LocationSuggestion[] = [
     title: 'Ocean Plaza',
     subtitle: 'Antonovycha St.',
     coords: { latitude: 50.4129, longitude: 30.5229 },
-    category: 'recent',
+    category: 'hub',
   },
   {
     id: 'square',
     title: 'Sofiivska Square',
     subtitle: 'Historic center',
     coords: { latitude: 50.4539, longitude: 30.5164 },
-    category: 'recent',
+    category: 'hub',
   },
 ];
 
-export const TRIP_HISTORY: TripHistoryEntry[] = [
-  {
-    id: 'trip-1',
-    pickup: 'Home',
-    destination: 'Boryspil Airport',
-    dateLabel: 'Today, 08:10',
-    price: 348,
-    rideType: 'comfort',
-    paymentLabel: 'Visa •••• 4219',
-    status: 'Completed',
-  },
-  {
-    id: 'trip-2',
-    pickup: 'Office',
-    destination: 'Podil coworking',
-    dateLabel: 'Yesterday, 18:45',
-    price: 164,
-    rideType: 'economy',
-    paymentLabel: 'Apple Pay',
-    status: 'Completed',
-  },
-  {
-    id: 'trip-3',
-    pickup: 'Central Station',
-    destination: 'Home',
-    dateLabel: 'Mar 6, 21:05',
-    price: 121,
-    rideType: 'economy',
-    paymentLabel: 'Cash',
-    status: 'Completed',
-  },
-  {
-    id: 'trip-4',
-    pickup: 'Home',
-    destination: 'Clinic visit',
-    dateLabel: 'Mar 3, 11:30',
-    price: 196,
-    rideType: 'xl',
-    paymentLabel: 'Visa •••• 4219',
-    status: 'Completed',
-  },
-];
+export const TRIP_HISTORY: TripHistoryEntry[] = [];
 
 export const PAYMENT_METHODS: PaymentMethodKey[] = ['visa', 'apple_pay', 'cash'];
 
@@ -276,37 +212,9 @@ export const searchDestinationSuggestions = (
     .slice(0, limit);
 };
 
-const distanceBetweenKm = (from: Coordinates, to: Coordinates): number => {
-  const latDelta = (from.latitude - to.latitude) * 111;
-  const averageLatitude = ((from.latitude + to.latitude) / 2) * (Math.PI / 180);
-  const lngDelta = (from.longitude - to.longitude) * 111 * Math.cos(averageLatitude);
-
-  return Math.sqrt(latDelta * latDelta + lngDelta * lngDelta);
-};
-
+// Route distance, ETA and fare require a server quote. Geographic proximity is not a route.
 export const calculateTripSummary = (
-  pickup: Coordinates | null,
-  destination: Coordinates | null,
-  rideKey: RideOptionKey
-): TripSummary => {
-  const rideOption = getRideOption(rideKey);
-
-  if (!pickup || !destination) {
-    return {
-      distanceKm: 0,
-      durationMin: 0,
-      pickupEtaMin: rideOption.etaMin,
-      price: rideOption.baseFare,
-    };
-  }
-
-  const distanceKm = Math.max(1.6, distanceBetweenKm(pickup, destination));
-  const durationMin = Math.max(8, Math.round(distanceKm * 3.1));
-
-  return {
-    distanceKm: Number(distanceKm.toFixed(1)),
-    durationMin,
-    pickupEtaMin: Math.max(rideOption.etaMin, Math.round(distanceKm * 0.55)),
-    price: Math.round(rideOption.baseFare + distanceKm * rideOption.perKm),
-  };
-};
+  _pickup: Coordinates | null,
+  _destination: Coordinates | null,
+  _rideKey: RideOptionKey
+): TripSummary => ({ distanceKm: null, durationMin: null, pickupEtaMin: null, price: null });

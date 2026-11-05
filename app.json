@@ -3,7 +3,7 @@
     "name": "Taxi App",
     "slug": "taxi-app",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -20,11 +20,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.taxiapp",
-      "infoPlist": {
-        "NSCameraUsageDescription": "Цей додаток використовує камеру для верифікації водія та його автомобіля",
-        "NSPhotoLibraryUsageDescription": "Цей додаток використовує доступ до галереї для вибору фотографій"
-      }
+      "bundleIdentifier": "com.taxiapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -34,25 +30,29 @@
       "edgeToEdgeEnabled": true,
       "package": "com.taxiapp",
       "permissions": [
-        "CAMERA",
-        "POST_NOTIFICATIONS",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "POST_NOTIFICATIONS"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA"
       ]
     },
     "web": {
       "favicon": "./assets/icon.png"
     },
     "plugins": [
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Додатку потрібен доступ до ваших фотографій для завантаження документів."
-        }
-      ],
       "expo-font",
       "expo-localization",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Доступ до місцезнаходження потрібен для вибору місця посадки."
+        }
+      ]
     ],
     "sdkVersion": "54.0.0"
   }

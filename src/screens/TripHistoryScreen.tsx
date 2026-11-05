@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import IntegrationNotice from '../shared/components/IntegrationNotice';
 import PassengerScreenLayout from '../components/passenger/PassengerScreenLayout';
 import { TRIP_HISTORY } from '../data/passenger';
 import { useI18n } from '../hooks/useI18n';
@@ -11,9 +12,6 @@ import { usePassengerTheme } from '../hooks/usePassengerTheme';
 import { RootStackParamList } from '../types/navigation';
 
 type TripHistoryScreenProps = NativeStackScreenProps<RootStackParamList, 'TripHistory'>;
-
-const totalSpent = TRIP_HISTORY.reduce((sum, trip) => sum + trip.price, 0);
-const averageFare = Math.round(totalSpent / TRIP_HISTORY.length);
 
 const paymentLabelToKey = (paymentLabel: string) => {
   if (paymentLabel.toLowerCase().includes('apple')) {
@@ -39,21 +37,7 @@ export default function TripHistoryScreen({ navigation }: TripHistoryScreenProps
       title={t('history.title')}
     >
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.analyticsRow}>
-          <View style={styles.analyticsCard}>
-            <Text style={styles.analyticsValue}>{TRIP_HISTORY.length}</Text>
-            <Text style={styles.analyticsLabel}>{t('history.tripsThisMonth')}</Text>
-          </View>
-          <View style={styles.analyticsCard}>
-            <Text style={styles.analyticsValue}>{t('common.priceUah', { amount: averageFare })}</Text>
-            <Text style={styles.analyticsLabel}>{t('history.averageFare')}</Text>
-          </View>
-          <View style={styles.analyticsCard}>
-            <Text style={styles.analyticsValue}>4.9</Text>
-            <Text style={styles.analyticsLabel}>{t('history.averageRating')}</Text>
-          </View>
-        </View>
-
+        <IntegrationNotice detail="integration.history" />
         {TRIP_HISTORY.map((trip) => (
           <View key={trip.id} style={styles.tripCard}>
             <View style={styles.tripHeader}>

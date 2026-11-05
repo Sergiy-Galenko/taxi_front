@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useI18n } from '../../hooks/useI18n';
 import { Ionicons } from '@expo/vector-icons';
 import { usePassengerTheme } from '../../hooks/usePassengerTheme';
 import { PassengerPalette } from '../../theme/passenger';
@@ -43,6 +44,7 @@ export default function AddressInputCard({
   onDestinationFocus,
   focusedField = null,
 }: AddressInputCardProps) {
+  const { t } = useI18n();
   const { palette, radius } = usePassengerTheme();
   const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
 
@@ -62,6 +64,7 @@ export default function AddressInputCard({
             <View style={styles.fieldCopy}>
               <Text style={styles.label}>{pickupLabel}</Text>
               <TextInput
+                accessibilityLabel={pickupLabel}
                 onChangeText={onPickupChange}
                 onFocus={onPickupFocus}
                 placeholder={pickupPlaceholder}
@@ -72,6 +75,8 @@ export default function AddressInputCard({
             </View>
             <TouchableOpacity
               activeOpacity={0.88}
+              accessibilityRole="button"
+              accessibilityLabel={t('accessibility.locate')}
               onPress={onUseCurrentLocation}
               style={styles.sideButton}
             >
@@ -85,6 +90,7 @@ export default function AddressInputCard({
             <View style={styles.fieldCopy}>
               <Text style={styles.label}>{destinationLabel}</Text>
               <TextInput
+                accessibilityLabel={destinationLabel}
                 onChangeText={onDestinationChange}
                 onFocus={onDestinationFocus}
                 placeholder={destinationPlaceholder}
@@ -93,7 +99,7 @@ export default function AddressInputCard({
                 value={destination}
               />
             </View>
-            <TouchableOpacity activeOpacity={0.88} onPress={onSwap} style={styles.sideButton}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('accessibility.swap')} activeOpacity={0.88} onPress={onSwap} style={styles.sideButton}>
               <Ionicons color={palette.text} name="swap-vertical-outline" size={20} />
             </TouchableOpacity>
           </View>

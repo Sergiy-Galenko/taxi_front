@@ -1,39 +1,37 @@
+import { useI18n } from '../../../hooks/useI18n';
+import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
+import AuthScreenFrame from '../../../shared/components/AuthScreenFrame';
 import React, { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { TextInput, Button, Text, IconButton, HelperText } from 'react-native-paper';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { NavigationProp } from '../../../types/navigation';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { NavigationProp, RootStackParamList } from '../../../types/navigation';
 import { getLicenseNumberError } from '../../../utils/validation';
 import * as Animatable from 'react-native-animatable';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 
 export default function DriverLicenseInfo() {
+  const { t } = useI18n();
+  const reducedMotion = useReducedMotion();
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute();
-  const { 
-    fullName, 
-    email, 
-    phone, 
-    carModel, 
-    carColor, 
-    carNumber, 
-    yearsOfExperience 
-  } = route.params as { 
-    fullName: string;
-    email: string;
-    phone: string;
-    carModel: string;
-    carColor: string;
-    carNumber: string;
-    yearsOfExperience: string;
-  };
+  const route = useRoute<RouteProp<RootStackParamList, 'DriverLicenseInfo'>>();
+  const {
+    fullName,
+    email,
+    phone,
+    carModel,
+    carColor,
+    carNumber,
+    yearsOfExperience
+  } = route.params;
 
   const [licenseNumber, setLicenseNumber] = useState('');
   const [error, setError] = useState('');
   const [touched, setTouched] = useState(false);
 
   const handleNext = () => {
+    setTouched(true);
     const licenseError = getLicenseNumberError(licenseNumber);
     if (licenseError) {
       setError(licenseError);
@@ -54,8 +52,8 @@ export default function DriverLicenseInfo() {
 
   const handleLicenseNumberChange = (text: string) => {
     // Видаляємо всі пробіли та дефіси
-    let cleaned = text.replace(/[\s-]/g, '');
-    
+    let cleaned = text.toUpperCase().replace(/[\s-]/g, '');
+
     // Обмежуємо довжину
     if (cleaned.length > 8) {
       cleaned = cleaned.slice(0, 8);
@@ -64,7 +62,7 @@ export default function DriverLicenseInfo() {
     // Форматуємо в залежності від формату
     let formatted = cleaned;
     if (cleaned.length > 0) {
-      if (/^[А-ЯІЇЄҐ]/.test(cleaned)) {
+      if (/^[A-ZА-ЯІЇЄҐ]/.test(cleaned)) {
         // Формат "АВ 123456"
         if (cleaned.length > 2) {
           formatted = cleaned.slice(0, 2) + ' ' + cleaned.slice(2);
@@ -82,8 +80,8 @@ export default function DriverLicenseInfo() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <AuthScreenFrame>
+    <View
       style={styles.container}
     >
       <View style={styles.container}>
@@ -91,7 +89,7 @@ export default function DriverLicenseInfo() {
             colors={['#1A1A1A', '#2A2A2A']}
             style={styles.background}
           />
-          
+
           {/* Decorative circles */}
           <View style={styles.circle1} />
           <View style={styles.circle2} />
@@ -106,23 +104,23 @@ export default function DriverLicenseInfo() {
           />
 
           <View style={styles.contentContainer}>
-            <Animatable.View 
-              animation="fadeIn" 
+            <Animatable.View
+              animation={reducedMotion ? undefined : 'fadeIn'}
               style={styles.header}
             >
-              <Text style={styles.title}>Водійське посвідчення</Text>
-              <Text style={styles.subtitle}>Вкажіть номер вашого водійського посвідчення</Text>
+              <Text style={styles.title}>{t("Водійське посвідчення")}</Text>
+              <Text style={styles.subtitle}>{t("Вкажіть номер вашого водійського посвідчення")}</Text>
             </Animatable.View>
 
-            <Animatable.View 
-              animation="slideInUp" 
-              delay={500} 
+            <Animatable.View
+              animation={reducedMotion ? undefined : 'slideInUp'}
+              delay={500}
               style={styles.form}
             >
               <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
                 <TextInput
                   mode="outlined"
-                  label="Номер водійського посвідчення"
+                  label={t("Номер водійського посвідчення")}
                   value={licenseNumber}
                   onChangeText={handleLicenseNumberChange}
                   onBlur={() => {
@@ -132,7 +130,7 @@ export default function DriverLicenseInfo() {
                   style={styles.input}
                   left={<TextInput.Icon icon="card-account-details" color="#FF3B30" />}
                   error={touched && !!error}
-                  placeholder="АВ 123456 або 1234-5678"
+                  placeholder={t("АВ 123456 або 1234-5678")}
                   maxLength={9}
                   theme={{
                     colors: {
@@ -151,12 +149,12 @@ export default function DriverLicenseInfo() {
                 />
               </BlurView>
               <HelperText type="error" visible={touched && !!error} style={styles.errorText}>
-                {error}
+                {t(error)}
               </HelperText>
 
-              <Animatable.View 
-                animation="fadeIn" 
-                delay={700} 
+              <Animatable.View
+                animation={reducedMotion ? undefined : 'fadeIn'}
+                delay={700}
                 style={styles.buttonContainer}
               >
                 <BlurView intensity={20} pointerEvents="box-none" style={styles.buttonBlur}>
@@ -167,15 +165,15 @@ export default function DriverLicenseInfo() {
                     icon="arrow-right"
                     contentStyle={styles.buttonContent}
                     labelStyle={styles.buttonLabel}
-                  >
-                    Далі
-                  </Button>
+                  >{t("Далі")}</Button>
                 </BlurView>
               </Animatable.View>
             </Animatable.View>
           </View>
         </View>
-    </KeyboardAvoidingView>
+    </View>
+
+    </AuthScreenFrame>
   );
 }
 
@@ -240,7 +238,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   button: {
-    height: 56,
+    minHeight: 56,
     justifyContent: 'center',
     borderRadius: 16,
     backgroundColor: 'transparent',
@@ -248,7 +246,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
   },
   buttonContent: {
-    height: 56,
+    minHeight: 56,
   },
   buttonLabel: {
     fontSize: 16,
@@ -282,4 +280,4 @@ const styles = StyleSheet.create({
     bottom: -30,
     right: 50,
   },
-}); 
+});

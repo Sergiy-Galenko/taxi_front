@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Animated } from 'react-native';
+import { useI18n } from '../hooks/useI18n';
+import { StyleSheet, View, Text, Animated } from 'react-native';
 import { TextInput, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -30,9 +31,10 @@ export const CustomInput: React.FC<CustomInputProps> = ({
   autoCapitalize = 'none',
   placeholder,
 }) => {
+  const { t } = useI18n();
   const [isFocused, setIsFocused] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(!secureTextEntry);
-  
+
   // Анімаційні значення
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
   const borderColorAnim = React.useRef(new Animated.Value(0)).current;
@@ -80,7 +82,7 @@ export const CustomInput: React.FC<CustomInputProps> = ({
 
   return (
     <View style={styles.container}>
-      <Animated.View 
+      <Animated.View
         style={[
           styles.inputContainer,
           {
@@ -101,6 +103,7 @@ export const CustomInput: React.FC<CustomInputProps> = ({
           </Animated.View>
         )}
         <TextInput
+          accessibilityLabel={label}
           mode="flat"
           label={label}
           value={value}
@@ -137,6 +140,7 @@ export const CustomInput: React.FC<CustomInputProps> = ({
         {secureTextEntry && (
           <Animated.View style={{ opacity: isFocused ? 1 : 0.7 }}>
             <IconButton
+              accessibilityLabel={t(showPassword ? 'accessibility.hidePassword' : 'accessibility.showPassword')}
               icon={showPassword ? 'eye-off' : 'eye'}
               iconColor={isFocused ? '#FF3B30' : '#8E8E93'}
               size={24}
@@ -146,7 +150,7 @@ export const CustomInput: React.FC<CustomInputProps> = ({
           </Animated.View>
         )}
       </Animated.View>
-      <Animated.View 
+      <Animated.View
         style={[
           styles.errorContainer,
           { opacity: errorOpacityAnim }
@@ -160,7 +164,7 @@ export const CustomInput: React.FC<CustomInputProps> = ({
               color="#FF3B30"
               style={styles.errorIcon}
             />
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorText}>{t(error)}</Text>
           </>
         )}
       </Animated.View>
@@ -180,7 +184,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2C2C2E',
     paddingHorizontal: 12,
-    height: 56,
+    minHeight: 56,
   },
   icon: {
     marginRight: 8,
@@ -189,7 +193,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
     fontSize: 16,
-    height: 56,
+    minHeight: 56,
     paddingVertical: 0,
     textAlignVertical: 'center',
   },
@@ -206,7 +210,8 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   errorText: {
+    flexShrink: 1,
     color: '#FF3B30',
     fontSize: 14,
   },
-}); 
+});

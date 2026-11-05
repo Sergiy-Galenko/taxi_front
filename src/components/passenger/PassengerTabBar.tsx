@@ -41,6 +41,8 @@ export default function PassengerTabBar({ activeRoute }: PassengerTabBarProps) {
 
           return (
             <TouchableOpacity
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
               key={tab.route}
               activeOpacity={0.9}
               onPress={() => {
@@ -69,10 +71,7 @@ const createStyles = (
   radius: typeof import('../../theme/passenger').passengerRadius
 ) => StyleSheet.create({
   wrapper: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 0,
+    marginHorizontal: 16,
   },
   container: {
     backgroundColor: palette.tabBar,

@@ -1,90 +1,27 @@
 # Taxi App
 
-A modern taxi application built with React Native and Expo.
+Expo SDK 54 / React Native 0.81.5 / React 19.1, with passenger and driver roles.
 
-## Features
+Use Node 22 LTS and npm. Install with `npm ci`, copy `.env.example` to `.env.local`, and set the actual backend origin. `EXPO_PUBLIC_*` values are public bundle configuration; never put credentials in them.
 
-- User authentication (passenger and driver)
-- Multi-step driver registration process
-- Form validation
-- Modern UI with animations
-- TypeScript support
-
-## Prerequisites
-
-- Node.js (v14 or later)
-- npm or yarn
-- Expo CLI
-- iOS Simulator (for iOS development)
-- Android Studio (for Android development)
-
-## Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/taxi-app.git
-cd taxi-app
-```
-
-2. Install dependencies:
-```bash
-npm install
-# or
-yarn install
-```
-
-3. Start the development server:
-```bash
+```sh
+npm ci
+npm run verify
+npx expo install --check
+npx expo-doctor
 npm start
-# or
-yarn start
 ```
 
-4. Run on iOS:
-```bash
-npm run ios
-# or
-yarn ios
-```
+`npm run android` requires a configured Android SDK and Java. `npm run ios` requires full Xcode and CocoaPods. Rebuild a development client after adding native modules such as SecureStore.
 
-5. Run on Android:
-```bash
-npm run android
-# or
-yarn android
-```
+Release builds require `EXPO_PUBLIC_API_URL` to be an explicit public HTTPS URL. Invalid/missing release configuration disables API calls; it never falls back to localhost. Development builds can use Metro's host or simulator loopback. Explicit environment URLs are preserved.
 
-## Project Structure
+Authentication and passenger/driver registration retain the existing frontend-declared API contracts. Sessions use SecureStore; token-only legacy sessions require a fresh login. Login determines the role navigator. Driver registration returns to login instead of treating a pending account as verified. The existing driver profile endpoint provides account status after login.
 
-```
-src/
-  ├── components/     # Reusable components
-  ├── screens/        # Screen components
-  │   ├── auth/      # Authentication screens
-  │   └── driver/    # Driver-specific screens
-  ├── navigation/    # Navigation configuration
-  ├── types/         # TypeScript type definitions
-  ├── utils/         # Utility functions
-  └── theme/         # Theme configuration
-```
+Booking, route/fare quotes, live matching, active rides, scheduled rides, trip history, driver dispatch/earnings and document upload have no implemented backend contract in this repository. These screens display explicit unavailable states. No local timer or hardcoded offer creates a successful ride, payment, verification or financial balance. Vehicle choice and address entry remain available. Payment choices are preferences, not linked instruments.
 
-## Technologies Used
+Address autocomplete sends typed searches to the configured places service (Photon by default); native location/geocoding uses the platform provider. Review privacy disclosures and service terms before release.
 
-- React Native
-- Expo
-- TypeScript
-- React Navigation
-- React Native Paper
-- React Native Reanimated
+Test form population requires both a development build and `EXPO_PUBLIC_ENABLE_PREVIEW=true`. There is no guest driver preview or embedded login account.
 
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+Read [the engineering audit](docs/AUDIT.md) for findings, code locations, verification evidence, backend requirements and the complete manual checklist. [Changed files](docs/audit/changed-files.md) lists the review surface.

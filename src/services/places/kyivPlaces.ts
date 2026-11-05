@@ -1,3 +1,5 @@
+import { isRecord } from '../../core/auth/session';
+import { requestJson } from '../api/http';
 import { PLACES_API_URL, KYIV_SEARCH_BBOX, KYIV_SEARCH_CENTER } from '../../config/places';
 import { DestinationSuggestion } from '../../types/passenger';
 import { AppLanguage } from '../../types/settings';
@@ -23,8 +25,20 @@ interface PhotonFeature {
   properties?: PhotonFeatureProperties;
 }
 
-interface PhotonResponse {
-  features?: PhotonFeature[];
+function parseFeatures(payload: unknown): PhotonFeature[] {
+  if (!isRecord(payload) || !Array.isArray(payload.features)) throw new Error('Invalid places response');
+  return payload.features.flatMap((feature: unknown): PhotonFeature[] => {
+    if (!isRecord(feature) || !isRecord(feature.geometry) || !isRecord(feature.properties)) return [];
+    const coords = feature.geometry.coordinates;
+    if (!Array.isArray(coords) || coords.length < 2 || typeof coords[0] !== 'number' || typeof coords[1] !== 'number' ||
+        !Number.isFinite(coords[0]) || !Number.isFinite(coords[1]) || Math.abs(coords[0]) > 180 || Math.abs(coords[1]) > 90) return [];
+    const properties: PhotonFeatureProperties = {};
+    const keys = ['name', 'street', 'housenumber', 'city', 'district', 'suburb', 'locality', 'state', 'country', 'postcode'] as const;
+    for (const key of keys) { const value = feature.properties[key]; if (typeof value === 'string') properties[key] = value; }
+    const id = feature.properties.osm_id;
+    if (typeof id === 'string' || typeof id === 'number') properties.osm_id = id;
+    return [{ geometry: { coordinates: [coords[0], coords[1]] }, properties }];
+  });
 }
 
 const normalizeText = (value: string): string => value.trim().toLowerCase();
@@ -192,20 +206,11 @@ const fetchPhotonSuggestions = async (
     ].join(','),
   });
 
-  const response = await fetch(`${PLACES_API_URL}/?${params.toString()}`, {
-    method: 'GET',
-    headers: {
-      'Accept-Language': buildAcceptLanguage(query, language),
-    },
-    signal,
+  if (!PLACES_API_URL) throw new Error('Places configuration unavailable');
+  const payload = await requestJson(`${PLACES_API_URL}/?${params.toString()}`, {
+    headers: { 'Accept-Language': buildAcceptLanguage(query, language) }, signal, timeoutMs: 8000,
   });
-
-  if (!response.ok) {
-    throw new Error(`Places request failed with ${response.status}`);
-  }
-
-  const payload = (await response.json()) as PhotonResponse;
-  const features = payload.features || [];
+  const features = parseFeatures(payload);
 
   return dedupeSuggestions(
     features

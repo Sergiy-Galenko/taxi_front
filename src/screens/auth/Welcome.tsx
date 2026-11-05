@@ -1,8 +1,9 @@
 import React from 'react';
+import { NavigationProp } from '../../types/navigation';
 import { View, StyleSheet } from 'react-native';
 import { Button, Text, IconButton } from 'react-native-paper';
 
-export const Welcome = ({ navigation }: any) => {
+export const Welcome = ({ navigation }: { navigation: NavigationProp }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -78,7 +79,7 @@ const styles = StyleSheet.create({
     gap: 15,
   },
   button: {
-    height: 50,
+    minHeight: 50,
     justifyContent: 'center',
     borderRadius: 10,
     backgroundColor: '#007AFF',
@@ -89,4 +90,4 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 16,
   },
-}); 
+});

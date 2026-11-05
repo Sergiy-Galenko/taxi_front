@@ -15,7 +15,6 @@ interface VehicleOptionCardProps {
 
 export default function VehicleOptionCard({
   option,
-  summary,
   selected,
   onPress,
 }: VehicleOptionCardProps) {
@@ -30,7 +29,7 @@ export default function VehicleOptionCard({
       style={[styles.card, selected && styles.cardSelected]}
     >
       <View style={styles.header}>
-        <View style={[styles.iconWrap, { backgroundColor: selected ? option.accentColor : palette.surfaceMuted }]}> 
+        <View style={[styles.iconWrap, { backgroundColor: selected ? option.accentColor : palette.surfaceMuted }]}>
           <Ionicons
             color={selected ? '#FFFFFF' : palette.text}
             name={option.icon as keyof typeof Ionicons.glyphMap}
@@ -53,18 +52,18 @@ export default function VehicleOptionCard({
 
         <View style={styles.priceWrap}>
           <Text style={styles.priceLabel}>{t('vehicleSelection.fare')}</Text>
-          <Text style={styles.priceValue}>{t('common.priceUah', { amount: summary.price })}</Text>
+          <Text style={styles.priceValue}>{t('integration.unknown')}</Text>
         </View>
       </View>
 
       <View style={styles.metaRow}>
         <View style={styles.metaBlock}>
           <Text style={styles.metaLabel}>{t('vehicleSelection.arrival')}</Text>
-          <Text style={styles.metaValue}>{t('common.minutesShort', { count: summary.pickupEtaMin })}</Text>
+          <Text style={styles.metaValue}>{t('integration.unknown')}</Text>
         </View>
         <View style={styles.metaBlock}>
           <Text style={styles.metaLabel}>{t('vehicleSelection.trip')}</Text>
-          <Text style={styles.metaValue}>{t('common.minutesShort', { count: summary.durationMin })}</Text>
+          <Text style={styles.metaValue}>{t('integration.unknown')}</Text>
         </View>
         <View style={styles.metaBlock}>
           <Text style={styles.metaLabel}>{t('vehicleSelection.capacity')}</Text>
@@ -97,6 +96,7 @@ const createStyles = (
   },
   header: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 14,
   },
   iconWrap: {
@@ -142,7 +142,7 @@ const createStyles = (
   },
   priceWrap: {
     alignItems: 'flex-end',
-    minWidth: 78,
+    width: '100%',
   },
   priceLabel: {
     color: palette.mutedText,
@@ -158,10 +158,12 @@ const createStyles = (
   },
   metaRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
   metaBlock: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: 120,
     borderRadius: 18,
     backgroundColor: palette.surfaceMuted,
     paddingHorizontal: 12,

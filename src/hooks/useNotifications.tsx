@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useI18n } from './useI18n';
@@ -60,7 +60,7 @@ const loadNotificationsModule = async (): Promise<NotificationsModule | null> =>
       }
 
       return module;
-    });
+    }).catch(() => { notificationsModulePromise = null; return null; });
   }
 
   return notificationsModulePromise;
@@ -163,7 +163,9 @@ export const NotificationsProvider = ({ children }: { children: React.ReactNode 
   const settings = useSettings();
   const [notificationsGranted, setNotificationsGranted] = useState(false);
 
-  const requestPermissions = async () => {
+  const mounted = useRef(true);
+  const requestPermissions = useCallback(async () => {
+    try {
     const notifications = await loadNotificationsModule();
 
     if (!notifications) {
@@ -176,7 +178,7 @@ export const NotificationsProvider = ({ children }: { children: React.ReactNode 
       currentPermissions.granted ||
       currentPermissions.ios?.status === notifications.IosAuthorizationStatus.PROVISIONAL
     ) {
-      setNotificationsGranted(true);
+      if (mounted.current) setNotificationsGranted(true);
       return true;
     }
 
@@ -184,21 +186,24 @@ export const NotificationsProvider = ({ children }: { children: React.ReactNode 
     const granted =
       requested.granted ||
       requested.ios?.status === notifications.IosAuthorizationStatus.PROVISIONAL;
-    setNotificationsGranted(granted);
+    if (mounted.current) setNotificationsGranted(granted);
     return granted;
-  };
+    } catch { return false; }
+  }, []);
 
   useEffect(() => {
+    mounted.current = true;
+    let active = true;
     void (async () => {
       if (!notificationsSupported) {
-        setNotificationsGranted(false);
+        if (active) setNotificationsGranted(false);
         return;
       }
 
       const notifications = await loadNotificationsModule();
 
       if (!notifications) {
-        setNotificationsGranted(false);
+        if (active) setNotificationsGranted(false);
         return;
       }
 
@@ -210,14 +215,16 @@ export const NotificationsProvider = ({ children }: { children: React.ReactNode 
       }
 
       const currentPermissions = await notifications.getPermissionsAsync();
+      if (!active) return;
       setNotificationsGranted(
         currentPermissions.granted ||
           currentPermissions.ios?.status === notifications.IosAuthorizationStatus.PROVISIONAL
       );
-    })();
+    })().catch(() => { if (active) setNotificationsGranted(false); });
+    return () => { active = false; mounted.current = false; };
   }, [t]);
 
-  const notifyRideEvent = async (event: RideNotificationEvent, payload: RideNotificationPayload = {}) => {
+  const notifyRideEvent = useCallback(async (event: RideNotificationEvent, payload: RideNotificationPayload = {}) => {
     if (!notificationsSupported) {
       return;
     }
@@ -249,8 +256,8 @@ export const NotificationsProvider = ({ children }: { children: React.ReactNode 
         },
       },
       trigger: null,
-    });
-  };
+    }).catch(() => undefined);
+  }, [notificationsGranted, requestPermissions, settings, t]);
 
   const value = useMemo(
     () => ({
@@ -259,7 +266,7 @@ export const NotificationsProvider = ({ children }: { children: React.ReactNode 
       requestPermissions,
       notifyRideEvent,
     }),
-    [notificationsGranted, t, settings]
+    [notificationsGranted, requestPermissions, notifyRideEvent]
   );
 
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;

@@ -11,6 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useI18n } from '../../hooks/useI18n';
 import { useNavigation } from '@react-navigation/native';
 import { usePassengerTheme } from '../../hooks/usePassengerTheme';
 import { PassengerPalette } from '../../theme/passenger';
@@ -34,6 +35,7 @@ export default function BookingFlowLayout({
   contentStyle,
   onBack,
 }: BookingFlowLayoutProps) {
+  const { t } = useI18n();
   const navigation = useNavigation();
   const { palette, radius } = usePassengerTheme();
   const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
@@ -50,6 +52,8 @@ export default function BookingFlowLayout({
 
         <View style={styles.header}>
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('accessibility.back')}
             activeOpacity={0.9}
             onPress={onBack ?? navigation.goBack}
             style={styles.backButton}
@@ -81,6 +85,9 @@ const createStyles = (
   },
   safeArea: {
     flex: 1,
+    width: '100%',
+    maxWidth: 960,
+    alignSelf: 'center',
   },
   blob: {
     position: 'absolute',
@@ -115,9 +122,9 @@ const createStyles = (
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: palette.border,
-    height: 42,
+    height: 48,
     justifyContent: 'center',
-    width: 42,
+    width: 48,
   },
   headerText: {
     flex: 1,

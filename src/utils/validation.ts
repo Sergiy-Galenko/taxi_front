@@ -5,7 +5,7 @@ export const validateEmail = (email: string): boolean => {
 
 export const validatePassword = (password: string): boolean => {
   // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,}$/;
   return passwordRegex.test(password);
 };
 
@@ -79,6 +79,7 @@ export const getPhoneError = (phone: string): string | null => {
 };
 
 export const getFullNameError = (fullName: string): string | null => {
+  fullName = fullName.trim();
   if (!fullName) {
     return 'Повне ім\'я обов\'язкове';
   }
@@ -97,8 +98,8 @@ export const getLicenseNumberError = (licenseNumber: string | null): string | nu
   }
 
   // Формат "АВ 123456" або "1234-5678"
-  const licenseRegex = /^([А-ЯІЇЄҐ]{2}\s?\d{6}|\d{4}-\d{4})$/;
-  
+  const licenseRegex = /^([A-ZА-ЯІЇЄҐ]{2}\s?\d{6}|\d{4}-\d{4})$/;
+
   if (!licenseRegex.test(licenseNumber)) {
     return 'Невірний формат номеру водійського посвідчення (наприклад: АВ 123456 або 1234-5678)';
   }
@@ -114,4 +115,4 @@ export const getCarNumberError = (carNumber: string): string | null => {
     return 'Невірний формат номеру автомобіля (наприклад: AA 1234 BB або АА 1234 ББ)';
   }
   return null;
-}; 
+};

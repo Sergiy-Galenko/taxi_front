@@ -1,3 +1,6 @@
+import { useI18n } from '../../hooks/useI18n';
+import { useReducedMotion } from '../../shared/hooks/useReducedMotion';
+import AuthScreenFrame from '../../shared/components/AuthScreenFrame';
 import React, { FC, useState } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import { Button, Text } from 'react-native-paper';
@@ -6,22 +9,18 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
 import { CustomInput } from '../../components/CustomInput';
-import { getEmailError, getPasswordError } from '../../utils/validation';
+import { getEmailError } from '../../utils/validation';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../../hooks/UserContext';
 import { loginUser } from '../../services/api/auth';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
-const TEST_ACCOUNT = {
-  email: 'passenger1773143499@test.dev',
-  password: 'Test123!',
-};
-
 const Login: FC = () => {
+  const { t } = useI18n();
+  const reducedMotion = useReducedMotion();
   const navigation = useNavigation<LoginScreenNavigationProp>();
   const [formData, setFormData] = useState({
     email: '',
@@ -40,9 +39,14 @@ const Login: FC = () => {
   const formYPosition = React.useRef(new Animated.Value(50)).current;
   const logoScale = React.useRef(new Animated.Value(1)).current;
 
-  const { setUser } = useUser();
+  const { signIn, state } = useUser();
+  const submitting = React.useRef(false);
+  const request = React.useRef<AbortController | null>(null);
+  React.useEffect(() => () => request.current?.abort(), []);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   React.useEffect(() => {
+    if (reducedMotion) { formYPosition.setValue(0); logoScale.setValue(1); return; }
     Animated.timing(formYPosition, {
       toValue: 0,
       duration: 800,
@@ -51,7 +55,7 @@ const Login: FC = () => {
     }).start();
 
     // Пульсація логотипу
-    Animated.loop(
+    const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(logoScale, {
           toValue: 1.05,
@@ -64,8 +68,10 @@ const Login: FC = () => {
           useNativeDriver: true,
         }),
       ])
-    ).start();
-  }, []);
+    );
+    pulse.start();
+    return () => { pulse.stop(); formYPosition.stopAnimation(); };
+  }, [formYPosition, logoScale, reducedMotion]);
 
   const animateButton = (scale: number) => {
     Animated.spring(buttonScale, {
@@ -84,23 +90,27 @@ const Login: FC = () => {
   const validateField = (field: keyof typeof formData) => {
     let error = '';
     switch (field) {
-      case 'email':
+      case 'email': {
         const emailError = getEmailError(formData.email);
         error = emailError || '';
         break;
-      case 'password':
-        const passwordError = getPasswordError(formData.password);
+      }
+      case 'password': {
+        const passwordError = formData.password ? null : t("Введіть пароль");
         error = passwordError || '';
         break;
+      }
     }
     setErrors({ ...errors, [field]: error });
   };
 
   const handleLogin = async () => {
+    if (submitting.current) return;
+    setTouched({ email: true, password: true });
     // Нова перевірка помилок
     const newErrors = {
       email: getEmailError(formData.email) || '',
-      password: getPasswordError(formData.password) || '',
+      password: formData.password ? '' : t("Введіть пароль"),
     };
     setErrors(newErrors);
 
@@ -109,34 +119,24 @@ const Login: FC = () => {
       return;
     }
 
+    submitting.current = true;
+    setIsSubmitting(true);
     try {
-      const { token, user } = await loginUser(formData);
-      await AsyncStorage.setItem('authToken', token);
-      setUser(user);
-
-      if (user.role === 'driver') {
-        navigation.reset({ index: 0, routes: [{ name: 'DriverHome' }] });
-      } else {
-        navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-      }
+      request.current = new AbortController();
+      const { token, user } = await loginUser(formData, request.current.signal);
+      if (request.current.signal.aborted) return;
+      await signIn(token, user);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Помилка мережі або сервера');
+      if (request.current?.signal.aborted) return;
+      alert(error instanceof Error ? error.message : t("Помилка мережі або сервера"));
+    } finally {
+      submitting.current = false;
+      if (!request.current?.signal.aborted) setIsSubmitting(false);
     }
   };
 
-  const fillTestAccount = () => {
-    setFormData(TEST_ACCOUNT);
-    setTouched({
-      email: false,
-      password: false,
-    });
-    setErrors({
-      email: '',
-      password: '',
-    });
-  };
-
   return (
+    <AuthScreenFrame>
     <LinearGradient
         colors={['#1a1a1a', '#000']}
         style={styles.container}
@@ -146,7 +146,7 @@ const Login: FC = () => {
         {/* Декоративні елементи */}
         <View style={styles.decorativeCircle} />
         <View style={[styles.decorativeCircle, styles.circleTopRight]} />
-        
+
         <View style={styles.logoContainer}>
           <Animated.View style={{ transform: [{ scale: logoScale }] }}>
             <MaterialIcons name="local-taxi" size={80} color="#FF3B30" />
@@ -154,7 +154,7 @@ const Login: FC = () => {
           <Text style={styles.appName}>TAXI APP</Text>
         </View>
 
-        <Animated.View 
+        <Animated.View
           style={[
             styles.formContainer,
             { transform: [{ translateY: formYPosition }] }
@@ -162,19 +162,20 @@ const Login: FC = () => {
         >
           <BlurView intensity={30} tint="dark" pointerEvents="box-none" style={styles.blurContainer}>
             <View style={styles.formContent}>
-              <Animatable.View 
-                animation="fadeIn" 
+              <Animatable.View
+                animation={reducedMotion ? undefined : 'fadeIn'}
                 duration={1000}
                 style={styles.formHeader}
               >
-                <Text style={styles.title}>Ласкаво просимо!</Text>
-                <Text style={styles.subtitle}>Увійдіть у свій акаунт</Text>
+                <Text style={styles.title}>{t("Ласкаво просимо!")}</Text>
+                <Text style={styles.subtitle}>{t("Увійдіть у свій акаунт")}</Text>
               </Animatable.View>
 
+              {state.status === 'expired' ? <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{t('integration.sessionExpired')}</Text> : null}
               <View style={styles.form}>
-                <Animatable.View animation="fadeInRight" duration={600} delay={200}>
+                <Animatable.View animation={reducedMotion ? undefined : 'fadeInRight'} duration={600} delay={200}>
                   <CustomInput
-                    label="Електронна пошта"
+                    label={t("Електронна пошта")}
                     value={formData.email}
                     onChangeText={(text) => setFormData({ ...formData, email: text })}
                     onBlur={() => handleBlur('email')}
@@ -185,9 +186,9 @@ const Login: FC = () => {
                   />
                 </Animatable.View>
 
-                <Animatable.View animation="fadeInRight" duration={600} delay={400}>
+                <Animatable.View animation={reducedMotion ? undefined : 'fadeInRight'} duration={600} delay={400}>
                   <CustomInput
-                    label="Пароль"
+                    label={t("Пароль")}
                     value={formData.password}
                     onChangeText={(text) => setFormData({ ...formData, password: text })}
                     onBlur={() => handleBlur('password')}
@@ -199,44 +200,8 @@ const Login: FC = () => {
                 </Animatable.View>
 
                 <Animatable.View
-                  animation="fadeInUp"
+                  animation={reducedMotion ? undefined : 'fadeInUp'}
                   duration={800}
-                  delay={520}
-                  style={styles.testButtonContainer}
-                >
-                  <Button
-                    mode="outlined"
-                    onPress={fillTestAccount}
-                    style={styles.testButton}
-                    contentStyle={styles.testButtonContent}
-                    labelStyle={styles.testButtonLabel}
-                    icon="flask-outline"
-                  >
-                    Заповнити тестовий акаунт
-                  </Button>
-                </Animatable.View>
-
-                <Animatable.View
-                  animation="fadeInUp"
-                  duration={800}
-                  delay={560}
-                  style={styles.driverTestButtonContainer}
-                >
-                  <Button
-                    mode="outlined"
-                    onPress={() => navigation.navigate('DriverHome')}
-                    style={styles.driverTestButton}
-                    contentStyle={styles.testButtonContent}
-                    labelStyle={styles.driverTestButtonLabel}
-                    icon="steering"
-                  >
-                    Відкрити тестовий екран водія
-                  </Button>
-                </Animatable.View>
-
-                <Animatable.View 
-                  animation="fadeInUp" 
-                  duration={800} 
                   delay={600}
                   style={styles.buttonContainer}
                 >
@@ -244,27 +209,27 @@ const Login: FC = () => {
                     <Button
                       mode="contained"
                       onPress={handleLogin}
+                      disabled={isSubmitting}
+                      loading={isSubmitting}
                       style={styles.loginButton}
                       contentStyle={styles.buttonContent}
                       labelStyle={styles.buttonLabel}
                       onPressIn={() => animateButton(0.95)}
                       onPressOut={() => animateButton(1)}
                       icon="login"
-                    >
-                      Увійти
-                    </Button>
+                    >{t("Увійти")}</Button>
                   </Animated.View>
                 </Animatable.View>
               </View>
 
-              <Animatable.View 
-                animation="fadeIn" 
+              <Animatable.View
+                animation={reducedMotion ? undefined : 'fadeIn'}
                 duration={1000}
                 delay={800}
                 style={styles.footer}
               >
-                <Text style={styles.footerText}>Немає акаунту?</Text>
-                
+                <Text style={styles.footerText}>{t("Немає акаунту?")}</Text>
+
                 <View style={styles.registrationButtons}>
                   <Button
                     mode="contained"
@@ -273,15 +238,15 @@ const Login: FC = () => {
                     contentStyle={styles.regButtonContent}
                     labelStyle={styles.regButtonLabel}
                     icon="account-plus"
-                  >
-                    Зареєструватися
-                  </Button>
+                  >{t("Зареєструватися")}</Button>
                 </View>
               </Animatable.View>
             </View>
           </BlurView>
         </Animated.View>
       </LinearGradient>
+
+    </AuthScreenFrame>
   );
 };
 
@@ -353,7 +318,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
   testButtonContent: {
-    height: 52,
+    minHeight: 52,
   },
   testButtonLabel: {
     fontSize: 16,
@@ -371,7 +336,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   loginButton: {
-    height: 56,
+    minHeight: 56,
     borderRadius: 14,
     backgroundColor: '#FF3B30',
     shadowColor: '#FF3B30',
@@ -381,7 +346,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   buttonContent: {
-    height: 56,
+    minHeight: 56,
   },
   buttonLabel: {
     fontSize: 18,
@@ -400,7 +365,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   registrationButton: {
-    height: 56,
+    minHeight: 56,
     borderRadius: 14,
     backgroundColor: '#FF3B30',
     shadowColor: '#FF3B30',
@@ -410,7 +375,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   regButtonContent: {
-    height: 56,
+    minHeight: 56,
   },
   regButtonLabel: {
     fontSize: 18,
@@ -432,4 +397,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Login; 
+export default Login;

@@ -1,0 +1,43 @@
+Final quality verification
+
+> taxi-app@1.0.0 verify
+> npm run typecheck && npm run lint && npm test
+
+
+> taxi-app@1.0.0 typecheck
+> tsc --noEmit
+
+
+> taxi-app@1.0.0 lint
+> eslint . --max-warnings 0
+
+
+> taxi-app@1.0.0 test
+> jest --runInBand
+
+PASS __tests__/driverApi.test.ts
+PASS __tests__/passengerScreens.test.tsx
+PASS __tests__/places.test.ts
+PASS __tests__/preferences.test.tsx
+PASS __tests__/navigation.test.tsx
+PASS __tests__/translations.test.ts
+PASS __tests__/rides.test.ts
+PASS __tests__/http.test.ts
+PASS __tests__/session.test.ts
+PASS __tests__/authApi.test.ts
+PASS __tests__/sessionStorage.test.ts
+PASS __tests__/config.test.ts
+PASS __tests__/validation.test.ts
+
+Test Suites: 13 passed, 13 total
+Tests:       69 passed, 69 total
+Snapshots:   0 total
+Time:        1.805 s
+Ran all test suites.
+
+Expo compatibility
+Dependencies are up to date
+
+Expo Doctor
+Running 18 checks on your project...
+18/18 checks passed. No issues detected!

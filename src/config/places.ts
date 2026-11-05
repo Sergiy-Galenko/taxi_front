@@ -1,14 +1,7 @@
-type EnvSource = {
-  process?: {
-    env?: Record<string, string | undefined>;
-  };
-};
+import { resolveApiUrl } from '../core/config/apiUrl';
+const ENV_PLACES_API_URL = process.env.EXPO_PUBLIC_PLACES_API_URL?.trim();
 
-const ENV_PLACES_API_URL = (globalThis as EnvSource).process?.env?.EXPO_PUBLIC_PLACES_API_URL?.trim();
-
-const normalizeUrl = (value: string): string => value.replace(/\/+$/, '');
-
-export const PLACES_API_URL = normalizeUrl(ENV_PLACES_API_URL || 'https://photon.komoot.io/api');
+export const PLACES_API_URL = resolveApiUrl(ENV_PLACES_API_URL || 'https://photon.komoot.io/api', __DEV__, 'https://photon.komoot.io/api');
 
 export const KYIV_SEARCH_CENTER = {
   latitude: 50.4501,

@@ -60,7 +60,7 @@ const themeLabelKeys: Record<ThemeMode, string> = {
 interface SectionCardProps {
   title: string;
   children: React.ReactNode;
-  styles: any;
+  styles: ReturnType<typeof createStyles>;
 }
 
 const SectionCard = ({ title, children, styles }: SectionCardProps) => (
@@ -76,7 +76,7 @@ interface ChoiceChipProps {
   label: string;
   onPress: () => void;
   palette: PassengerPalette;
-  styles: any;
+  styles: ReturnType<typeof createStyles>;
 }
 
 const ChoiceChip = ({ active, icon, label, onPress, palette, styles }: ChoiceChipProps) => (
@@ -98,7 +98,7 @@ interface SelectorRowProps {
   title: string;
   hint: string;
   children: React.ReactNode;
-  styles: any;
+  styles: ReturnType<typeof createStyles>;
 }
 
 const SelectorRow = ({ title, hint, children, styles }: SelectorRowProps) => (
@@ -119,7 +119,7 @@ interface ToggleRowProps {
   disabled?: boolean;
   onChange: (value: boolean) => void | Promise<void>;
   palette: PassengerPalette;
-  styles: any;
+  styles: ReturnType<typeof createStyles>;
 }
 
 const ToggleRow = ({
@@ -178,7 +178,7 @@ const formatUserRating = (rating: unknown): string | null => {
   return null;
 };
 
-export default function SettingsScreen({ navigation }: SettingsScreenProps) {
+export default function SettingsScreen(_props: SettingsScreenProps) {
   const { signOut } = useAuth();
   const { mode, setThemeMode } = useTheme();
   const { palette, radius } = usePassengerTheme();
@@ -196,16 +196,14 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
     updateSetting,
     setDefaultPaymentMethod,
     settingsReady,
+    storageError,
   } = useSettings();
   const { notificationsGranted, notificationsSupported, requestPermissions } = useNotifications();
   const formattedUserRating = formatUserRating(user?.rating);
 
   const handleLogout = async () => {
-    await signOut();
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Login' }],
-    });
+    try { await signOut(); } catch (error) { Alert.alert(t('settings.signOut'), error instanceof Error ? error.message : t('integration.unavailable')); }
+
   };
 
   const handleNotificationMasterChange = async (nextValue: boolean) => {
@@ -266,6 +264,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {storageError ? <Text accessibilityLiveRegion="polite" style={{ color: palette.danger }}>{t('integration.preferencesError')}</Text> : null}
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{getProfileInitial(user?.fullName)}</Text>
@@ -277,7 +276,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
             <View style={styles.profileBadge}>
               <Ionicons color={palette.primaryDeep} name="star" size={14} />
               <Text style={styles.profileBadgeText}>
-                {formattedUserRating ? `${formattedUserRating} ★` : t('settings.passengerRating')}
+                {formattedUserRating ? `${formattedUserRating} ★` : t('integration.unknown')}
               </Text>
             </View>
           </View>
@@ -305,7 +304,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         </View>
 
         <SectionCard styles={styles} title={t('settings.sectionRide')}>
-          <SelectorRow styles={styles} title={t('settings.defaultPayment')} hint={t('settings.defaultPaymentHint')}>
+          <SelectorRow styles={styles} title={t('settings.defaultPayment')} hint={t('integration.paymentPreference')}>
             {PAYMENT_METHODS.map((method) => (
               <ChoiceChip
                 key={method}
@@ -324,7 +323,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
           <ToggleRow
             palette={palette}
             styles={styles}
-            hint={t('settings.priceAlertsHint')}
+            hint={t('integration.preferenceOnly')}
             icon="pricetag-outline"
             onChange={(value) => handleBooleanSetting('priceAlertsEnabled', value)}
             title={t('settings.priceAlerts')}
@@ -438,7 +437,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
           <ToggleRow
             palette={palette}
             styles={styles}
-            hint={t('settings.shareRideHint')}
+            hint={t('integration.preferenceOnly')}
             icon="share-social-outline"
             onChange={(value) => handleBooleanSetting('shareRideEnabled', value)}
             title={t('settings.shareRide')}

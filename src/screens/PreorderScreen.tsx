@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Alert,
   Keyboard,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +13,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import IntegrationNotice from '../shared/components/IntegrationNotice';
 import PassengerScreenLayout from '../components/passenger/PassengerScreenLayout';
 import { useI18n } from '../hooks/useI18n';
 import { PassengerPalette } from '../theme/passenger';
@@ -32,27 +33,13 @@ export default function PreorderScreen({ navigation, route }: PreorderScreenProp
     return nextHour;
   });
   const [showPicker, setShowPicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
   const [note, setNote] = useState('');
 
   const pickup = route.params?.pickup || t('preorder.chooseRouteFirst');
   const destination = route.params?.destination || t('preorder.chooseRouteFirst');
   const rideType = route.params?.rideType ?? 'comfort';
   const hasRoute = Boolean(route.params?.pickup && route.params?.destination);
-
-  const handleScheduleRide = () => {
-    if (!hasRoute) {
-      navigation.navigate('Home');
-      return;
-    }
-
-    Alert.alert(
-      t('preorder.rideScheduledTitle'),
-      t('preorder.rideScheduledText', {
-        ride: t(`rideOptions.${rideType}.label`),
-        date: scheduledAt.toLocaleString(),
-      })
-    );
-  };
 
   return (
     <PassengerScreenLayout
@@ -101,7 +88,7 @@ export default function PreorderScreen({ navigation, route }: PreorderScreenProp
             <Text style={styles.cardTitle}>{t('preorder.pickupTime')}</Text>
             <Text style={styles.cardHint}>{t('preorder.pickupTimeHint')}</Text>
 
-          <TouchableOpacity activeOpacity={0.88} onPress={() => setShowPicker(true)} style={styles.timeButton}>
+          <TouchableOpacity activeOpacity={0.88} onPress={() => { setPickerMode('date'); setShowPicker(true); }} style={styles.timeButton}>
             <View>
               <Text style={styles.routeLabel}>{t('preorder.scheduledFor')}</Text>
               <Text style={styles.timeValue}>
@@ -119,12 +106,13 @@ export default function PreorderScreen({ navigation, route }: PreorderScreenProp
             <DateTimePicker
               display="default"
               minimumDate={new Date()}
-              mode="datetime"
+              mode={Platform.OS === 'ios' ? 'datetime' : pickerMode}
               onChange={(_, selectedDate) => {
                 setShowPicker(false);
 
                 if (selectedDate) {
                   setScheduledAt(selectedDate);
+                  if (Platform.OS === 'android' && pickerMode === 'date') { setPickerMode('time'); setShowPicker(true); }
                 }
               }}
               value={scheduledAt}
@@ -169,13 +157,7 @@ export default function PreorderScreen({ navigation, route }: PreorderScreenProp
           />
           </View>
 
-          <TouchableOpacity activeOpacity={0.92} onPress={handleScheduleRide} style={styles.primaryButton}>
-            <View>
-              <Text style={styles.primaryEyebrow}>{t('preorder.confirmEyebrow', { ride: t(`rideOptions.${rideType}.label`) })}</Text>
-              <Text style={styles.primaryTitle}>{hasRoute ? t('preorder.confirmScheduledRide') : t('preorder.openBookingScreen')}</Text>
-            </View>
-            <Ionicons color={palette.text} name="arrow-forward" size={20} />
-          </TouchableOpacity>
+          <IntegrationNotice detail="integration.schedule" />
         </ScrollView>
       </TouchableWithoutFeedback>
     </PassengerScreenLayout>

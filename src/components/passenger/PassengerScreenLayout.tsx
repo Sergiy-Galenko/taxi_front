@@ -65,6 +65,9 @@ const createStyles = (palette: PassengerPalette) => StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
   },
   blob: {
     position: 'absolute',

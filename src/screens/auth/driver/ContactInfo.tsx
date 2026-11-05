@@ -1,19 +1,25 @@
+import { useI18n } from '../../../hooks/useI18n';
+import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
+import AuthScreenFrame from '../../../shared/components/AuthScreenFrame';
 import React, { useState } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import { TextInput, Button, Text, IconButton, HelperText } from 'react-native-paper';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { NavigationProp } from '../../../types/navigation';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { NavigationProp, RootStackParamList } from '../../../types/navigation';
 import { getEmailError, getPhoneError } from '../../../utils/validation';
 import * as Animatable from 'react-native-animatable';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 
-const { width, height } = Dimensions.get('window');
 
 export default function DriverContactInfo() {
+  const { t } = useI18n();
+  const reducedMotion = useReducedMotion();
+  const { width, height } = useWindowDimensions();
+  const styles = React.useMemo(() => createStyles(width, height), [width, height]);
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute();
-  const { fullName } = route.params as { fullName: string };
+  const route = useRoute<RouteProp<RootStackParamList, 'DriverContactInfo'>>();
+  const { fullName } = route.params;
 
   const [formData, setFormData] = useState({
     email: '',
@@ -29,6 +35,7 @@ export default function DriverContactInfo() {
   });
 
   const handleNext = () => {
+    setTouched({ email: true, phone: true });
     const emailError = getEmailError(formData.email);
     const phoneError = getPhoneError(formData.phone);
 
@@ -57,12 +64,13 @@ export default function DriverContactInfo() {
   };
 
   return (
+    <AuthScreenFrame>
     <View style={styles.container}>
         <LinearGradient
           colors={['#1A1A1A', '#2D2D2D']}
           style={styles.background}
         />
-        
+
         {/* Decorative elements */}
         <View style={styles.decorativeCircle} />
         <View style={[styles.decorativeCircle, styles.circle2]} />
@@ -76,25 +84,25 @@ export default function DriverContactInfo() {
           iconColor="#FFFFFF"
         />
 
-        <Animatable.View 
-          animation="fadeInUp" 
-          duration={1000} 
+        <Animatable.View
+          animation={reducedMotion ? undefined : 'fadeInUp'}
+          duration={1000}
           style={styles.content}
         >
-          <Animatable.View animation="fadeIn" delay={300}>
-            <Text style={styles.title}>Контактна інформація</Text>
-            <Text style={styles.subtitle}>Вкажіть свою електронну пошту та номер телефону</Text>
+          <Animatable.View animation={reducedMotion ? undefined : 'fadeIn'} delay={300}>
+            <Text style={styles.title}>{t("Контактна інформація")}</Text>
+            <Text style={styles.subtitle}>{t("Вкажіть свою електронну пошту та номер телефону")}</Text>
           </Animatable.View>
 
-          <Animatable.View 
-            animation="slideInUp" 
-            delay={500} 
+          <Animatable.View
+            animation={reducedMotion ? undefined : 'slideInUp'}
+            delay={500}
             style={styles.form}
           >
             <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
               <TextInput
                 mode="outlined"
-                label="Електронна пошта"
+                label={t("Електронна пошта")}
                 value={formData.email}
                 onChangeText={(text) => setFormData({ ...formData, email: text })}
                 onBlur={() => handleBlur('email')}
@@ -120,13 +128,13 @@ export default function DriverContactInfo() {
               />
             </BlurView>
             <HelperText type="error" visible={touched.email && !!errors.email} style={styles.errorText}>
-              {errors.email}
+              {t(errors.email)}
             </HelperText>
 
             <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
               <TextInput
                 mode="outlined"
-                label="Номер телефону"
+                label={t("Номер телефону")}
                 value={formData.phone}
                 onChangeText={(text) => setFormData({ ...formData, phone: text })}
                 onBlur={() => handleBlur('phone')}
@@ -151,12 +159,12 @@ export default function DriverContactInfo() {
               />
             </BlurView>
             <HelperText type="error" visible={touched.phone && !!errors.phone} style={styles.errorText}>
-              {errors.phone}
+              {t(errors.phone)}
             </HelperText>
 
-            <Animatable.View 
-              animation="fadeIn" 
-              delay={700} 
+            <Animatable.View
+              animation={reducedMotion ? undefined : 'fadeIn'}
+              delay={700}
               style={styles.buttonContainer}
             >
               <BlurView intensity={20} pointerEvents="box-none" style={styles.blurContainer}>
@@ -167,18 +175,18 @@ export default function DriverContactInfo() {
                   contentStyle={styles.buttonContent}
                   labelStyle={styles.buttonLabel}
                   icon="arrow-right"
-                >
-                  Далі
-                </Button>
+                >{t("Далі")}</Button>
               </BlurView>
             </Animatable.View>
           </Animatable.View>
         </Animatable.View>
       </View>
+
+    </AuthScreenFrame>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (width: number, height: number) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1A1A1A',
@@ -228,7 +236,7 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: 'transparent',
     borderRadius: 16,
-    height: 56,
+    minHeight: 56,
     fontSize: 16,
   },
   errorText: {
@@ -243,7 +251,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   button: {
-    height: 56,
+    minHeight: 56,
     borderRadius: 16,
     backgroundColor: '#FF3B30',
     shadowColor: '#FF3B30',
@@ -253,7 +261,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   buttonContent: {
-    height: 56,
+    minHeight: 56,
   },
   buttonLabel: {
     fontSize: 18,
@@ -284,4 +292,4 @@ const styles = StyleSheet.create({
     bottom: -width * 0.1,
     right: -width * 0.1,
   },
-}); 
+});

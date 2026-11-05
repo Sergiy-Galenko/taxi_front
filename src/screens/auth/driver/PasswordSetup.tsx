@@ -1,41 +1,35 @@
+import { useI18n } from '../../../hooks/useI18n';
+import { createPassword } from '../../../utils/password';
+import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
+import AuthScreenFrame from '../../../shared/components/AuthScreenFrame';
 import React, { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { TextInput, Button, Text, IconButton, HelperText, Switch } from 'react-native-paper';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { NavigationProp } from '../../../types/navigation';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { NavigationProp, RootStackParamList } from '../../../types/navigation';
 import { getPasswordError } from '../../../utils/validation';
 import * as Animatable from 'react-native-animatable';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
-import { useAuth } from '../../../hooks/useAuth';
 import { registerDriver } from '../../../services/api/driver';
 import { showMessage } from 'react-native-flash-message';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function DriverPasswordSetup() {
+  const { t } = useI18n();
+  const reducedMotion = useReducedMotion();
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute();
-  const { 
-    fullName, 
-    email, 
-    phone, 
-    carModel, 
-    carColor, 
-    carNumber, 
+  const route = useRoute<RouteProp<RootStackParamList, 'DriverPasswordSetup'>>();
+  const {
+    fullName,
+    email,
+    phone,
+    carModel,
+    carColor,
+    carNumber,
     yearsOfExperience,
     licenseNumber,
-  } = route.params as { 
-    fullName: string;
-    email: string;
-    phone: string;
-    carModel: string;
-    carColor: string;
-    carNumber: string;
-    yearsOfExperience: string;
-    licenseNumber: string;
-  };
+  } = route.params;
 
   const [formData, setFormData] = useState({
     password: '',
@@ -51,15 +45,17 @@ export default function DriverPasswordSetup() {
     password: false,
     confirmPassword: false,
   });
+  const submitting = React.useRef(false);
+  const request = React.useRef<AbortController | null>(null);
+  React.useEffect(() => () => request.current?.abort(), []);
   const [isLoading, setIsLoading] = useState(false);
-  const insets = useSafeAreaInsets();
   const { theme } = useTheme();
-  const { signIn } = useAuth();
 
   const validateForm = () => {
+    setTouched({ password: true, confirmPassword: true });
     const passwordError = getPasswordError(formData.password);
-    const confirmPasswordError = formData.password !== formData.confirmPassword 
-      ? 'Паролі не співпадають' 
+    const confirmPasswordError = formData.password !== formData.confirmPassword
+      ? t("Паролі не співпадають")
       : '';
 
     setErrors({
@@ -71,6 +67,7 @@ export default function DriverPasswordSetup() {
   };
 
   const handleSubmit = async () => {
+    if (submitting.current) return;
     if (!termsAccepted) {
       showMessage({
         message: 'Please accept the terms and conditions',
@@ -80,6 +77,7 @@ export default function DriverPasswordSetup() {
     }
 
     if (validateForm()) {
+      submitting.current = true;
       try {
         setIsLoading(true);
         const registrationData = {
@@ -94,27 +92,24 @@ export default function DriverPasswordSetup() {
           password: formData.password,
         };
 
-        const response = await registerDriver(registrationData);
-        
+        request.current = new AbortController();
+        const response = await registerDriver(registrationData, request.current.signal);
+        if (request.current.signal.aborted) return;
+
         if (response.success && response.data) {
-          await AsyncStorage.setItem('driverId', response.data.driverId);
-          
-          await signIn(response.data.token);
-          
-          showMessage({
-            message: 'Registration successful',
-            type: 'success',
-          });
-          
-          navigation.navigate('DriverVerification' as never);
+          navigation.reset({ index: 0, routes: [{ name: 'Login' }, { name: 'DriverVerification' }] });
+        } else {
+          throw new Error('Registration was not confirmed by the server.');
         }
       } catch (error) {
+        if (request.current?.signal.aborted) return;
         showMessage({
           message: error instanceof Error ? error.message : 'Registration failed',
           type: 'danger',
         });
       } finally {
-        setIsLoading(false);
+        submitting.current = false;
+        if (!request.current?.signal.aborted) setIsLoading(false);
       }
     }
   };
@@ -126,34 +121,13 @@ export default function DriverPasswordSetup() {
     } else {
       setErrors(prev => ({
         ...prev,
-        confirmPassword: formData.password !== formData.confirmPassword ? 'Паролі не співпадають' : '',
+        confirmPassword: formData.password !== formData.confirmPassword ? t("Паролі не співпадають") : '',
       }));
     }
   };
 
   const generatePassword = () => {
-    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-    const numbers = '0123456789';
-    const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
-    
-    const allChars = uppercase + lowercase + numbers + symbols;
-    let password = '';
-    
-    // Гарантуємо наявність хоча б одного символу кожного типу
-    password += uppercase[Math.floor(Math.random() * uppercase.length)];
-    password += lowercase[Math.floor(Math.random() * lowercase.length)];
-    password += numbers[Math.floor(Math.random() * numbers.length)];
-    password += symbols[Math.floor(Math.random() * symbols.length)];
-    
-    // Додаємо випадкові символи до бажаної довжини (12 символів)
-    for (let i = password.length; i < 12; i++) {
-      password += allChars[Math.floor(Math.random() * allChars.length)];
-    }
-    
-    // Перемішуємо символи
-    password = password.split('').sort(() => Math.random() - 0.5).join('');
-    
+    const password = createPassword();
     setFormData({
       password,
       confirmPassword: password,
@@ -166,8 +140,8 @@ export default function DriverPasswordSetup() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <AuthScreenFrame>
+    <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <View style={styles.container}>
@@ -175,7 +149,7 @@ export default function DriverPasswordSetup() {
             colors={['#1A1A1A', '#2A2A2A']}
             style={styles.background}
           />
-          
+
           {/* Decorative circles */}
           <View style={styles.circle1} />
           <View style={styles.circle2} />
@@ -190,23 +164,23 @@ export default function DriverPasswordSetup() {
           />
 
           <View style={styles.contentContainer}>
-            <Animatable.View 
-              animation="fadeIn" 
+            <Animatable.View
+              animation={reducedMotion ? undefined : 'fadeIn'}
               style={styles.header}
             >
-              <Text style={styles.title}>Створення паролю</Text>
-              <Text style={styles.subtitle}>Створіть надійний пароль для вашого облікового запису</Text>
+              <Text style={styles.title}>{t("Створення паролю")}</Text>
+              <Text style={styles.subtitle}>{t("Створіть надійний пароль для вашого облікового запису")}</Text>
             </Animatable.View>
 
-            <Animatable.View 
-              animation="slideInUp" 
-              delay={500} 
+            <Animatable.View
+              animation={reducedMotion ? undefined : 'slideInUp'}
+              delay={500}
               style={styles.form}
             >
               <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
                 <TextInput
                   mode="outlined"
-                  label="Пароль"
+                  label={t("Пароль")}
                   value={formData.password}
                   onChangeText={(text) => setFormData({ ...formData, password: text })}
                   onBlur={() => handleBlur('password')}
@@ -246,13 +220,13 @@ export default function DriverPasswordSetup() {
                 />
               </BlurView>
               <HelperText type="error" visible={touched.password && !!errors.password} style={styles.errorText}>
-                {errors.password}
+                {t(errors.password)}
               </HelperText>
 
               <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
                 <TextInput
                   mode="outlined"
-                  label="Підтвердження паролю"
+                  label={t("Підтвердження паролю")}
                   value={formData.confirmPassword}
                   onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
                   onBlur={() => handleBlur('confirmPassword')}
@@ -277,12 +251,12 @@ export default function DriverPasswordSetup() {
                 />
               </BlurView>
               <HelperText type="error" visible={touched.confirmPassword && !!errors.confirmPassword} style={styles.errorText}>
-                {errors.confirmPassword}
+                {t(errors.confirmPassword)}
               </HelperText>
 
-              <Animatable.View 
-                animation="fadeIn" 
-                delay={600} 
+              <Animatable.View
+                animation={reducedMotion ? undefined : 'fadeIn'}
+                delay={600}
                 style={styles.generateButtonContainer}
               >
                 <BlurView intensity={20} pointerEvents="box-none" style={styles.generateButtonBlur}>
@@ -293,14 +267,12 @@ export default function DriverPasswordSetup() {
                     icon="dice-multiple"
                     contentStyle={styles.generateButtonContent}
                     labelStyle={styles.generateButtonLabel}
-                  >
-                    Згенерувати надійний пароль
-                  </Button>
+                  >{t("Згенерувати надійний пароль")}</Button>
                 </BlurView>
               </Animatable.View>
 
               <BlurView intensity={20} pointerEvents="box-none" style={styles.switchContainer}>
-                <Text style={styles.switchText}>Я приймаю умови використання та політику конфіденційності</Text>
+                <Text style={styles.switchText}>{t("Я приймаю умови використання та політику конфіденційності")}</Text>
                 <Switch
                   value={termsAccepted}
                   onValueChange={setTermsAccepted}
@@ -308,9 +280,9 @@ export default function DriverPasswordSetup() {
                 />
               </BlurView>
 
-              <Animatable.View 
-                animation="fadeIn" 
-                delay={700} 
+              <Animatable.View
+                animation={reducedMotion ? undefined : 'fadeIn'}
+                delay={700}
                 style={styles.buttonContainer}
               >
                 <BlurView intensity={20} pointerEvents="box-none" style={styles.buttonBlur}>
@@ -326,7 +298,7 @@ export default function DriverPasswordSetup() {
                     {isLoading ? (
                       <ActivityIndicator color={theme.colors.background} />
                     ) : (
-                      'Завершити реєстрацію'
+                      t("Завершити реєстрацію")
                     )}
                   </Button>
                 </BlurView>
@@ -334,7 +306,9 @@ export default function DriverPasswordSetup() {
             </Animatable.View>
           </View>
         </View>
-    </KeyboardAvoidingView>
+    </View>
+
+    </AuthScreenFrame>
   );
 }
 
@@ -414,7 +388,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   button: {
-    height: 56,
+    minHeight: 56,
     justifyContent: 'center',
     borderRadius: 16,
     backgroundColor: 'transparent',
@@ -422,7 +396,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
   },
   buttonContent: {
-    height: 56,
+    minHeight: 56,
   },
   buttonLabel: {
     fontSize: 16,
@@ -469,18 +443,18 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   generateButton: {
-    height: 48,
+    minHeight: 48,
     justifyContent: 'center',
     borderRadius: 16,
     borderColor: '#FF3B30',
     backgroundColor: 'transparent',
   },
   generateButtonContent: {
-    height: 48,
+    minHeight: 48,
   },
   generateButtonLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FF3B30',
   },
-}); 
+});

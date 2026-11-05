@@ -1,5 +1,9 @@
+import { useI18n } from '../../hooks/useI18n';
+import { createPassword } from '../../utils/password';
+import { useReducedMotion } from '../../shared/hooks/useReducedMotion';
+import AuthScreenFrame from '../../shared/components/AuthScreenFrame';
 import React, { FC, useState } from 'react';
-import { View, StyleSheet, Animated, Dimensions, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, Animated, useWindowDimensions, ScrollView, Alert } from 'react-native';
 import { Button, Text, Switch } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,11 +12,9 @@ import { CustomInput } from '../../components/CustomInput';
 import { getEmailError, getPasswordError, getPhoneError, getFullNameError } from '../../utils/validation';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Animatable from 'react-native-animatable';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { registerPassenger } from '../../services/api/auth';
 import { useUser } from '../../hooks/UserContext';
 
-const { width, height } = Dimensions.get('window');
 
 type PassengerRegistrationScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PassengerRegistration'>;
 
@@ -42,8 +44,12 @@ interface FormTouched {
 }
 
 const PassengerRegistration: FC = () => {
+  const { t } = useI18n();
+  const reducedMotion = useReducedMotion();
+  const { width, height } = useWindowDimensions();
+  const styles = React.useMemo(() => createStyles(width, height), [width, height]);
   const navigation = useNavigation<PassengerRegistrationScreenNavigationProp>();
-  const { setUser } = useUser();
+  const { signIn } = useUser();
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
     email: '',
@@ -66,6 +72,9 @@ const PassengerRegistration: FC = () => {
     password: '',
     confirmPassword: '',
   });
+  const submitting = React.useRef(false);
+  const request = React.useRef<AbortController | null>(null);
+  React.useEffect(() => () => request.current?.abort(), []);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const buttonScale = React.useRef(new Animated.Value(1)).current;
@@ -102,40 +111,15 @@ const PassengerRegistration: FC = () => {
   };
 
   const generatePassword = () => {
-    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-    const numbers = '0123456789';
-    const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
-    
-    const getRandomChar = (str: string): string => {
-      const index = Math.floor(Math.random() * str.length);
-      return str[index] || str[0];
-    };
-    
-    let password = '';
-    password += getRandomChar(uppercase);
-    password += getRandomChar(lowercase);
-    password += getRandomChar(numbers);
-    password += getRandomChar(symbols);
-    
-    // Add more random characters to reach 12 characters
-    const allChars = uppercase + lowercase + numbers + symbols;
-    for (let i = password.length; i < 12; i++) {
-      password += getRandomChar(allChars);
-    }
-    
-    // Shuffle the password
-    password = password.split('').sort(() => Math.random() - 0.5).join('');
-    
+    const password = createPassword();
     setFormData(prev => ({
       ...prev,
       password,
       confirmPassword: password
     }));
-    
+
     // Validate the new password
-    validateField('password');
-    validateField('confirmPassword');
+    setErrors((prev) => ({ ...prev, password: '', confirmPassword: '' }));
   };
 
   const animateButton = (scale: number) => {
@@ -168,15 +152,17 @@ const PassengerRegistration: FC = () => {
         error = getPasswordError(formData.password) || '';
         break;
       case 'confirmPassword':
-        error = formData.password !== formData.confirmPassword ? 'Паролі не співпадають' : '';
+        error = formData.password !== formData.confirmPassword ? t("Паролі не співпадають") : '';
         break;
     }
     setErrors(prev => ({ ...prev, [field]: error }));
   };
 
   const handleSubmit = async () => {
+    if (submitting.current || !formData.acceptTerms) return;
+    setTouched({ fullName: true, email: true, phone: true, password: true, confirmPassword: true });
     if (!formData.acceptTerms) {
-      Alert.alert('Помилка', 'Будь ласка, прийміть умови використання');
+      Alert.alert(t("Помилка"), t("Будь ласка, прийміть умови використання"));
       return;
     }
 
@@ -186,38 +172,38 @@ const PassengerRegistration: FC = () => {
       email: getEmailError(formData.email) || '',
       phone: getPhoneError(formData.phone) || '',
       password: getPasswordError(formData.password) || '',
-      confirmPassword: formData.password !== formData.confirmPassword ? 'Паролі не співпадають' : '',
+      confirmPassword: formData.password !== formData.confirmPassword ? t("Паролі не співпадають") : '',
     };
     setErrors(newErrors);
 
     const hasErrors = Object.values(newErrors).some((e) => e !== '');
     if (hasErrors) return;
 
+    submitting.current = true;
     try {
       setIsSubmitting(true);
+      request.current = new AbortController();
       const { token, user } = await registerPassenger({
         fullName: formData.fullName,
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
-      });
+      }, request.current.signal);
+      if (request.current.signal.aborted) return;
 
-      // Persist token for authenticated requests
-      await AsyncStorage.setItem('authToken', token);
+      await signIn(token, user);
 
-      // Update user context
-      setUser(user);
-
-      // Navigate to main app
-      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
     } catch (error) {
-      Alert.alert('Помилка реєстрації', error instanceof Error ? error.message : 'Сталася помилка');
+      if (request.current?.signal.aborted) return;
+      Alert.alert(t("Помилка реєстрації"), error instanceof Error ? error.message : t("Сталася помилка"));
     } finally {
-      setIsSubmitting(false);
+      submitting.current = false;
+      if (!request.current?.signal.aborted) setIsSubmitting(false);
     }
   };
 
   return (
+    <AuthScreenFrame scroll={false}>
     <View style={styles.container}>
         <LinearGradient
           colors={['#1A1A1A', '#2D2D2D']}
@@ -228,37 +214,37 @@ const PassengerRegistration: FC = () => {
           <View style={styles.circle3} />
         </LinearGradient>
 
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           bounces={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Animatable.View 
-            animation="fadeInUp" 
-            duration={1000} 
+          <Animatable.View
+            animation={reducedMotion ? undefined : 'fadeInUp'}
+            duration={1000}
             style={styles.content}
           >
-            <Animatable.View animation="fadeIn" delay={300}>
-              <Text style={styles.title}>Реєстрація пасажира</Text>
-              <Text style={styles.subtitle}>Створіть свій обліковий запис</Text>
+            <Animatable.View animation={reducedMotion ? undefined : 'fadeIn'} delay={300}>
+              <Text style={styles.title}>{t("Реєстрація пасажира")}</Text>
+              <Text style={styles.subtitle}>{t("Створіть свій обліковий запис")}</Text>
             </Animatable.View>
 
-            <Animatable.View 
-              animation="slideInUp" 
-              delay={500} 
+            <Animatable.View
+              animation={reducedMotion ? undefined : 'slideInUp'}
+              delay={500}
               style={styles.form}
             >
               <CustomInput
-                label="Повне ім'я"
+                label={t("Повне ім'я")}
                 value={formData.fullName}
                 onChangeText={(text) => setFormData({ ...formData, fullName: text })}
                 onBlur={() => handleBlur('fullName')}
                 error={touched.fullName ? errors.fullName : ''}
                 icon="account"
                 autoCapitalize="words"
-                placeholder="Введіть ваше повне ім'я"
+                placeholder={t("Введіть ваше повне ім'я")}
               />
 
               <CustomInput
@@ -269,45 +255,46 @@ const PassengerRegistration: FC = () => {
                 error={touched.email ? errors.email : ''}
                 icon="email"
                 keyboardType="email-address"
-                placeholder="Введіть ваш email"
+                placeholder={t("Введіть ваш email")}
               />
 
               <CustomInput
-                label="Телефон"
+                label={t("Телефон")}
                 value={formData.phone}
                 onChangeText={(text) => setFormData({ ...formData, phone: text })}
                 onBlur={() => handleBlur('phone')}
                 error={touched.phone ? errors.phone : ''}
                 icon="phone"
                 keyboardType="phone-pad"
-                placeholder="Введіть ваш номер телефону"
+                placeholder={t("Введіть ваш номер телефону")}
               />
 
               <CustomInput
-                label="Пароль"
+                label={t("Пароль")}
                 value={formData.password}
                 onChangeText={(text) => setFormData({ ...formData, password: text })}
                 onBlur={() => handleBlur('password')}
                 error={touched.password ? errors.password : ''}
                 secureTextEntry
                 icon="lock"
-                placeholder="Створіть пароль"
+                placeholder={t("Створіть пароль")}
               />
 
               <CustomInput
-                label="Підтвердження паролю"
+                label={t("Підтвердження паролю")}
                 value={formData.confirmPassword}
                 onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
                 onBlur={() => handleBlur('confirmPassword')}
                 error={touched.confirmPassword ? errors.confirmPassword : ''}
                 secureTextEntry
                 icon="lock-check"
-                placeholder="Повторіть пароль"
+                placeholder={t("Повторіть пароль")}
               />
 
-              <Animatable.View 
-                animation="fadeIn" 
-                delay={550} 
+              {__DEV__ && process.env.EXPO_PUBLIC_ENABLE_PREVIEW === 'true' ? (
+              <Animatable.View
+                animation={reducedMotion ? undefined : 'fadeIn'}
+                delay={550}
                 style={styles.fillButtonContainer}
               >
                 <Button
@@ -316,14 +303,13 @@ const PassengerRegistration: FC = () => {
                   style={styles.fillButton}
                   icon="flask-outline"
                   contentStyle={styles.fillButtonContent}
-                >
-                  Заповнити тестовими даними
-                </Button>
+                >{t("Заповнити тестовими даними")}</Button>
               </Animatable.View>
 
-              <Animatable.View 
-                animation="fadeIn" 
-                delay={600} 
+              ) : null}
+              <Animatable.View
+                animation={reducedMotion ? undefined : 'fadeIn'}
+                delay={600}
                 style={styles.generateButtonContainer}
               >
                 <Button
@@ -332,9 +318,7 @@ const PassengerRegistration: FC = () => {
                   style={styles.generateButton}
                   icon="dice-multiple"
                   contentStyle={styles.generateButtonContent}
-                >
-                  Згенерувати надійний пароль
-                </Button>
+                >{t("Згенерувати надійний пароль")}</Button>
               </Animatable.View>
 
               <View style={styles.termsContainer}>
@@ -343,14 +327,12 @@ const PassengerRegistration: FC = () => {
                   onValueChange={(value) => setFormData({ ...formData, acceptTerms: value })}
                   color="#FF3B30"
                 />
-                <Text style={styles.termsText}>
-                  Я погоджуюсь з умовами використання та політикою конфіденційності
-                </Text>
+                <Text style={styles.termsText}>{t("Я погоджуюсь з умовами використання та політикою конфіденційності")}</Text>
               </View>
 
-              <Animatable.View 
-                animation="fadeIn" 
-                delay={700} 
+              <Animatable.View
+                animation={reducedMotion ? undefined : 'fadeIn'}
+                delay={700}
                 style={styles.buttonContainer}
               >
                 <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
@@ -363,32 +345,30 @@ const PassengerRegistration: FC = () => {
                     disabled={isSubmitting || !formData.acceptTerms}
                     onPressIn={() => animateButton(0.95)}
                     onPressOut={() => animateButton(1)}
-                  >
-                    Зареєструватися
-                  </Button>
+                  >{t("Зареєструватися")}</Button>
                 </Animated.View>
               </Animatable.View>
 
               <View style={styles.loginContainer}>
-                <Text style={styles.loginText}>Вже маєте обліковий запис?</Text>
+                <Text style={styles.loginText}>{t("Вже маєте обліковий запис?")}</Text>
                 <Button
                   mode="text"
                   onPress={() => navigation.navigate('Login')}
                   textColor="#FF3B30"
-                >
-                  Увійти
-                </Button>
+                >{t("Увійти")}</Button>
               </View>
             </Animatable.View>
           </Animatable.View>
         </ScrollView>
       </View>
+
+    </AuthScreenFrame>
   );
 };
 
 export default PassengerRegistration;
 
-const styles = StyleSheet.create({
+const createStyles = (width: number, height: number) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -464,24 +444,24 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   fillButton: {
-    height: 48,
+    minHeight: 48,
     justifyContent: 'center',
     borderRadius: 16,
     borderColor: '#FFFFFF',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   fillButtonContent: {
-    height: 48,
+    minHeight: 48,
   },
   generateButton: {
-    height: 48,
+    minHeight: 48,
     justifyContent: 'center',
     borderRadius: 16,
     borderColor: '#FF3B30',
     backgroundColor: 'transparent',
   },
   generateButtonContent: {
-    height: 48,
+    minHeight: 48,
   },
   termsContainer: {
     flexDirection: 'row',
@@ -501,12 +481,12 @@ const styles = StyleSheet.create({
     marginTop: 15,
   },
   button: {
-    height: 56,
+    minHeight: 56,
     borderRadius: 16,
     backgroundColor: '#FF3B30',
   },
   buttonContent: {
-    height: 56,
+    minHeight: 56,
   },
   loginContainer: {
     flexDirection: 'row',
@@ -518,4 +498,4 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginRight: 5,
   },
-}); 
+});

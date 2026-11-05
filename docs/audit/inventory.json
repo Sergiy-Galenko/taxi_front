@@ -1,0 +1,427 @@
+[
+  {
+    "path": ".gitignore",
+    "bytes": 1108,
+    "lines": 92
+  },
+  {
+    "path": "App.tsx",
+    "bytes": 1251,
+    "lines": 39
+  },
+  {
+    "path": "LICENSE",
+    "bytes": 1065,
+    "lines": 20
+  },
+  {
+    "path": "README.md",
+    "bytes": 1724,
+    "lines": 89
+  },
+  {
+    "path": "app.json",
+    "bytes": 1684,
+    "lines": 59
+  },
+  {
+    "path": "assets/icon.png",
+    "bytes": 18247,
+    "lines": null
+  },
+  {
+    "path": "assets/icon.svg",
+    "bytes": 589,
+    "lines": 5
+  },
+  {
+    "path": "assets/splash.png",
+    "bytes": 35943,
+    "lines": null
+  },
+  {
+    "path": "assets/splash.svg",
+    "bytes": 635,
+    "lines": 5
+  },
+  {
+    "path": "babel.config.js",
+    "bytes": 617,
+    "lines": 24
+  },
+  {
+    "path": "index.ts",
+    "bytes": 101,
+    "lines": 5
+  },
+  {
+    "path": "package-lock.json",
+    "bytes": 369087,
+    "lines": 9763
+  },
+  {
+    "path": "package.json",
+    "bytes": 2276,
+    "lines": 72
+  },
+  {
+    "path": "src/components/CustomInput.tsx",
+    "bytes": 5632,
+    "lines": 211
+  },
+  {
+    "path": "src/components/auth/styles.ts",
+    "bytes": 1066,
+    "lines": 59
+  },
+  {
+    "path": "src/components/passenger/AddressInputCard.tsx",
+    "bytes": 5216,
+    "lines": 200
+  },
+  {
+    "path": "src/components/passenger/BookingFlowLayout.tsx",
+    "bytes": 3658,
+    "lines": 150
+  },
+  {
+    "path": "src/components/passenger/PassengerScreenLayout.tsx",
+    "bytes": 3054,
+    "lines": 115
+  },
+  {
+    "path": "src/components/passenger/PassengerTabBar.tsx",
+    "bytes": 3369,
+    "lines": 108
+  },
+  {
+    "path": "src/components/passenger/RideOptionCard.tsx",
+    "bytes": 3467,
+    "lines": 126
+  },
+  {
+    "path": "src/components/passenger/RouteSummaryCard.tsx",
+    "bytes": 4312,
+    "lines": 175
+  },
+  {
+    "path": "src/components/passenger/VehicleOptionCard.tsx",
+    "bytes": 4951,
+    "lines": 182
+  },
+  {
+    "path": "src/config/api.ts",
+    "bytes": 2139,
+    "lines": 86
+  },
+  {
+    "path": "src/config/places.ts",
+    "bytes": 621,
+    "lines": 24
+  },
+  {
+    "path": "src/data/passenger.ts",
+    "bytes": 7971,
+    "lines": 312
+  },
+  {
+    "path": "src/driver/DriverHomeScreen.tsx",
+    "bytes": 297,
+    "lines": 10
+  },
+  {
+    "path": "src/driver/api/driverApi.ts",
+    "bytes": 182,
+    "lines": 6
+  },
+  {
+    "path": "src/driver/components/DriverHeader.tsx",
+    "bytes": 278,
+    "lines": 10
+  },
+  {
+    "path": "src/driver/components/DriverSidebar.tsx",
+    "bytes": 313,
+    "lines": 10
+  },
+  {
+    "path": "src/driver/filters/RideFilters.tsx",
+    "bytes": 301,
+    "lines": 10
+  },
+  {
+    "path": "src/driver/hooks/useDriverProfile.ts",
+    "bytes": 308,
+    "lines": 7
+  },
+  {
+    "path": "src/driver/hooks/useDriverStatus.ts",
+    "bytes": 239,
+    "lines": 6
+  },
+  {
+    "path": "src/driver/profile/DriverProfileScreen.tsx",
+    "bytes": 276,
+    "lines": 10
+  },
+  {
+    "path": "src/driver/profile/EditProfileScreen.tsx",
+    "bytes": 305,
+    "lines": 10
+  },
+  {
+    "path": "src/driver/rides/RideDetailsScreen.tsx",
+    "bytes": 295,
+    "lines": 10
+  },
+  {
+    "path": "src/driver/rides/RideOfferCard.tsx",
+    "bytes": 357,
+    "lines": 10
+  },
+  {
+    "path": "src/driver/rides/RideSearchScreen.tsx",
+    "bytes": 301,
+    "lines": 10
+  },
+  {
+    "path": "src/driver/rides/useRideSearch.ts",
+    "bytes": 221,
+    "lines": 6
+  },
+  {
+    "path": "src/driver/types/driverTypes.ts",
+    "bytes": 427,
+    "lines": 24
+  },
+  {
+    "path": "src/hooks/UserContext.tsx",
+    "bytes": 879,
+    "lines": 34
+  },
+  {
+    "path": "src/hooks/useAuth.ts",
+    "bytes": 799,
+    "lines": 31
+  },
+  {
+    "path": "src/hooks/useI18n.tsx",
+    "bytes": 2411,
+    "lines": 84
+  },
+  {
+    "path": "src/hooks/useNotifications.tsx",
+    "bytes": 7984,
+    "lines": 276
+  },
+  {
+    "path": "src/hooks/usePassengerTheme.ts",
+    "bytes": 368,
+    "lines": 14
+  },
+  {
+    "path": "src/hooks/useSettings.tsx",
+    "bytes": 2788,
+    "lines": 98
+  },
+  {
+    "path": "src/hooks/useTheme.tsx",
+    "bytes": 1848,
+    "lines": 66
+  },
+  {
+    "path": "src/i18n/translations.ts",
+    "bytes": 32637,
+    "lines": 468
+  },
+  {
+    "path": "src/navigation/AppNavigator.tsx",
+    "bytes": 4639,
+    "lines": 122
+  },
+  {
+    "path": "src/navigation/DriverRegistrationStack.tsx",
+    "bytes": 1232,
+    "lines": 28
+  },
+  {
+    "path": "src/screens/Home.tsx",
+    "bytes": 29440,
+    "lines": 989
+  },
+  {
+    "path": "src/screens/PreorderScreen.tsx",
+    "bytes": 10634,
+    "lines": 353
+  },
+  {
+    "path": "src/screens/Settings.tsx",
+    "bytes": 21363,
+    "lines": 745
+  },
+  {
+    "path": "src/screens/TripHistoryScreen.tsx",
+    "bytes": 7848,
+    "lines": 265
+  },
+  {
+    "path": "src/screens/auth/CarVerification.tsx",
+    "bytes": 5427,
+    "lines": 218
+  },
+  {
+    "path": "src/screens/auth/DriverRegistration.tsx",
+    "bytes": 13851,
+    "lines": 369
+  },
+  {
+    "path": "src/screens/auth/DriverVerification.tsx",
+    "bytes": 4945,
+    "lines": 193
+  },
+  {
+    "path": "src/screens/auth/Login.tsx",
+    "bytes": 12595,
+    "lines": 435
+  },
+  {
+    "path": "src/screens/auth/PassengerRegistration.tsx",
+    "bytes": 15424,
+    "lines": 521
+  },
+  {
+    "path": "src/screens/auth/RoleSelection.tsx",
+    "bytes": 5819,
+    "lines": 190
+  },
+  {
+    "path": "src/screens/auth/VerificationComplete.tsx",
+    "bytes": 2421,
+    "lines": 93
+  },
+  {
+    "path": "src/screens/auth/Welcome.tsx",
+    "bytes": 2126,
+    "lines": 91
+  },
+  {
+    "path": "src/screens/auth/driver/CarInfo.tsx",
+    "bytes": 23725,
+    "lines": 680
+  },
+  {
+    "path": "src/screens/auth/driver/ContactInfo.tsx",
+    "bytes": 8474,
+    "lines": 287
+  },
+  {
+    "path": "src/screens/auth/driver/DriverVerification.tsx",
+    "bytes": 4282,
+    "lines": 151
+  },
+  {
+    "path": "src/screens/auth/driver/LicenseInfo.tsx",
+    "bytes": 7799,
+    "lines": 285
+  },
+  {
+    "path": "src/screens/auth/driver/PasswordSetup.tsx",
+    "bytes": 15125,
+    "lines": 486
+  },
+  {
+    "path": "src/screens/auth/driver/PersonalInfo.tsx",
+    "bytes": 6297,
+    "lines": 226
+  },
+  {
+    "path": "src/screens/auth/driver/Registration.tsx",
+    "bytes": 4514,
+    "lines": 182
+  },
+  {
+    "path": "src/screens/auth/driver/Verification.tsx",
+    "bytes": 9766,
+    "lines": 344
+  },
+  {
+    "path": "src/screens/driver/Home.tsx",
+    "bytes": 19177,
+    "lines": 671
+  },
+  {
+    "path": "src/screens/passenger/ActiveRide.tsx",
+    "bytes": 16565,
+    "lines": 508
+  },
+  {
+    "path": "src/screens/passenger/DriverSearch.tsx",
+    "bytes": 10915,
+    "lines": 358
+  },
+  {
+    "path": "src/screens/passenger/VehicleSelection.tsx",
+    "bytes": 9426,
+    "lines": 293
+  },
+  {
+    "path": "src/services/api/auth.ts",
+    "bytes": 1678,
+    "lines": 69
+  },
+  {
+    "path": "src/services/api/driver.ts",
+    "bytes": 1480,
+    "lines": 51
+  },
+  {
+    "path": "src/services/api/http.ts",
+    "bytes": 1631,
+    "lines": 67
+  },
+  {
+    "path": "src/services/places/kyivPlaces.ts",
+    "bytes": 6670,
+    "lines": 240
+  },
+  {
+    "path": "src/theme/index.ts",
+    "bytes": 980,
+    "lines": 48
+  },
+  {
+    "path": "src/theme/passenger.ts",
+    "bytes": 2124,
+    "lines": 87
+  },
+  {
+    "path": "src/types/driver.ts",
+    "bytes": 1325,
+    "lines": 63
+  },
+  {
+    "path": "src/types/navigation.ts",
+    "bytes": 2151,
+    "lines": 94
+  },
+  {
+    "path": "src/types/passenger.ts",
+    "bytes": 1066,
+    "lines": 53
+  },
+  {
+    "path": "src/types/settings.ts",
+    "bytes": 495,
+    "lines": 17
+  },
+  {
+    "path": "src/utils/validation.ts",
+    "bytes": 4288,
+    "lines": 116
+  },
+  {
+    "path": "tsconfig.json",
+    "bytes": 745,
+    "lines": 33
+  }
+]

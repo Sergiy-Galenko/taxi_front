@@ -1,67 +1,56 @@
+import { Role } from '../../core/auth/session';
 import { API_URL } from '../../config/api';
-
-type ApiErrorItem = {
-  msg?: string;
-  message?: string;
-};
-
-type ApiErrorPayload = {
-  message?: string;
-  errors?: ApiErrorItem[];
-};
-
-const parseJson = (text: string): unknown => {
+export class ApiError extends Error {
+  constructor(message: string, public readonly code: 'network' | 'timeout' | 'cancelled' | 'http' | 'invalid_response' | 'unauthorized' | 'forbidden', public readonly status?: number) {
+    super(message); this.name = 'ApiError';
+  }
+}
+interface HttpAuth {
+  getToken(): string | null;
+  getRole?(): Role | null;
+  expire(token: string): Promise<void>;
+}
+let auth: HttpAuth | null = null;
+export function configureHttpAuth(value: HttpAuth): () => void {
+  auth = value;
+  return () => { if (auth === value) auth = null; };
+}
+export interface RequestOptions extends RequestInit { authenticated?: boolean; requiredRole?: Role; timeoutMs?: number }
+export async function requestJson(url: string, options: RequestOptions = {}): Promise<unknown> {
+  const { authenticated = false, requiredRole, timeoutMs = 15000, signal, ...init } = options;
+  const token = authenticated || requiredRole ? auth?.getToken() : null;
+  if ((authenticated || requiredRole) && !token) throw new ApiError('Please sign in again.', 'unauthorized', 401);
+  if (requiredRole && auth?.getRole?.() !== requiredRole) throw new ApiError('This action is unavailable for your account.', 'forbidden', 403);
+  const headers = new Headers(init.headers);
+  if (token) {
+    if (!API_URL || !(url === API_URL || url.startsWith(`${API_URL}/`))) throw new ApiError('Invalid API destination.', 'invalid_response');
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  const controller = new AbortController();
+  let timedOut = false;
+  const abort = () => controller.abort();
+  signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) controller.abort();
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
   try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-};
-
-const extractErrorMessage = (payload: unknown, fallback: string): string => {
-  if (!payload || typeof payload !== 'object') {
-    return fallback;
-  }
-
-  const errorPayload = payload as ApiErrorPayload;
-
-  if (typeof errorPayload.message === 'string' && errorPayload.message.trim()) {
-    return errorPayload.message;
-  }
-
-  if (Array.isArray(errorPayload.errors)) {
-    const firstError = errorPayload.errors.find((item) => {
-      return typeof item?.msg === 'string' || typeof item?.message === 'string';
-    });
-
-    if (firstError?.msg) {
-      return firstError.msg;
+    const response = await fetch(url, { ...init, headers, signal: controller.signal });
+    if (response.status === 401 && token) {
+      await auth?.expire(token).catch(() => undefined);
+      throw new ApiError('Session expired. Please sign in again.', 'unauthorized', 401);
     }
-
-    if (firstError?.message) {
-      return firstError.message;
-    }
-  }
-
-  return fallback;
-};
-
-export const requestJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
-  let response: Response;
-
-  try {
-    response = await fetch(url, init);
+    // Never expose arbitrary server payloads (which may include personal data) to the UI/logs.
+    if (!response.ok) throw new ApiError(`Request failed (${response.status}). Please try again.`, 'http', response.status);
+    const text = await response.text();
+    if (!text) throw new ApiError('The server returned an empty response.', 'invalid_response');
+    try { const parsed: unknown = JSON.parse(text); return parsed; }
+    catch { throw new ApiError('The server returned an invalid response.', 'invalid_response'); }
   } catch (error) {
-    const details = error instanceof Error ? error.message : 'Network request failed';
-    throw new Error(`Не вдалося з'єднатися з сервером ${API_URL}. ${details}`);
+    if (error instanceof ApiError) throw error;
+    if (timedOut) throw new ApiError('Request timed out. Please try again.', 'timeout');
+    if (controller.signal.aborted) throw new ApiError('Request cancelled.', 'cancelled');
+    throw new ApiError('Unable to connect. Check your connection and try again.', 'network');
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', abort);
   }
-
-  const text = await response.text();
-  const payload = text ? parseJson(text) : null;
-
-  if (!response.ok) {
-    throw new Error(extractErrorMessage(payload, `Запит завершився з помилкою (${response.status})`));
-  }
-
-  return payload as T;
-};
+}

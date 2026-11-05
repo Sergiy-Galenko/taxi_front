@@ -1,5 +1,8 @@
+import { useI18n } from '../../../hooks/useI18n';
+import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
+import AuthScreenFrame from '../../../shared/components/AuthScreenFrame';
 import React, { useState } from 'react';
-import { View, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import { TextInput, Button, Text, IconButton, HelperText } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../../../types/navigation';
@@ -8,15 +11,19 @@ import * as Animatable from 'react-native-animatable';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 
-const { width, height } = Dimensions.get('window');
 
 export default function DriverPersonalInfo() {
+  const { t } = useI18n();
+  const reducedMotion = useReducedMotion();
+  const { width, height } = useWindowDimensions();
+  const styles = React.useMemo(() => createStyles(width, height), [width, height]);
   const navigation = useNavigation<NavigationProp>();
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [touched, setTouched] = useState(false);
 
   const handleNext = () => {
+    setTouched(true);
     const nameError = getFullNameError(fullName);
     if (nameError) {
       setError(nameError);
@@ -26,12 +33,13 @@ export default function DriverPersonalInfo() {
   };
 
   return (
+    <AuthScreenFrame>
     <View style={styles.container}>
         <LinearGradient
           colors={['#1A1A1A', '#2D2D2D']}
           style={styles.background}
         />
-        
+
         {/* Decorative elements */}
         <View style={styles.decorativeCircle} />
         <View style={[styles.decorativeCircle, styles.circle2]} />
@@ -45,25 +53,25 @@ export default function DriverPersonalInfo() {
           iconColor="#FFFFFF"
         />
 
-        <Animatable.View 
-          animation="fadeInUp" 
-          duration={1000} 
+        <Animatable.View
+          animation={reducedMotion ? undefined : 'fadeInUp'}
+          duration={1000}
           style={styles.content}
         >
-          <Animatable.View animation="fadeIn" delay={300}>
-            <Text style={styles.title}>Ваші персональні дані</Text>
-            <Text style={styles.subtitle}>Вкажіть своє повне ім'я для реєстрації</Text>
+          <Animatable.View animation={reducedMotion ? undefined : 'fadeIn'} delay={300}>
+            <Text style={styles.title}>{t("Ваші персональні дані")}</Text>
+            <Text style={styles.subtitle}>{t("Вкажіть своє повне ім'я для реєстрації")}</Text>
           </Animatable.View>
 
-          <Animatable.View 
-            animation="slideInUp" 
-            delay={500} 
+          <Animatable.View
+            animation={reducedMotion ? undefined : 'slideInUp'}
+            delay={500}
             style={styles.form}
           >
             <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
               <TextInput
                 mode="outlined"
-                label="Повне ім'я"
+                label={t("Повне ім'я")}
                 value={fullName}
                 onChangeText={setFullName}
                 onBlur={() => {
@@ -90,12 +98,12 @@ export default function DriverPersonalInfo() {
               />
             </BlurView>
             <HelperText type="error" visible={touched && !!error} style={styles.errorText}>
-              {error}
+              {t(error)}
             </HelperText>
 
-            <Animatable.View 
-              animation="fadeIn" 
-              delay={700} 
+            <Animatable.View
+              animation={reducedMotion ? undefined : 'fadeIn'}
+              delay={700}
               style={styles.buttonContainer}
             >
               <BlurView intensity={20} pointerEvents="box-none" style={styles.blurContainer}>
@@ -106,18 +114,18 @@ export default function DriverPersonalInfo() {
                   contentStyle={styles.buttonContent}
                   labelStyle={styles.buttonLabel}
                   icon="arrow-right"
-                >
-                  Далі
-                </Button>
+                >{t("Далі")}</Button>
               </BlurView>
             </Animatable.View>
           </Animatable.View>
         </Animatable.View>
       </View>
+
+    </AuthScreenFrame>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (width: number, height: number) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1A1A1A',
@@ -167,7 +175,7 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: 'transparent',
     borderRadius: 16,
-    height: 56,
+    minHeight: 56,
     fontSize: 16,
   },
   errorText: {
@@ -182,7 +190,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   button: {
-    height: 56,
+    minHeight: 56,
     borderRadius: 16,
     backgroundColor: '#FF3B30',
     shadowColor: '#FF3B30',
@@ -192,7 +200,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   buttonContent: {
-    height: 56,
+    minHeight: 56,
   },
   buttonLabel: {
     fontSize: 18,
@@ -223,4 +231,4 @@ const styles = StyleSheet.create({
     bottom: -width * 0.1,
     right: -width * 0.1,
   },
-}); 
+});

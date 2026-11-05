@@ -1,3 +1,6 @@
+import { useI18n } from '../../hooks/useI18n';
+import AuthScreenFrame from '../../shared/components/AuthScreenFrame';
+import { useReducedMotion } from '../../shared/hooks/useReducedMotion';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -10,9 +13,12 @@ import { RootStackParamList } from '../../types/navigation';
 type RoleSelectionScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'RoleSelection'>;
 
 export default function RoleSelection() {
+  const { t } = useI18n();
+  const reducedMotion = useReducedMotion();
   const navigation = useNavigation<RoleSelectionScreenNavigationProp>();
 
   return (
+    <AuthScreenFrame>
     <LinearGradient
       colors={['#1A1A1A', '#000000']}
       end={{ x: 1, y: 1 }}
@@ -23,14 +29,14 @@ export default function RoleSelection() {
       <View pointerEvents="none" style={[styles.decorativeCircle, styles.circleTopRight]} />
 
       <View style={styles.content}>
-        <Animatable.View animation="fadeInDown" duration={700} style={styles.header}>
+        <Animatable.View animation={reducedMotion ? undefined : 'fadeInDown'} duration={700} style={styles.header}>
           <MaterialIcons color="#FF3B30" name="local-taxi" size={80} />
-          <Text style={styles.title}>Оберіть свою роль</Text>
-          <Text style={styles.subtitle}>Що ви хочете зробити зараз?</Text>
+          <Text style={styles.title}>{t("Оберіть свою роль")}</Text>
+          <Text style={styles.subtitle}>{t("Що ви хочете зробити зараз?")}</Text>
         </Animatable.View>
 
         <View style={styles.panel}>
-          <Animatable.View animation="fadeInLeft" delay={150} duration={500}>
+          <Animatable.View animation={reducedMotion ? undefined : 'fadeInLeft'} delay={150} duration={500}>
             <TouchableOpacity
               activeOpacity={0.92}
               onPress={() => navigation.replace('PassengerRegistration')}
@@ -40,16 +46,14 @@ export default function RoleSelection() {
                 <MaterialIcons color="#FFFFFF" name="person" size={26} />
               </View>
               <View style={styles.roleText}>
-                <Text style={styles.roleTitle}>Я пасажир</Text>
-                <Text style={styles.roleDescription}>
-                  Замовити поїздку, вказати адресу та швидко перейти до оформлення.
-                </Text>
+                <Text style={styles.roleTitle}>{t("Я пасажир")}</Text>
+                <Text style={styles.roleDescription}>{t("Замовити поїздку, вказати адресу та швидко перейти до оформлення.")}</Text>
               </View>
               <MaterialIcons color="#FFFFFF" name="arrow-forward" size={24} />
             </TouchableOpacity>
           </Animatable.View>
 
-          <Animatable.View animation="fadeInRight" delay={250} duration={500}>
+          <Animatable.View animation={reducedMotion ? undefined : 'fadeInRight'} delay={250} duration={500}>
             <TouchableOpacity
               activeOpacity={0.92}
               onPress={() => navigation.replace('DriverRegistration')}
@@ -59,24 +63,23 @@ export default function RoleSelection() {
                 <MaterialIcons color="#FFFFFF" name="directions-car" size={26} />
               </View>
               <View style={styles.roleText}>
-                <Text style={styles.roleTitle}>Я водій</Text>
-                <Text style={styles.roleDescription}>
-                  Почати реєстрацію водія та перейти до заповнення даних.
-                </Text>
+                <Text style={styles.roleTitle}>{t("Я водій")}</Text>
+                <Text style={styles.roleDescription}>{t("Почати реєстрацію водія та перейти до заповнення даних.")}</Text>
               </View>
               <MaterialIcons color="#FFFFFF" name="arrow-forward" size={24} />
             </TouchableOpacity>
           </Animatable.View>
         </View>
 
-        <Animatable.View animation="fadeInUp" delay={350} duration={500} style={styles.footer}>
+        <Animatable.View animation={reducedMotion ? undefined : 'fadeInUp'} delay={350} duration={500} style={styles.footer}>
           <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.goBack()} style={styles.backButton}>
             <MaterialIcons color="#FFFFFF" name="arrow-back" size={18} />
-            <Text style={styles.backButtonText}>Повернутися назад</Text>
+            <Text style={styles.backButtonText}>{t("Повернутися назад")}</Text>
           </TouchableOpacity>
         </Animatable.View>
       </View>
     </LinearGradient>
+    </AuthScreenFrame>
   );
 }
 
@@ -139,7 +142,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.18)',
     borderRadius: 18,
-    height: 48,
+    minHeight: 48,
     justifyContent: 'center',
     width: 48,
   },

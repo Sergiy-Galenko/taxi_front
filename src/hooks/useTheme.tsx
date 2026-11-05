@@ -33,16 +33,19 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [mode, setMode] = useState<ThemeMode>('auto');
 
   useEffect(() => {
+    let active = true;
     AsyncStorage.getItem(THEME_STORAGE_KEY).then((storedMode) => {
+      if (!active) return;
       if (storedMode === 'light' || storedMode === 'dark' || storedMode === 'auto') {
         setMode(storedMode);
       }
-    });
+    }).catch(() => undefined);
+    return () => { active = false; };
   }, []);
 
   const setThemeMode = useCallback((nextMode: ThemeMode) => {
     setMode(nextMode);
-    void AsyncStorage.setItem(THEME_STORAGE_KEY, nextMode);
+    void AsyncStorage.setItem(THEME_STORAGE_KEY, nextMode).catch(() => undefined);
   }, []);
 
   const theme = useMemo(() => resolveTheme(mode, colorScheme), [mode, colorScheme]);
