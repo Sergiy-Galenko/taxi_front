@@ -1,283 +1,59 @@
-import { useI18n } from '../../../hooks/useI18n';
-import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
-import AuthScreenFrame from '../../../shared/components/AuthScreenFrame';
-import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { TextInput, Button, Text, IconButton, HelperText } from 'react-native-paper';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import { NavigationProp, RootStackParamList } from '../../../types/navigation';
-import { getLicenseNumberError } from '../../../utils/validation';
-import * as Animatable from 'react-native-animatable';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-
+import React, { useState } from "react";
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import AuthLayout from "../../../design-system/components/AuthLayout";
+import { AppButton, AppInput } from "../../../design-system/components/ui";
+import { useDriverDraft } from "../../../features/auth/DriverDraft";
+import { useI18n } from "../../../hooks/useI18n";
+import { NavigationProp, RootStackParamList } from "../../../types/navigation";
+import { getLicenseNumberError } from "../../../utils/validation";
 export default function DriverLicenseInfo() {
   const { t } = useI18n();
-  const reducedMotion = useReducedMotion();
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<RouteProp<RootStackParamList, 'DriverLicenseInfo'>>();
-  const {
-    fullName,
-    email,
-    phone,
-    carModel,
-    carColor,
-    carNumber,
-    yearsOfExperience
-  } = route.params;
-
-  const [licenseNumber, setLicenseNumber] = useState('');
-  const [error, setError] = useState('');
+  const route = useRoute<RouteProp<RootStackParamList, "DriverLicenseInfo">>();
+  const { draft, update } = useDriverDraft();
   const [touched, setTouched] = useState(false);
-
-  const handleNext = () => {
-    setTouched(true);
-    const licenseError = getLicenseNumberError(licenseNumber);
-    if (licenseError) {
-      setError(licenseError);
-      return;
-    }
-
-    navigation.navigate('DriverPasswordSetup', {
-      fullName,
-      email,
-      phone,
-      carModel,
-      carColor,
-      carNumber,
-      yearsOfExperience,
-      licenseNumber,
+  const error = getLicenseNumberError(draft.licenseNumber);
+  const change = (value: string) => {
+    const clean = value.toUpperCase().replace(/[\s-]/g, "").slice(0, 8);
+    update({
+      licenseNumber:
+        /^[A-ZА-ЯІЇЄҐ]/.test(clean) && clean.length > 2
+          ? `${clean.slice(0, 2)} ${clean.slice(2)}`
+          : /^\d/.test(clean) && clean.length > 4
+            ? `${clean.slice(0, 4)}-${clean.slice(4)}`
+            : clean,
     });
   };
-
-  const handleLicenseNumberChange = (text: string) => {
-    // Видаляємо всі пробіли та дефіси
-    let cleaned = text.toUpperCase().replace(/[\s-]/g, '');
-
-    // Обмежуємо довжину
-    if (cleaned.length > 8) {
-      cleaned = cleaned.slice(0, 8);
-    }
-
-    // Форматуємо в залежності від формату
-    let formatted = cleaned;
-    if (cleaned.length > 0) {
-      if (/^[A-ZА-ЯІЇЄҐ]/.test(cleaned)) {
-        // Формат "АВ 123456"
-        if (cleaned.length > 2) {
-          formatted = cleaned.slice(0, 2) + ' ' + cleaned.slice(2);
-        }
-      } else {
-        // Формат "1234-5678"
-        if (cleaned.length > 4) {
-          formatted = cleaned.slice(0, 4) + '-' + cleaned.slice(4);
-        }
-      }
-    }
-
-    setLicenseNumber(formatted);
-    setError(getLicenseNumberError(formatted) || '');
-  };
-
   return (
-    <AuthScreenFrame>
-    <View
-      style={styles.container}
+    <AuthLayout
+      title={t("Водійське посвідчення")}
+      description={t("Вкажіть номер вашого водійського посвідчення")}
+      step={4}
+      onBack={() => navigation.goBack()}
     >
-      <View style={styles.container}>
-          <LinearGradient
-            colors={['#1A1A1A', '#2A2A2A']}
-            style={styles.background}
-          />
-
-          {/* Decorative circles */}
-          <View style={styles.circle1} />
-          <View style={styles.circle2} />
-          <View style={styles.circle3} />
-
-          <IconButton
-            icon="arrow-left"
-            size={24}
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            iconColor="#FFFFFF"
-          />
-
-          <View style={styles.contentContainer}>
-            <Animatable.View
-              animation={reducedMotion ? undefined : 'fadeIn'}
-              style={styles.header}
-            >
-              <Text style={styles.title}>{t("Водійське посвідчення")}</Text>
-              <Text style={styles.subtitle}>{t("Вкажіть номер вашого водійського посвідчення")}</Text>
-            </Animatable.View>
-
-            <Animatable.View
-              animation={reducedMotion ? undefined : 'slideInUp'}
-              delay={500}
-              style={styles.form}
-            >
-              <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
-                <TextInput
-                  mode="outlined"
-                  label={t("Номер водійського посвідчення")}
-                  value={licenseNumber}
-                  onChangeText={handleLicenseNumberChange}
-                  onBlur={() => {
-                    setTouched(true);
-                    setError(getLicenseNumberError(licenseNumber) || '');
-                  }}
-                  style={styles.input}
-                  left={<TextInput.Icon icon="card-account-details" color="#FF3B30" />}
-                  error={touched && !!error}
-                  placeholder={t("АВ 123456 або 1234-5678")}
-                  maxLength={9}
-                  theme={{
-                    colors: {
-                      primary: '#FF3B30',
-                      error: '#FF3B30',
-                      text: '#FFFFFF',
-                      placeholder: 'rgba(255, 255, 255, 0.7)',
-                      background: 'transparent',
-                      onSurfaceVariant: 'rgba(255, 255, 255, 0.7)',
-                    },
-                  }}
-                  textColor="#FFFFFF"
-                  outlineColor="transparent"
-                  activeOutlineColor="transparent"
-                  outlineStyle={{ borderRadius: 16 }}
-                />
-              </BlurView>
-              <HelperText type="error" visible={touched && !!error} style={styles.errorText}>
-                {t(error)}
-              </HelperText>
-
-              <Animatable.View
-                animation={reducedMotion ? undefined : 'fadeIn'}
-                delay={700}
-                style={styles.buttonContainer}
-              >
-                <BlurView intensity={20} pointerEvents="box-none" style={styles.buttonBlur}>
-                  <Button
-                    mode="contained"
-                    onPress={handleNext}
-                    style={styles.button}
-                    icon="arrow-right"
-                    contentStyle={styles.buttonContent}
-                    labelStyle={styles.buttonLabel}
-                  >{t("Далі")}</Button>
-                </BlurView>
-              </Animatable.View>
-            </Animatable.View>
-          </View>
-        </View>
-    </View>
-
-    </AuthScreenFrame>
+      <AppInput
+        label={t("Номер водійського посвідчення")}
+        value={draft.licenseNumber}
+        onChangeText={change}
+        onBlur={() => setTouched(true)}
+        error={touched ? error : null}
+        icon="card-outline"
+        autoCapitalize="characters"
+        placeholder={t("АВ 123456 або 1234-5678")}
+        hint={t("ui.licenseHint")}
+      />
+      <AppButton
+        label={t("Далі")}
+        icon="arrow-forward"
+        onPress={() => {
+          setTouched(true);
+          if (!error)
+            navigation.navigate("DriverPasswordSetup", {
+              ...route.params,
+              licenseNumber: draft.licenseNumber,
+            });
+        }}
+      />
+    </AuthLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1A1A1A',
-  },
-  background: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-  },
-  contentContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-  },
-  backButton: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    zIndex: 1,
-  },
-  header: {
-    marginBottom: 30,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
-  },
-  form: {
-    width: '100%',
-  },
-  inputContainer: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: 'transparent',
-  },
-  errorText: {
-    color: '#FF3B30',
-    marginLeft: 0,
-  },
-  buttonContainer: {
-    marginTop: 20,
-  },
-  buttonBlur: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  button: {
-    minHeight: 56,
-    justifyContent: 'center',
-    borderRadius: 16,
-    backgroundColor: 'transparent',
-    elevation: 0,
-    shadowOpacity: 0,
-  },
-  buttonContent: {
-    minHeight: 56,
-  },
-  buttonLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  circle1: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
-    top: -50,
-    right: -50,
-  },
-  circle2: {
-    position: 'absolute',
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
-    bottom: 100,
-    left: -50,
-  },
-  circle3: {
-    position: 'absolute',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
-    bottom: -30,
-    right: 50,
-  },
-});

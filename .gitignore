@@ -96,3 +96,9 @@ yarn-error.log
 .env.*
 !.env.example
 coverage/
+
+# Browser visual QA
+playwright-report/
+test-results/
+
+dist-web/

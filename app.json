@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#007AFF"
+      "backgroundColor": "#F7F8FA"
     },
     "updates": {
       "fallbackToCacheTimeout": 0
@@ -24,8 +24,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#007AFF"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2563EB"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.taxiapp",
@@ -37,7 +37,8 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.CAMERA"
-      ]
+      ],
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "favicon": "./assets/icon.png"
@@ -52,7 +53,8 @@
         {
           "locationWhenInUsePermission": "Доступ до місцезнаходження потрібен для вибору місця посадки."
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "sdkVersion": "54.0.0"
   }

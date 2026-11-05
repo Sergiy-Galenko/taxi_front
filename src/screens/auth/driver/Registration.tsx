@@ -1,185 +1,44 @@
-import { useI18n } from '../../../hooks/useI18n';
-import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
-import AuthScreenFrame from '../../../shared/components/AuthScreenFrame';
-import React from 'react';
-import { View, StyleSheet, useWindowDimensions } from 'react-native';
-import { Button } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
-import { NavigationProp } from '../../../types/navigation';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as Animatable from 'react-native-animatable';
-import { BlurView } from 'expo-blur';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-
-
+import React from "react";
+import { useNavigation } from "@react-navigation/native";
+import AuthLayout from "../../../design-system/components/AuthLayout";
+import {
+  AppButton,
+  AppCard,
+  InfoRow,
+} from "../../../design-system/components/ui";
+import { useI18n } from "../../../hooks/useI18n";
+import { NavigationProp } from "../../../types/navigation";
 export default function DriverRegistration() {
   const { t } = useI18n();
-  const reducedMotion = useReducedMotion();
-  const { width, height } = useWindowDimensions();
-  const styles = React.useMemo(() => createStyles(width, height), [width, height]);
   const navigation = useNavigation<NavigationProp>();
-
-  const handleStartRegistration = () => {
-    navigation.navigate('DriverPersonalInfo');
-  };
-
   return (
-    <AuthScreenFrame>
-    <View style={styles.container}>
-      <LinearGradient
-        colors={['#1A1A1A', '#2D2D2D']}
-        style={styles.background}
+    <AuthLayout
+      title={t("ui.driverSignup")}
+      description={t("ui.driverSignupHint")}
+      onBack={() => navigation.goBack()}
+    >
+      <AppCard>
+        <InfoRow
+          icon="person-outline"
+          label={t("ui.beforeYouBegin")}
+          value={t("ui.driverChecklist1")}
+        />
+        <InfoRow
+          icon="car-outline"
+          label={t("ui.vehicle")}
+          value={t("ui.driverChecklist2")}
+        />
+        <InfoRow
+          icon="shield-checkmark-outline"
+          label={t("ui.verification")}
+          value={t("ui.driverChecklist3")}
+        />
+      </AppCard>
+      <AppButton
+        label={t("Почати реєстрацію")}
+        icon="arrow-forward"
+        onPress={() => navigation.navigate("DriverPersonalInfo")}
       />
-
-      {/* Decorative elements */}
-      <View style={styles.decorativeCircle} />
-      <View style={[styles.decorativeCircle, styles.circle2]} />
-      <View style={[styles.decorativeCircle, styles.circle3]} />
-
-      <Animatable.View
-        animation={reducedMotion ? undefined : 'fadeIn'}
-        duration={1000}
-        style={styles.content}
-      >
-        <Animatable.View
-          animation={reducedMotion ? undefined : 'zoomIn'}
-          duration={800}
-          style={styles.iconContainer}
-        >
-          <MaterialCommunityIcons
-            name="car"
-            size={80}
-            color="#FF3B30"
-          />
-        </Animatable.View>
-
-        <Animatable.Text
-          animation={reducedMotion ? undefined : 'fadeInUp'}
-          duration={800}
-          delay={200}
-          style={styles.title}
-        >{t("Реєстрація водія")}</Animatable.Text>
-
-        <Animatable.Text
-          animation={reducedMotion ? undefined : 'fadeInUp'}
-          duration={800}
-          delay={400}
-          style={styles.subtitle}
-        >{t("Заповніть форму реєстрації, щоб стати водієм")}</Animatable.Text>
-
-        <Animatable.View
-          animation={reducedMotion ? undefined : 'fadeInUp'}
-          duration={800}
-          delay={600}
-          style={styles.buttonContainer}
-        >
-          <BlurView intensity={20} pointerEvents="box-none" style={styles.blurContainer}>
-            <Button
-              mode="contained"
-              onPress={handleStartRegistration}
-              style={styles.button}
-              contentStyle={styles.buttonContent}
-              labelStyle={styles.buttonLabel}
-              icon="arrow-right"
-            >{t("Почати реєстрацію")}</Button>
-          </BlurView>
-        </Animatable.View>
-      </Animatable.View>
-    </View>
-
-    </AuthScreenFrame>
+    </AuthLayout>
   );
 }
-
-const createStyles = (width: number, height: number) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1A1A1A',
-  },
-  background: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  iconContainer: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  subtitle: {
-    fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
-    marginBottom: 48,
-    lineHeight: 24,
-  },
-  buttonContainer: {
-    width: '100%',
-    maxWidth: 400,
-  },
-  blurContainer: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  button: {
-    minHeight: 56,
-    borderRadius: 16,
-    backgroundColor: '#FF3B30',
-    shadowColor: '#FF3B30',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  buttonContent: {
-    minHeight: 56,
-  },
-  buttonLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  decorativeCircle: {
-    position: 'absolute',
-    width: width * 0.8,
-    height: width * 0.8,
-    borderRadius: width * 0.4,
-    backgroundColor: 'rgba(255, 59, 48, 0.05)',
-    top: -width * 0.4,
-    right: -width * 0.2,
-  },
-  circle2: {
-    width: width * 0.6,
-    height: width * 0.6,
-    borderRadius: width * 0.3,
-    backgroundColor: 'rgba(255, 59, 48, 0.03)',
-    top: height * 0.3,
-    left: -width * 0.2,
-  },
-  circle3: {
-    width: width * 0.4,
-    height: width * 0.4,
-    borderRadius: width * 0.2,
-    backgroundColor: 'rgba(255, 59, 48, 0.02)',
-    bottom: -width * 0.1,
-    right: -width * 0.1,
-  },
-});

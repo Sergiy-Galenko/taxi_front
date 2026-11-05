@@ -1,11 +1,13 @@
-import React from 'react';
-import { View, Text } from 'react-native';
-
-const EditProfileScreen = () => (
-  <View>
-    <Text>Редагування профілю водія</Text>
-    {/* Тут буде форма редагування профілю */}
-  </View>
-);
-
-export default EditProfileScreen; 
+import React from "react";
+import { StatePanel } from "../../design-system/components/ui";
+import { useI18n } from "../../hooks/useI18n";
+export default function EditProfileScreen() {
+  const { t } = useI18n();
+  return (
+    <StatePanel
+      icon="person-outline"
+      title={t("ui.profileEditingUnavailable")}
+      description={t("ui.profileEditingHint")}
+    />
+  );
+}

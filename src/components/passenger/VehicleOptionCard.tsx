@@ -1,184 +1,106 @@
-import React, { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useI18n } from '../../hooks/useI18n';
-import { usePassengerTheme } from '../../hooks/usePassengerTheme';
-import { PassengerPalette } from '../../theme/passenger';
-import { RideOption, TripSummary } from '../../types/passenger';
-
-interface VehicleOptionCardProps {
+import React from "react";
+import { View } from "react-native";
+import {
+  AppCard,
+  AppIcon,
+  AppText,
+  TripStatusBadge,
+} from "../../design-system/components/ui";
+import { useI18n } from "../../hooks/useI18n";
+import { RideOption, TripSummary } from "../../types/passenger";
+import { radii, space } from "../../design-system/tokens";
+import { useDesign } from "../../design-system/hooks/useDesign";
+const icons = {
+  economy: "car-sport-outline",
+  comfort: "car-outline",
+  xl: "people-outline",
+} as const;
+export default function VehicleOptionCard({
+  option,
+  summary,
+  selected,
+  onPress,
+}: {
   option: RideOption;
   summary: TripSummary;
   selected: boolean;
   onPress: () => void;
-}
-
-export default function VehicleOptionCard({
-  option,
-  selected,
-  onPress,
-}: VehicleOptionCardProps) {
+}) {
   const { t } = useI18n();
-  const { palette, radius } = usePassengerTheme();
-  const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
-
+  const { colors } = useDesign();
   return (
-    <TouchableOpacity
-      activeOpacity={0.9}
+    <AppCard
+      selected={selected}
       onPress={onPress}
-      style={[styles.card, selected && styles.cardSelected]}
+      accessibilityLabel={`${t(`rideOptions.${option.key}.label`)}, ${t(selected ? "vehicleSelection.selected" : "ui.chooseClass")}`}
     >
-      <View style={styles.header}>
-        <View style={[styles.iconWrap, { backgroundColor: selected ? option.accentColor : palette.surfaceMuted }]}>
-          <Ionicons
-            color={selected ? '#FFFFFF' : palette.text}
-            name={option.icon as keyof typeof Ionicons.glyphMap}
-            size={22}
+      <View
+        style={{ flexDirection: "row", alignItems: "center", gap: space.lg }}
+      >
+        <View
+          style={{
+            backgroundColor: colors.inset,
+            borderRadius: radii.md,
+            width: 56,
+            height: 48,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <AppIcon
+            name={icons[option.key]}
+            tone={selected ? "primary" : "secondary"}
+            size={30}
           />
         </View>
-
-        <View style={styles.headerCopy}>
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>{t(`rideOptions.${option.key}.label`)}</Text>
-            {selected ? (
-              <View style={styles.selectedPill}>
-                <Ionicons color={palette.text} name="checkmark-circle" size={14} />
-                <Text style={styles.selectedText}>{t('vehicleSelection.selected')}</Text>
-              </View>
-            ) : null}
-          </View>
-          <Text style={styles.description}>{t(`rideOptions.${option.key}.description`)}</Text>
+        <View style={{ flex: 1, gap: space.xs }}>
+          <AppText variant="card">
+            {t(`rideOptions.${option.key}.label`)}
+          </AppText>
+          <AppText variant="secondary" tone="secondary">
+            {t(`rideOptions.${option.key}.description`)}
+          </AppText>
         </View>
-
-        <View style={styles.priceWrap}>
-          <Text style={styles.priceLabel}>{t('vehicleSelection.fare')}</Text>
-          <Text style={styles.priceValue}>{t('integration.unknown')}</Text>
-        </View>
+        <AppIcon
+          name={selected ? "checkmark-circle" : "ellipse-outline"}
+          tone={selected ? "primary" : "muted"}
+        />
       </View>
-
-      <View style={styles.metaRow}>
-        <View style={styles.metaBlock}>
-          <Text style={styles.metaLabel}>{t('vehicleSelection.arrival')}</Text>
-          <Text style={styles.metaValue}>{t('integration.unknown')}</Text>
-        </View>
-        <View style={styles.metaBlock}>
-          <Text style={styles.metaLabel}>{t('vehicleSelection.trip')}</Text>
-          <Text style={styles.metaValue}>{t('integration.unknown')}</Text>
-        </View>
-        <View style={styles.metaBlock}>
-          <Text style={styles.metaLabel}>{t('vehicleSelection.capacity')}</Text>
-          <Text style={styles.metaValue}>{option.capacity}</Text>
-        </View>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.md }}>
+        <TripStatusBadge
+          label={t(`ui.capacity.${option.key}`)}
+          icon="people-outline"
+        />
+        <TripStatusBadge
+          label={
+            summary.pickupEtaMin === null
+              ? t("ui.etaUnknown")
+              : t("common.minutesShort", { count: summary.pickupEtaMin })
+          }
+          icon="time-outline"
+        />
       </View>
-    </TouchableOpacity>
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          alignItems: "baseline",
+          gap: space.sm,
+          justifyContent: "space-between",
+        }}
+      >
+        <AppText tone="secondary" variant="secondary">
+          {t("vehicleSelection.fare")}
+        </AppText>
+        <AppText variant="card">
+          {summary.price === null
+            ? t("ui.quoteUnavailable")
+            : t("common.priceUah", { amount: summary.price })}
+        </AppText>
+      </View>
+      <AppText variant="caption" tone="secondary">
+        {t("ui.availabilityUnconfirmed")}
+      </AppText>
+    </AppCard>
   );
 }
-
-const createStyles = (
-  palette: PassengerPalette,
-  radius: typeof import('../../theme/passenger').passengerRadius
-) => StyleSheet.create({
-  card: {
-    backgroundColor: palette.surface,
-    borderColor: palette.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: 16,
-    padding: 18,
-  },
-  cardSelected: {
-    borderColor: palette.primaryDeep,
-    shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 1,
-    shadowRadius: 20,
-    elevation: 6,
-  },
-  header: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 14,
-  },
-  iconWrap: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerCopy: {
-    flex: 1,
-    gap: 5,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  title: {
-    color: palette.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  selectedPill: {
-    alignItems: 'center',
-    backgroundColor: palette.primarySoft,
-    borderRadius: 999,
-    flexDirection: 'row',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  selectedText: {
-    color: palette.text,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  description: {
-    color: palette.mutedText,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  priceWrap: {
-    alignItems: 'flex-end',
-    width: '100%',
-  },
-  priceLabel: {
-    color: palette.mutedText,
-    fontSize: 11,
-    fontWeight: '700',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-  },
-  priceValue: {
-    color: palette.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  metaBlock: {
-    flexGrow: 1,
-    flexBasis: 120,
-    borderRadius: 18,
-    backgroundColor: palette.surfaceMuted,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  metaLabel: {
-    color: palette.mutedText,
-    fontSize: 11,
-    fontWeight: '700',
-    marginBottom: 5,
-    textTransform: 'uppercase',
-  },
-  metaValue: {
-    color: palette.text,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-});

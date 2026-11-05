@@ -1,4 +1,4 @@
-import { Region } from 'react-native-maps';
+import type { Region } from 'react-native-maps';
 import { passengerPalette } from '../theme/passenger';
 import {
   Coordinates,

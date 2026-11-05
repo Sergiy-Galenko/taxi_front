@@ -1,8 +1,10 @@
+import { uiMessages } from './uiMessages';
 import { authMessages } from './authMessages';
 import { AppLanguage } from '../types/settings';
 
 export const translations: Record<AppLanguage, Record<string, string>> = {
   en: {
+    ...uiMessages.en,
     'integration.sessionExpired': 'Your session expired. Please sign in again.',
     ...authMessages,
     'integration.preferencesError': 'Preferences could not be saved. Your changes may be lost after restart.',
@@ -72,7 +74,7 @@ export const translations: Record<AppLanguage, Record<string, string>> = {
     'home.flowBadge': 'Simpler booking flow',
     'home.headline': 'Set route now. Choose the car next.',
     'home.subheadline': 'The first screen now focuses only on pickup and destination, so the next action is always clear.',
-    'home.locationAccessOff': 'Location is off, so pickup stays manual until the user enables access.',
+    'home.locationAccessOff': 'Location is off. Enter your pickup address manually, or enable location in device settings.',
     'home.tripPreview': 'Trip preview',
     'home.scheduleInstead': 'Schedule instead',
     'home.rideTime': 'Ride time',
@@ -267,6 +269,7 @@ export const translations: Record<AppLanguage, Record<string, string>> = {
     'alerts.searchCancelledText': 'The ride search was cancelled.',
   },
   uk: {
+    ...uiMessages.uk,
     'integration.sessionExpired': 'Сеанс завершився. Увійдіть ще раз.',
     ...Object.fromEntries(Object.keys(authMessages).map((key) => [key, key])),
     'integration.preferencesError': 'Не вдалося зберегти налаштування. Зміни можуть бути втрачені після перезапуску.',

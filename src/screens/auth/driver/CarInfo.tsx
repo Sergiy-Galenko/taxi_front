@@ -1,654 +1,137 @@
-import { useI18n } from '../../../hooks/useI18n';
-import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
-import AuthScreenFrame from '../../../shared/components/AuthScreenFrame';
-import React, { useState } from 'react';
-import { View, StyleSheet, Keyboard, ScrollView } from 'react-native';
-import { TextInput, Button, Text, HelperText, Searchbar, List } from 'react-native-paper';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import { NavigationProp, RootStackParamList } from '../../../types/navigation';
-import { getCarNumberError } from '../../../utils/validation';
-import * as Animatable from 'react-native-animatable';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-
-
-type CarBrands = {
-  [key: string]: string[];
-};
-
-// Структура даних для марок та моделей автомобілів
-const CAR_BRANDS: CarBrands = {
-  'Toyota': ['Camry', 'Corolla', 'RAV4', 'Land Cruiser', 'Highlander', 'Prado'],
-  'Honda': ['Civic', 'Accord', 'CR-V', 'Pilot', 'Odyssey'],
-  'Volkswagen': ['Golf', 'Passat', 'Tiguan', 'T-Roc', 'Touareg'],
-  'BMW': ['3 Series', '5 Series', 'X5', 'X3', 'X7'],
-  'Mercedes-Benz': ['C-Class', 'E-Class', 'GLC', 'GLE', 'S-Class'],
-  'Audi': ['A4', 'A6', 'Q5', 'Q7', 'Q8'],
-  'Hyundai': ['Sonata', 'Tucson', 'Santa Fe', 'Elantra', 'Palisade'],
-  'Kia': ['Sportage', 'Optima', 'Sorento', 'Telluride', 'Stinger'],
-  'Ford': ['Focus', 'Mondeo', 'Kuga', 'Explorer', 'Mustang'],
-  'Nissan': ['Qashqai', 'X-Trail', 'Teana', 'Murano', 'Patrol'],
-  'Skoda': ['Octavia', 'Kodiaq', 'Superb', 'Karoq', 'Kamiq'],
-  'Mazda': ['6', 'CX-5', 'CX-9', '3', 'CX-30'],
-  'Subaru': ['Forester', 'Outback', 'Impreza', 'Legacy', 'Crosstrek'],
-  'Lexus': ['RX', 'ES', 'NX', 'GX', 'LX'],
-  'Volvo': ['XC60', 'XC90', 'S90', 'V90', 'XC40'],
-  'Renault': ['Duster', 'Megane', 'Kaptur', 'Arkana', 'Koleos'],
-  'Peugeot': ['3008', '508', '5008', '208', '2008'],
-  'Citroen': ['C5', 'C4', 'C3', 'Berlingo', 'C5 Aircross'],
-  'Opel': ['Astra', 'Insignia', 'Mokka', 'Crossland', 'Grandland'],
-  'Chevrolet': ['Cruze', 'Captiva', 'Trailblazer', 'Tahoe', 'Equinox'],
-  'Suzuki': ['Vitara', 'SX4', 'Jimny', 'Swift', 'Across'],
-};
-
+import React, { useState } from "react";
+import { View } from "react-native";
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import AuthLayout from "../../../design-system/components/AuthLayout";
+import {
+  AppButton,
+  AppInput,
+  AppText,
+} from "../../../design-system/components/ui";
+import { useDriverDraft } from "../../../features/auth/DriverDraft";
+import { CAR_BRANDS } from "../../../features/auth/carCatalog";
+import { useI18n } from "../../../hooks/useI18n";
+import { NavigationProp, RootStackParamList } from "../../../types/navigation";
+import { getCarNumberError } from "../../../utils/validation";
+import { space } from "../../../design-system/tokens";
 export default function DriverCarInfo() {
   const { t } = useI18n();
-  const reducedMotion = useReducedMotion();
-
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<RouteProp<RootStackParamList, 'DriverCarInfo'>>();
-  const { fullName, email, phone } = route.params;
-
-  const [formData, setFormData] = useState({
-    carBrand: '',
-    carModel: '',
-    carColor: '',
-    carNumber: '',
-    yearsOfExperience: '',
-  });
-  const [errors, setErrors] = useState({
-    carBrand: '',
-    carModel: '',
-    carColor: '',
-    carNumber: '',
-    yearsOfExperience: '',
-  });
-  const [touched, setTouched] = useState({
-    carBrand: false,
-    carModel: false,
-    carColor: false,
-    carNumber: false,
-    yearsOfExperience: false,
-  });
-
-  // Стани для випадаючих списків
-  const [showBrands, setShowBrands] = useState(false);
-  const [showModels, setShowModels] = useState(false);
-  const [brandSearchQuery, setBrandSearchQuery] = useState('');
-  const [modelSearchQuery, setModelSearchQuery] = useState('');
-  const [filteredBrands, setFilteredBrands] = useState(Object.keys(CAR_BRANDS).sort());
-  const [filteredModels, setFilteredModels] = useState<string[]>([]);
-
-  const handleBrandSearch = (query: string) => {
-    setBrandSearchQuery(query);
-    const filtered = Object.keys(CAR_BRANDS)
-      .filter(brand => brand.toLowerCase().includes(query.toLowerCase()))
-      .sort();
-    setFilteredBrands(filtered);
+  const route = useRoute<RouteProp<RootStackParamList, "DriverCarInfo">>();
+  const { draft, update } = useDriverDraft();
+  const [submitted, setSubmitted] = useState(false);
+  const [field, setField] = useState<"brand" | "model" | null>(null);
+  const errors = {
+    carBrand: draft.carBrand.trim() ? null : t("Вкажіть марку автомобіля"),
+    carModel: draft.carModel.trim() ? null : t("Вкажіть модель автомобіля"),
+    carColor: draft.carColor.trim() ? null : t("Вкажіть колір автомобіля"),
+    carNumber: getCarNumberError(draft.carNumber),
+    yearsOfExperience:
+      draft.yearsOfExperience.trim() &&
+      Number.isSafeInteger(Number(draft.yearsOfExperience)) &&
+      Number(draft.yearsOfExperience) >= 0
+        ? null
+        : t("Вкажіть коректний досвід водіння"),
   };
-
-  const handleModelSearch = (query: string) => {
-    setModelSearchQuery(query);
-    if (formData.carBrand) {
-      const models = CAR_BRANDS[formData.carBrand] || [];
-      const filtered = models.filter((model: string) =>
-        model.toLowerCase().includes(query.toLowerCase())
-      );
-      setFilteredModels(filtered);
-    }
-  };
-
-  const handleSelectBrand = (brand: string) => {
-    setFormData(prev => ({
-      ...prev,
-      carBrand: brand,
-      carModel: '' // Скидаємо модель при зміні марки
-    }));
-    setShowBrands(false);
-    setBrandSearchQuery('');
-    setFilteredBrands(Object.keys(CAR_BRANDS).sort());
-    setFilteredModels(CAR_BRANDS[brand] || []);
-  };
-
-  const handleSelectModel = (model: string) => {
-    setFormData(prev => ({ ...prev, carModel: model }));
-    setShowModels(false);
-    setModelSearchQuery('');
-  };
-
-  const handleCarNumberChange = (text: string) => {
-    // Видаляємо всі пробіли
-    const cleanedText = text.replace(/\s/g, '');
-
-    // Перетворюємо на великі літери
-    const upperText = cleanedText.toUpperCase();
-
-    // Форматуємо номер з пробілами
-    let formattedText = upperText;
-    if (upperText.length > 2) {
-      formattedText = upperText.slice(0, 2) + ' ' + upperText.slice(2);
-    }
-    if (upperText.length > 6) {
-      formattedText = formattedText.slice(0, 7) + ' ' + formattedText.slice(7);
-    }
-
-    setFormData(prev => ({ ...prev, carNumber: formattedText }));
-
-    // Перевіряємо номер при кожній зміні
-    const error = getCarNumberError(formattedText);
-    setErrors(prev => ({ ...prev, carNumber: error || '' }));
-    setTouched(prev => ({ ...prev, carNumber: true }));
-  };
-
-  const validateForm = () => {
-    setTouched({ carBrand: true, carModel: true, carColor: true, carNumber: true, yearsOfExperience: true });
-    const newErrors = {
-      carBrand: !formData.carBrand ? t("Вкажіть марку автомобіля") : '',
-      carModel: !formData.carModel ? t("Вкажіть модель автомобіля") : '',
-      carColor: !formData.carColor ? t("Вкажіть колір автомобіля") : '',
-      carNumber: getCarNumberError(formData.carNumber) || '',
-      yearsOfExperience: !formData.yearsOfExperience
-        ? t("Вкажіть досвід водіння")
-        : !Number.isSafeInteger(Number(formData.yearsOfExperience)) || Number(formData.yearsOfExperience) < 0
-          ? t("Вкажіть коректний досвід водіння")
-          : '',
-    };
-
-    setErrors(newErrors);
-    return !Object.values(newErrors).some(error => error);
-  };
-
-  const handleNext = () => {
-    if (validateForm()) {
-      navigation.navigate('DriverLicenseInfo', {
-        fullName,
-        email,
-        phone,
-        carModel: `${formData.carBrand} ${formData.carModel}`,
-        carColor: formData.carColor,
-        carNumber: formData.carNumber,
-        yearsOfExperience: formData.yearsOfExperience,
-      });
-    }
-  };
-
-  const handleBrandFocus = () => {
-    Keyboard.dismiss();
-    setShowBrands(true);
-  };
-
-  const handleModelFocus = () => {
-    Keyboard.dismiss();
-    if (formData.carBrand) {
-      setShowModels(true);
-    }
-  };
-
-  const handleBrandBlur = () => {
-    // Нехай випадаючий список залишається відкритим
-    setTouched(prev => ({ ...prev, carBrand: true }));
-  };
-
-  const handleModelBlur = () => {
-    // Нехай випадаючий список залишається відкритим
-    setTouched(prev => ({ ...prev, carModel: true }));
-  };
-
-  const handleBlur = (field: keyof typeof formData) => {
-    setTouched(prev => ({ ...prev, [field]: true }));
-
-    switch (field) {
-      case 'carBrand':
-        setErrors(prev => ({ ...prev, carBrand: !formData.carBrand ? t("Марка автомобіля обов'язкова") : '' }));
-        break;
-      case 'carModel':
-        setErrors(prev => ({ ...prev, carModel: !formData.carModel ? t("Модель автомобіля обов'язкова") : '' }));
-        break;
-      case 'carColor':
-        setErrors(prev => ({ ...prev, carColor: !formData.carColor ? t("Колір автомобіля обов'язковий") : '' }));
-        break;
-      case 'carNumber':
-        setErrors(prev => ({ ...prev, carNumber: getCarNumberError(formData.carNumber) || '' }));
-        break;
-      case 'yearsOfExperience':
-        setErrors(prev => ({
-          ...prev,
-          yearsOfExperience: !formData.yearsOfExperience
-            ? t("Досвід водіння обов'язковий")
-            : !Number.isSafeInteger(Number(formData.yearsOfExperience)) || Number(formData.yearsOfExperience) < 0
-              ? t("Введіть коректний досвід водіння")
-              : '',
-        }));
-        break;
-    }
-  };
-
+  const options =
+    field === "brand"
+      ? Object.keys(CAR_BRANDS)
+          .filter((brand) =>
+            brand.toLowerCase().includes(draft.carBrand.toLowerCase()),
+          )
+          .slice(0, 6)
+      : field === "model"
+        ? (CAR_BRANDS[draft.carBrand] ?? [])
+            .filter((model) =>
+              model.toLowerCase().includes(draft.carModel.toLowerCase()),
+            )
+            .slice(0, 6)
+        : [];
   return (
-    <AuthScreenFrame>
-    <View
-      style={styles.container}
+    <AuthLayout
+      title={t("Інформація про автомобіль")}
+      description={t("Вкажіть дані вашого автомобіля")}
+      step={3}
+      onBack={() => navigation.goBack()}
     >
-      <View style={styles.container}>
-          <LinearGradient
-            colors={['#1A1A1A', '#2A2A2A']}
-            style={styles.background}
-          />
-
-          {/* Decorative circles */}
-          <View style={styles.circle1} />
-          <View style={styles.circle2} />
-          <View style={styles.circle3} />
-
-          <Animatable.View
-            animation={reducedMotion ? undefined : 'fadeIn'}
-            style={styles.header}
-          >
-            <Text style={styles.title}>{t("Інформація про автомобіль")}</Text>
-            <Text style={styles.subtitle}>{t("Вкажіть дані вашого автомобіля")}</Text>
-          </Animatable.View>
-
-          <Animatable.View
-            animation={reducedMotion ? undefined : 'slideInUp'}
-            delay={500}
-            style={[
-              styles.form,
-
-            ]}
-          >
-            <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
-              <TextInput
-                mode="outlined"
-                label={t("Марка автомобіля")}
-                value={formData.carBrand}
-                onFocus={handleBrandFocus}
-                onBlur={handleBrandBlur}
-                style={styles.input}
-                left={<TextInput.Icon icon="car" color="#FF3B30" />}
-                right={<TextInput.Icon icon={showBrands ? "chevron-up" : "chevron-down"} color="#FF3B30" />}
-                error={touched.carBrand && !!errors.carBrand}
-                theme={{
-                  colors: {
-                    primary: '#FF3B30',
-                    error: '#FF3B30',
-                    text: '#FFFFFF',
-                    placeholder: 'rgba(255, 255, 255, 0.7)',
-                    background: 'transparent',
-                    onSurfaceVariant: 'rgba(255, 255, 255, 0.7)',
-                  },
-                }}
-                textColor="#FFFFFF"
-                outlineColor="transparent"
-                activeOutlineColor="transparent"
-                outlineStyle={{ borderRadius: 16 }}
-              />
-            </BlurView>
-            <HelperText type="error" visible={touched.carBrand && !!errors.carBrand} style={styles.errorText}>
-              {t(errors.carBrand)}
-            </HelperText>
-
-            {showBrands && (
-              <Animatable.View
-                animation={reducedMotion ? undefined : 'fadeIn'}
-                style={styles.dropdownContainer}
-              >
-                <BlurView intensity={20} pointerEvents="box-none" style={styles.dropdown}>
-                  <Searchbar
-                    placeholder={t("Пошук марки")}
-                    onChangeText={handleBrandSearch}
-                    value={brandSearchQuery}
-                    style={styles.searchBar}
-                    iconColor="#FF3B30"
-                    inputStyle={{ color: '#FFFFFF' }}
-                    placeholderTextColor="rgba(255, 255, 255, 0.7)"
-                    theme={{
-                      colors: {
-                        primary: '#FF3B30',
-                        text: '#FFFFFF',
-                        placeholder: 'rgba(255, 255, 255, 0.7)',
-                      },
-                    }}
-                  />
-                  <ScrollView style={styles.modelList}>
-                    {filteredBrands.map((brand, index) => (
-                      <List.Item
-                        key={index}
-                        title={brand}
-                        onPress={() => handleSelectBrand(brand)}
-                        titleStyle={styles.modelItemText}
-                        style={styles.modelItem}
-                        theme={{
-                          colors: {
-                            text: '#FFFFFF',
-                          },
-                        }}
-                      />
-                    ))}
-                  </ScrollView>
-                </BlurView>
-              </Animatable.View>
-            )}
-
-            <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
-              <TextInput
-                mode="outlined"
-                label={t("Модель автомобіля")}
-                value={formData.carModel}
-                onFocus={handleModelFocus}
-                onBlur={handleModelBlur}
-                style={styles.input}
-                left={<TextInput.Icon icon="car-info" color="#FF3B30" />}
-                right={<TextInput.Icon icon={showModels ? "chevron-up" : "chevron-down"} color="#FF3B30" />}
-                error={touched.carModel && !!errors.carModel}
-                disabled={!formData.carBrand}
-                theme={{
-                  colors: {
-                    primary: '#FF3B30',
-                    error: '#FF3B30',
-                    text: '#FFFFFF',
-                    placeholder: 'rgba(255, 255, 255, 0.7)',
-                    background: 'transparent',
-                    onSurfaceVariant: 'rgba(255, 255, 255, 0.7)',
-                  },
-                }}
-                textColor="#FFFFFF"
-                outlineColor="transparent"
-                activeOutlineColor="transparent"
-                outlineStyle={{ borderRadius: 16 }}
-              />
-            </BlurView>
-            <HelperText type="error" visible={touched.carModel && !!errors.carModel} style={styles.errorText}>
-              {t(errors.carModel)}
-            </HelperText>
-
-            {showModels && formData.carBrand && (
-              <Animatable.View
-                animation={reducedMotion ? undefined : 'fadeIn'}
-                style={styles.dropdownContainer}
-              >
-                <BlurView intensity={20} pointerEvents="box-none" style={styles.dropdown}>
-                  <Searchbar
-                    placeholder={t("Пошук моделі")}
-                    onChangeText={handleModelSearch}
-                    value={modelSearchQuery}
-                    style={styles.searchBar}
-                    iconColor="#FF3B30"
-                    inputStyle={{ color: '#FFFFFF' }}
-                    placeholderTextColor="rgba(255, 255, 255, 0.7)"
-                    theme={{
-                      colors: {
-                        primary: '#FF3B30',
-                        text: '#FFFFFF',
-                        placeholder: 'rgba(255, 255, 255, 0.7)',
-                      },
-                    }}
-                  />
-                  <ScrollView style={styles.modelList}>
-                    {filteredModels.map((model, index) => (
-                      <List.Item
-                        key={index}
-                        title={model}
-                        onPress={() => handleSelectModel(model)}
-                        titleStyle={styles.modelItemText}
-                        style={styles.modelItem}
-                        theme={{
-                          colors: {
-                            text: '#FFFFFF',
-                          },
-                        }}
-                      />
-                    ))}
-                  </ScrollView>
-                </BlurView>
-              </Animatable.View>
-            )}
-
-            <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
-              <TextInput
-                mode="outlined"
-                label={t("Колір автомобіля")}
-                value={formData.carColor}
-                onChangeText={(text) => setFormData({ ...formData, carColor: text })}
-                onBlur={() => handleBlur('carColor')}
-                style={styles.input}
-                left={<TextInput.Icon icon="palette" color="#FF3B30" />}
-                error={touched.carColor && !!errors.carColor}
-                theme={{
-                  colors: {
-                    primary: '#FF3B30',
-                    error: '#FF3B30',
-                    text: '#FFFFFF',
-                    placeholder: 'rgba(255, 255, 255, 0.7)',
-                    background: 'transparent',
-                    onSurfaceVariant: 'rgba(255, 255, 255, 0.7)',
-                  },
-                }}
-                textColor="#FFFFFF"
-                outlineColor="transparent"
-                activeOutlineColor="transparent"
-                outlineStyle={{ borderRadius: 16 }}
-              />
-            </BlurView>
-            <HelperText type="error" visible={touched.carColor && !!errors.carColor} style={styles.errorText}>
-              {t(errors.carColor)}
-            </HelperText>
-
-            <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
-              <TextInput
-                mode="outlined"
-                label={t("Номер автомобіля")}
-                value={formData.carNumber}
-                onChangeText={handleCarNumberChange}
-                style={styles.input}
-                left={<TextInput.Icon icon="car-info" color="#FF3B30" />}
-                error={touched.carNumber && !!errors.carNumber}
-                theme={{
-                  colors: {
-                    primary: '#FF3B30',
-                    error: '#FF3B30',
-                    text: '#FFFFFF',
-                    placeholder: 'rgba(255, 255, 255, 0.7)',
-                    background: 'transparent',
-                    onSurfaceVariant: 'rgba(255, 255, 255, 0.7)',
-                  },
-                }}
-                textColor="#FFFFFF"
-                outlineColor="transparent"
-                activeOutlineColor="transparent"
-                outlineStyle={{ borderRadius: 16 }}
-                placeholder="AA 0000 AA"
-                maxLength={10}
-              />
-            </BlurView>
-            <HelperText type="error" visible={touched.carNumber && !!errors.carNumber} style={styles.errorText}>
-              {t(errors.carNumber)}
-            </HelperText>
-
-            <BlurView intensity={20} pointerEvents="box-none" style={styles.inputContainer}>
-              <TextInput
-                mode="outlined"
-                label={t("Досвід водіння (роки)")}
-                value={formData.yearsOfExperience}
-                onChangeText={(text) => setFormData({ ...formData, yearsOfExperience: text })}
-                onBlur={() => handleBlur('yearsOfExperience')}
-                keyboardType="numeric"
-                style={styles.input}
-                left={<TextInput.Icon icon="clock" color="#FF3B30" />}
-                error={touched.yearsOfExperience && !!errors.yearsOfExperience}
-                theme={{
-                  colors: {
-                    primary: '#FF3B30',
-                    error: '#FF3B30',
-                    text: '#FFFFFF',
-                    placeholder: 'rgba(255, 255, 255, 0.7)',
-                    background: 'transparent',
-                    onSurfaceVariant: 'rgba(255, 255, 255, 0.7)',
-                  },
-                }}
-                textColor="#FFFFFF"
-                outlineColor="transparent"
-                activeOutlineColor="transparent"
-                outlineStyle={{ borderRadius: 16 }}
-              />
-            </BlurView>
-            <HelperText type="error" visible={touched.yearsOfExperience && !!errors.yearsOfExperience} style={styles.errorText}>
-              {t(errors.yearsOfExperience)}
-            </HelperText>
-
-            <Animatable.View
-              animation={reducedMotion ? undefined : 'fadeIn'}
-              delay={700}
-              style={styles.buttonContainer}
-            >
-              <BlurView intensity={20} pointerEvents="box-none" style={styles.blurContainer}>
-                <Button
-                  mode="contained"
-                  onPress={handleNext}
-                  style={styles.button}
-                  contentStyle={styles.buttonContent}
-                  labelStyle={styles.buttonLabel}
-                  icon="arrow-right"
-                >{t("Далі")}</Button>
-              </BlurView>
-            </Animatable.View>
-          </Animatable.View>
+      <AppInput
+        label={t("Марка автомобіля")}
+        value={draft.carBrand}
+        onChangeText={(carBrand) => update({ carBrand, carModel: "" })}
+        onFocus={() => setField("brand")}
+        error={submitted ? errors.carBrand : null}
+        icon="car-outline"
+      />
+      <AppInput
+        label={t("Модель автомобіля")}
+        value={draft.carModel}
+        onChangeText={(carModel) => update({ carModel })}
+        onFocus={() => setField("model")}
+        error={submitted ? errors.carModel : null}
+        icon="car-sport-outline"
+      />
+      {options.length ? (
+        <View style={{ gap: space.xs }}>
+          <AppText variant="caption" tone="secondary">
+            {t("ui.suggestions")}
+          </AppText>
+          {options.map((option) => (
+            <AppButton
+              key={option}
+              label={option}
+              variant="secondary"
+              onPress={() => {
+                if (field === "brand")
+                  update({ carBrand: option, carModel: "" });
+                else update({ carModel: option });
+                setField(null);
+              }}
+            />
+          ))}
         </View>
-    </View>
-
-    </AuthScreenFrame>
+      ) : null}
+      <AppInput
+        label={t("Колір автомобіля")}
+        value={draft.carColor}
+        onChangeText={(carColor) => update({ carColor })}
+        onFocus={() => setField(null)}
+        error={submitted ? errors.carColor : null}
+        icon="color-palette-outline"
+      />
+      <AppInput
+        label={t("Номер автомобіля")}
+        value={draft.carNumber}
+        onChangeText={(value) => update({ carNumber: value.toUpperCase() })}
+        onFocus={() => setField(null)}
+        error={submitted ? errors.carNumber : null}
+        icon="reader-outline"
+        autoCapitalize="characters"
+        placeholder="AA 1234 BB"
+        maxLength={10}
+      />
+      <AppInput
+        label={t("Досвід водіння (роки)")}
+        value={draft.yearsOfExperience}
+        onChangeText={(yearsOfExperience) => update({ yearsOfExperience })}
+        onFocus={() => setField(null)}
+        error={submitted ? errors.yearsOfExperience : null}
+        icon="time-outline"
+        keyboardType="number-pad"
+      />
+      <AppButton
+        label={t("Далі")}
+        icon="arrow-forward"
+        onPress={() => {
+          setSubmitted(true);
+          if (!Object.values(errors).some(Boolean))
+            navigation.navigate("DriverLicenseInfo", {
+              ...route.params,
+              carModel: `${draft.carBrand.trim()} ${draft.carModel.trim()}`,
+              carColor: draft.carColor.trim(),
+              carNumber: draft.carNumber,
+              yearsOfExperience: draft.yearsOfExperience,
+            });
+        }}
+      />
+    </AuthLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1A1A1A',
-  },
-  background: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
-  },
-  form: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  inputContainer: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  input: {
-    backgroundColor: 'transparent',
-    borderRadius: 16,
-    minHeight: 56,
-    fontSize: 16,
-  },
-  errorText: {
-    color: '#FF3B30',
-    fontSize: 14,
-  },
-  buttonContainer: {
-    marginTop: 24,
-  },
-  blurContainer: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  button: {
-    minHeight: 56,
-    borderRadius: 16,
-    backgroundColor: '#FF3B30',
-    shadowColor: '#FF3B30',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  buttonContent: {
-    minHeight: 56,
-  },
-  buttonLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  circle1: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
-    top: -50,
-    right: -50,
-  },
-  circle2: {
-    position: 'absolute',
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
-    bottom: 100,
-    left: -50,
-  },
-  circle3: {
-    position: 'absolute',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
-    bottom: -30,
-    right: 50,
-  },
-  dropdownContainer: {
-    position: 'absolute',
-    top: 120,
-    left: 24,
-    right: 24,
-    zIndex: 1000,
-    maxHeight: 300,
-  },
-  dropdown: {
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    overflow: 'hidden',
-  },
-  searchBar: {
-    backgroundColor: 'transparent',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 0,
-  },
-  modelList: {
-    maxHeight: 250,
-  },
-  modelItem: {
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  modelItemText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-  },
-});

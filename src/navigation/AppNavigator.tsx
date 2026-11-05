@@ -1,3 +1,5 @@
+import { darkColors, lightColors } from '../design-system/tokens';
+import { DriverDraftProvider } from '../features/auth/DriverDraft';
 import React, { useMemo } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { sessionArea } from './access';
@@ -46,7 +48,7 @@ export default function AppNavigator() {
         background: theme.colors.background,
         card: theme.colors.surface,
         text: theme.colors.onSurface,
-        border: isDark ? '#274150' : '#E8DEC9',
+        border: (isDark ? darkColors : lightColors).border,
         primary: theme.colors.primary,
         notification: theme.colors.error,
       },
@@ -67,7 +69,7 @@ export default function AppNavigator() {
 
 export function AuthNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <DriverDraftProvider><Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Login" component={Login} />
       <Stack.Screen name="RoleSelection" component={RoleSelection} />
       <Stack.Screen name="PassengerRegistration" component={PassengerRegistration} />
@@ -78,7 +80,7 @@ export function AuthNavigator() {
       <Stack.Screen name="DriverLicenseInfo" component={DriverLicenseInfo} />
       <Stack.Screen name="DriverPasswordSetup" component={DriverPasswordSetup} />
       <Stack.Screen name="DriverVerification" component={DriverVerification} />
-    </Stack.Navigator>
+    </Stack.Navigator></DriverDraftProvider>
   );
 }
 export function PassengerNavigator() {

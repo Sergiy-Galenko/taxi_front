@@ -1,48 +1,40 @@
-import { MD3DarkTheme, MD3LightTheme, configureFonts } from 'react-native-paper';
-
-const fontConfig = {
-  fontFamily: 'System',
-};
-
-const sharedTheme = {
-  roundness: 12,
-  fonts: configureFonts({ config: fontConfig }),
-  animation: {
-    scale: 1.0,
-  },
-};
-
-export const lightTheme = {
-  ...MD3LightTheme,
-  colors: {
-    ...MD3LightTheme.colors,
-    primary: '#4F8FCB',
-    secondary: '#8C8CD6',
-    error: '#D96B5A',
-    background: '#F2F2F7',
-    surface: '#FFFFFF',
-    text: '#222222',
-    placeholder: '#8E8E93',
-    backdrop: 'rgba(0, 0, 0, 0.5)',
-  },
-  ...sharedTheme,
-};
-
-export const darkTheme = {
-  ...MD3DarkTheme,
-  colors: {
-    ...MD3DarkTheme.colors,
-    primary: '#63A6FF',
-    secondary: '#8FB7E8',
-    error: '#F07D72',
-    background: '#08131B',
-    surface: '#12212B',
-    text: '#F3F7FA',
-    placeholder: '#93A8B7',
-    backdrop: 'rgba(0, 0, 0, 0.7)',
-  },
-  ...sharedTheme,
-};
-
+import {
+  MD3DarkTheme,
+  MD3LightTheme,
+  configureFonts,
+} from "react-native-paper";
+import {
+  Colors,
+  darkColors,
+  lightColors,
+  radii,
+} from "../design-system/tokens";
+function buildTheme(dark: boolean, colors: Colors) {
+  const base = dark ? MD3DarkTheme : MD3LightTheme;
+  return {
+    ...base,
+    roundness: radii.md,
+    fonts: configureFonts({ config: { fontFamily: "System" } }),
+    colors: {
+      ...base.colors,
+      primary: colors.primary,
+      onPrimary: colors.onPrimary,
+      secondary: colors.secondary,
+      background: colors.background,
+      surface: colors.surface,
+      surfaceVariant: colors.inset,
+      onSurface: colors.text,
+      onSurfaceVariant: colors.secondary,
+      onBackground: colors.text,
+      outline: colors.border,
+      error: colors.danger,
+      text: colors.text,
+      placeholder: colors.muted,
+      backdrop: colors.scrim,
+    },
+  };
+}
+export const lightTheme = buildTheme(false, lightColors);
+export const darkTheme = buildTheme(true, darkColors);
 export const theme = lightTheme;
 export type AppTheme = typeof lightTheme;

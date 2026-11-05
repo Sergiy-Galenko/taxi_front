@@ -1,7 +1,7 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 export default tseslint.config(
-  { ignores: ['node_modules/**', 'dist/**', 'coverage/**', 'ios/**', 'android/**', '.expo/**'] },
+  { ignores: ['node_modules/**', 'dist/**', 'dist-web/**', 'coverage/**', 'ios/**', 'android/**', '.expo/**'] },
   { files: ['jest*.js'], languageOptions: { globals: { jest: 'readonly' } }, rules: { '@typescript-eslint/no-require-imports': 'off' } },
   js.configs.recommended,
   ...tseslint.configs.recommended,

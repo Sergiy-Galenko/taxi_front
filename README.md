@@ -25,3 +25,7 @@ Address autocomplete sends typed searches to the configured places service (Phot
 Test form population requires both a development build and `EXPO_PUBLIC_ENABLE_PREVIEW=true`. There is no guest driver preview or embedded login account.
 
 Read [the engineering audit](docs/AUDIT.md) for findings, code locations, verification evidence, backend requirements and the complete manual checklist. [Changed files](docs/audit/changed-files.md) lists the review surface.
+
+## UI redesign
+
+Read [the redesign report](docs/redesign/REPORT.md), [design specification](docs/redesign/DESIGN.md), and [screenshot gallery](docs/redesign/SCREENSHOTS.md). For browser visual checks, run `npx playwright install chromium` then `npm run test:ui`. The explicit development-only browser gallery does not inject credentials or successful API results. Native builds retain authenticated navigation.

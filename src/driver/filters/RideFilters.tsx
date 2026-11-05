@@ -1,11 +1,14 @@
-import React from 'react';
-import { View, Text } from 'react-native';
-
-const RideFilters = () => (
-  <View>
-    <Text>Фільтри поїздок</Text>
-    {/* Тут будуть фільтри за часом, ціною, відстанню тощо */}
-  </View>
-);
-
-export default RideFilters; 
+import React from "react";
+import { AppCard, AppText } from "../../design-system/components/ui";
+import { useI18n } from "../../hooks/useI18n";
+export default function RideFilters() {
+  const { t } = useI18n();
+  return (
+    <AppCard>
+      <AppText variant="card">{t("ui.requestPreferences")}</AppText>
+      <AppText variant="secondary" tone="secondary">
+        {t("ui.requestPreferencesHint")}
+      </AppText>
+    </AppCard>
+  );
+}

@@ -1,249 +1,130 @@
-import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import IntegrationNotice from '../shared/components/IntegrationNotice';
-import PassengerScreenLayout from '../components/passenger/PassengerScreenLayout';
-import { TRIP_HISTORY } from '../data/passenger';
-import { useI18n } from '../hooks/useI18n';
-import { getPaymentMethodTranslationKey } from '../hooks/useNotifications';
-import { PassengerPalette } from '../theme/passenger';
-import { usePassengerTheme } from '../hooks/usePassengerTheme';
-import { RootStackParamList } from '../types/navigation';
-
-type TripHistoryScreenProps = NativeStackScreenProps<RootStackParamList, 'TripHistory'>;
-
-const paymentLabelToKey = (paymentLabel: string) => {
-  if (paymentLabel.toLowerCase().includes('apple')) {
-    return 'apple_pay' as const;
-  }
-
-  if (paymentLabel.toLowerCase().includes('cash')) {
-    return 'cash' as const;
-  }
-
-  return 'visa' as const;
-};
-
-export default function TripHistoryScreen({ navigation }: TripHistoryScreenProps) {
+import React, { useState } from "react";
+import { FlatList, Modal, ScrollView, View } from "react-native";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import PassengerScreenLayout from "../components/passenger/PassengerScreenLayout";
+import RouteSummaryCard from "../components/passenger/RouteSummaryCard";
+import {
+  AppButton,
+  AppCard,
+  AppText,
+  InfoRow,
+  ScreenContainer,
+  TripStatusBadge,
+  pageStyles,
+} from "../design-system/components/ui";
+import { useAdaptiveLayout } from "../design-system/hooks/useAdaptiveLayout";
+import { space } from "../design-system/tokens";
+import IntegrationNotice from "../shared/components/IntegrationNotice";
+import { useI18n } from "../hooks/useI18n";
+import { TRIP_HISTORY } from "../data/passenger";
+import { TripHistoryEntry } from "../types/passenger";
+import { RootStackParamList } from "../types/navigation";
+export default function TripHistoryScreen({
+  navigation,
+}: NativeStackScreenProps<RootStackParamList, "TripHistory">) {
   const { t } = useI18n();
-  const { palette, radius } = usePassengerTheme();
-  const styles = useMemo(() => createStyles(palette, radius), [palette, radius]);
-
+  const { sidePanel } = useAdaptiveLayout();
+  const [selected, setSelected] = useState<TripHistoryEntry | null>(null);
+  const details = selected ? (
+    <View style={{ gap: space.xl }}>
+      <AppText variant="section">{selected.dateLabel}</AppText>
+      <RouteSummaryCard
+        pickup={selected.pickup}
+        destination={selected.destination}
+      />
+      <AppCard>
+        <InfoRow
+          label={t("history.fare")}
+          value={t("common.priceUah", { amount: selected.price })}
+        />
+        <InfoRow label={t("history.paidWith")} value={selected.paymentLabel} />
+        <TripStatusBadge label={selected.status} icon="receipt-outline" />
+      </AppCard>
+      <AppButton
+        label={t("history.repeatRide")}
+        icon="reload-outline"
+        onPress={() => {
+          setSelected(null);
+          navigation.navigate("Home", {
+            from: selected.pickup,
+            to: selected.destination,
+            rideType: selected.rideType,
+          });
+        }}
+      />
+    </View>
+  ) : null;
   return (
     <PassengerScreenLayout
       activeRoute="TripHistory"
-      subtitle={t('history.subtitle')}
-      title={t('history.title')}
+      title={t("ui.yourJourneys")}
+      subtitle={t("ui.historyHint")}
     >
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <IntegrationNotice detail="integration.history" />
-        {TRIP_HISTORY.map((trip) => (
-          <View key={trip.id} style={styles.tripCard}>
-            <View style={styles.tripHeader}>
-              <View>
-                <Text style={styles.tripDate}>{trip.dateLabel}</Text>
-                <Text style={styles.tripStatus}>{t('history.completed')}</Text>
-              </View>
-              <View style={styles.tripPill}>
-                <Ionicons color={palette.text} name="car-outline" size={14} />
-                <Text style={styles.tripPillText}>{t(`rideOptions.${trip.rideType}.label`)}</Text>
-              </View>
-            </View>
-
-            <View style={styles.routeGroup}>
-              <View style={styles.routeRow}>
-                <View style={[styles.routeDot, styles.pickupDot]} />
-                <View style={styles.routeText}>
-                  <Text style={styles.routeLabel}>{t('history.pickup')}</Text>
-                  <Text style={styles.routeValue}>{trip.pickup}</Text>
+      <View style={{ flex: 1, flexDirection: "row" }}>
+        <FlatList
+          data={TRIP_HISTORY}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={pageStyles.content}
+          style={{ flex: 1 }}
+          ListEmptyComponent={
+            <IntegrationNotice detail="integration.history" />
+          }
+          renderItem={({ item }) => (
+            <View style={{ marginBottom: space.lg }}>
+              <AppCard
+                onPress={() => setSelected(item)}
+                accessibilityLabel={`${item.dateLabel}, ${item.pickup}, ${item.destination}`}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: space.md,
+                  }}
+                >
+                  <AppText variant="card">{item.dateLabel}</AppText>
+                  <AppText variant="card">
+                    {t("common.priceUah", { amount: item.price })}
+                  </AppText>
                 </View>
-              </View>
-
-              <View style={styles.routeDivider} />
-
-              <View style={styles.routeRow}>
-                <View style={[styles.routeDot, styles.destinationDot]} />
-                <View style={styles.routeText}>
-                  <Text style={styles.routeLabel}>{t('history.destination')}</Text>
-                  <Text style={styles.routeValue}>{trip.destination}</Text>
-                </View>
-              </View>
+                <InfoRow
+                  label={t("home.pickupLabel")}
+                  value={item.pickup}
+                  icon="location-outline"
+                />
+                <InfoRow
+                  label={t("home.destinationLabel")}
+                  value={item.destination}
+                  icon="flag-outline"
+                />
+                <TripStatusBadge label={item.status} icon="receipt-outline" />
+              </AppCard>
             </View>
-
-            <View style={styles.tripFooter}>
-              <View>
-                <Text style={styles.metaLabel}>{t('history.paidWith')}</Text>
-                <Text style={styles.metaValue}>{t(getPaymentMethodTranslationKey(paymentLabelToKey(trip.paymentLabel)))}</Text>
-              </View>
-              <View>
-                <Text style={styles.metaLabel}>{t('history.fare')}</Text>
-                <Text style={styles.priceValue}>{t('common.priceUah', { amount: trip.price })}</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() =>
-                navigation.navigate('Home', {
-                  from: trip.pickup,
-                  to: trip.destination,
-                  rideType: trip.rideType,
-                })
-              }
-              style={styles.repeatButton}
-            >
-              <Text style={styles.repeatButtonText}>{t('history.repeatRide')}</Text>
-              <Ionicons color={palette.text} name="arrow-forward" size={18} />
-            </TouchableOpacity>
-          </View>
-        ))}
-      </ScrollView>
+          )}
+        />
+        <ScrollView
+          style={{ display: sidePanel && selected ? "flex" : "none", flex: 1 }}
+          contentContainerStyle={pageStyles.content}
+        >
+          {details}
+        </ScrollView>
+      </View>
+      <Modal
+        visible={!!selected && !sidePanel}
+        animationType="none"
+        onRequestClose={() => setSelected(null)}
+      >
+        <ScreenContainer scroll>
+          <AppButton
+            label={t("accessibility.back")}
+            variant="ghost"
+            icon="arrow-back"
+            onPress={() => setSelected(null)}
+          />
+          {details}
+        </ScreenContainer>
+      </Modal>
     </PassengerScreenLayout>
   );
 }
-
-const createStyles = (palette: PassengerPalette, radius: typeof import('../theme/passenger').passengerRadius) => StyleSheet.create({
-  content: {
-    gap: 18,
-    paddingBottom: 150,
-    paddingHorizontal: 20,
-    paddingTop: 18,
-  },
-  analyticsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  analyticsCard: {
-    backgroundColor: palette.surface,
-    borderColor: palette.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    flex: 1,
-    padding: 16,
-  },
-  analyticsValue: {
-    color: palette.text,
-    fontSize: 20,
-    fontWeight: '800',
-    marginBottom: 6,
-  },
-  analyticsLabel: {
-    color: palette.mutedText,
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 17,
-  },
-  tripCard: {
-    backgroundColor: palette.surface,
-    borderColor: palette.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: 18,
-    padding: 18,
-  },
-  tripHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  tripDate: {
-    color: palette.text,
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  tripStatus: {
-    color: palette.mutedText,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  tripPill: {
-    alignItems: 'center',
-    backgroundColor: palette.surfaceMuted,
-    borderRadius: 999,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  tripPillText: {
-    color: palette.text,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  routeGroup: {
-    gap: 12,
-  },
-  routeRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  routeDot: {
-    borderRadius: 6,
-    height: 12,
-    marginTop: 5,
-    width: 12,
-  },
-  pickupDot: {
-    backgroundColor: palette.accent,
-  },
-  destinationDot: {
-    backgroundColor: palette.danger,
-  },
-  routeText: {
-    flex: 1,
-    gap: 4,
-  },
-  routeLabel: {
-    color: palette.mutedText,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  routeValue: {
-    color: palette.text,
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 21,
-  },
-  routeDivider: {
-    backgroundColor: palette.border,
-    height: 1,
-    marginLeft: 24,
-  },
-  tripFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  metaLabel: {
-    color: palette.mutedText,
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  metaValue: {
-    color: palette.text,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  priceValue: {
-    color: palette.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  repeatButton: {
-    alignItems: 'center',
-    backgroundColor: palette.primary,
-    borderRadius: radius.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-  },
-  repeatButtonText: {
-    color: palette.text,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-});
